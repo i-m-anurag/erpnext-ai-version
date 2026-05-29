@@ -111,6 +111,12 @@ bench build --app ai_procurement
 
 **Requires:** Frappe v16 and ERPNext v16 (the app extends ERPNext's Material Request).
 
+### Docker deployment
+
+This repo ships its own containerized deployment (custom image + compose stack)
+under [`deploy/`](deploy/README.md) — Ubuntu 24.04 → Python 3.14 → bench →
+frappe + erpnext + this app, plus MariaDB and Redis. See `deploy/README.md`.
+
 ---
 
 ## Contributing

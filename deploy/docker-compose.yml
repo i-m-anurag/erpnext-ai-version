@@ -1,0 +1,81 @@
+# ============================================================================
+# ERPNext v16 + AI Procurement stack
+#   app          : all-in-one bench (web + socketio + workers + scheduler)
+#   db           : MariaDB 10.6
+#   redis-cache  : Redis for cache
+#   redis-queue  : Redis for queue + socketio (persisted)
+# Front this with your own external Nginx + manual TLS certs.
+#
+# Build context is the repo root (..), Dockerfile is deploy/Dockerfile, so the
+# whole custom app gets baked into the image.
+# ============================================================================
+name: erpnext-ai
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: erpnext-ai:latest
+    environment:
+      SITE_NAME: ${SITE_NAME}
+      DB_HOST: db:3306
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      REDIS_CACHE: redis-cache:6379
+      REDIS_QUEUE: redis-queue:6379
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    ports:
+      - "127.0.0.1:8080:8000"   # web  -> your nginx proxies here
+      - "127.0.0.1:9000:9000"   # socketio
+    depends_on:
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mariadb:10.6
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  redis-cache:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis-queue:
+    image: redis:7-alpine
+    volumes:
+      - redis-queue-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  sites:
+  db-data:
+  redis-queue-data:

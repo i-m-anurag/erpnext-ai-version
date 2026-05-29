@@ -1,0 +1,16 @@
+# Keep the Docker build context small and the baked-in app clean.
+# NOTE: deploy/ is intentionally NOT ignored — the Dockerfile needs
+# deploy/Procfile and deploy/docker-entrypoint.sh. The whole deploy/ folder
+# is removed from the copied app inside the image instead.
+
+.git
+.gitignore
+.github
+**/__pycache__
+*.py[cod]
+*.egg-info
+node_modules
+.env
+deploy/.env
+.DS_Store
+*.swp
