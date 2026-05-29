@@ -91,7 +91,10 @@ RUN bench build
 COPY --chown=frappe:frappe deploy/Procfile /home/frappe/frappe-bench/Procfile
 COPY --chown=frappe:frappe deploy/docker-entrypoint.sh /home/frappe/entrypoint.sh
 USER root
-RUN chmod +x /home/frappe/entrypoint.sh
+# Strip CRLF line endings (in case files were checked out on Windows) so the
+# entrypoint shebang and Procfile commands work inside the Linux container.
+RUN sed -i 's/\r$//' /home/frappe/entrypoint.sh /home/frappe/frappe-bench/Procfile \
+    && chmod +x /home/frappe/entrypoint.sh
 USER frappe
 
 EXPOSE 8000 9000

@@ -1,0 +1,17 @@
+# Normalize line endings to LF so the Docker image builds correctly regardless
+# of host OS. Without this, Windows checkouts produce CRLF that breaks the
+# container's shell entrypoint and Procfile.
+* text=auto eol=lf
+
+# Shell scripts and process files MUST be LF.
+*.sh text eol=lf
+Procfile text eol=lf
+
+# Binary assets — never touch.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
