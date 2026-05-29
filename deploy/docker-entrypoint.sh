@@ -34,6 +34,18 @@ until redis-cli -u "redis://$REDIS_CACHE" ping >/dev/null 2>&1; do
   sleep 2
 done
 
+# Sync the asset manifest with THIS image's build. The sites volume persists
+# across image rebuilds and can hold a stale assets.json (old bundle hashes),
+# which 404s the CSS/JS. Restoring the image's snapshot keeps them in sync.
+if [ -d /home/frappe/assets-image ]; then
+  echo "[entrypoint] Syncing asset manifest with image (prevents stale-volume 404s)..."
+  rm -rf sites/assets
+  cp -a /home/frappe/assets-image sites/assets
+  # Flush the cache redis so it can't serve a stale asset->hash mapping cached
+  # from a previous image build (cache-only redis; queue redis is separate).
+  redis-cli -u "redis://$REDIS_CACHE" flushall >/dev/null 2>&1 || true
+fi
+
 if [ ! -d "sites/$SITE_NAME" ]; then
   echo "[entrypoint] Creating site $SITE_NAME ..."
   bench new-site "$SITE_NAME" \

@@ -81,9 +81,14 @@ RUN rm -rf apps/ai_procurement/deploy \
          || printf '%s\n' "$(cat sites/apps.txt)" 'ai_procurement' > sites/apps.txt )
 
 # ---------------------------------------------------------------------------
-# 7. Build JS/CSS assets for all apps
+# 7. Build JS/CSS assets for all apps, then snapshot the asset manifest +
+#    symlinks to a path OUTSIDE the sites volume. The entrypoint restores this
+#    at boot so the (persisted) sites volume's assets.json always matches the
+#    image's bundle hashes — preventing 404s on CSS/JS after an image rebuild
+#    over an existing volume.
 # ---------------------------------------------------------------------------
-RUN bench build
+RUN bench build \
+    && cp -a sites/assets /home/frappe/assets-image
 
 # ---------------------------------------------------------------------------
 # 8. Runtime entrypoint + slimmed Procfile (no redis/watch processes)
