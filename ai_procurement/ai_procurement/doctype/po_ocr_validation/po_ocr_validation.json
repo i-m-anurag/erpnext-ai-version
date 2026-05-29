@@ -1,0 +1,178 @@
+{
+  "actions": [],
+  "autoname": "format:PO-OCR-{YYYY}-{#####}",
+  "creation": "2026-05-28 15:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "source_section",
+    "material_request",
+    "company",
+    "column_break_src",
+    "po_file",
+    "validation_section",
+    "validation_result",
+    "matched_count",
+    "mismatch_count",
+    "column_break_val",
+    "ocr_status",
+    "supplier_name",
+    "original_po_number",
+    "transaction_date",
+    "items_section",
+    "items",
+    "raw_section",
+    "ocr_raw_response"
+  ],
+  "fields": [
+    {
+      "fieldname": "source_section",
+      "fieldtype": "Section Break",
+      "label": "Source"
+    },
+    {
+      "fieldname": "material_request",
+      "fieldtype": "Link",
+      "label": "Material Request",
+      "options": "Material Request",
+      "reqd": 1,
+      "in_standard_filter": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "company",
+      "fieldtype": "Link",
+      "label": "Company",
+      "options": "Company"
+    },
+    {
+      "fieldname": "column_break_src",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "po_file",
+      "fieldtype": "Attach",
+      "label": "Uploaded PO Document",
+      "reqd": 1
+    },
+    {
+      "fieldname": "validation_section",
+      "fieldtype": "Section Break",
+      "label": "Validation Summary"
+    },
+    {
+      "fieldname": "validation_result",
+      "fieldtype": "Select",
+      "label": "Validation Result",
+      "options": "\nFully Matched\nPartial Match\nMismatch",
+      "read_only": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1
+    },
+    {
+      "fieldname": "matched_count",
+      "fieldtype": "Int",
+      "label": "Matched Items",
+      "read_only": 1
+    },
+    {
+      "fieldname": "mismatch_count",
+      "fieldtype": "Int",
+      "label": "Mismatched Items",
+      "read_only": 1
+    },
+    {
+      "fieldname": "column_break_val",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "ocr_status",
+      "fieldtype": "Select",
+      "label": "OCR Status",
+      "options": "\nProcessing\nExtracted\nFailed",
+      "read_only": 1
+    },
+    {
+      "fieldname": "supplier_name",
+      "fieldtype": "Data",
+      "label": "Supplier (from OCR)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "original_po_number",
+      "fieldtype": "Data",
+      "label": "PO Number (from OCR)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "transaction_date",
+      "fieldtype": "Date",
+      "label": "PO Date (from OCR)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "items_section",
+      "fieldtype": "Section Break",
+      "label": "Item Comparison"
+    },
+    {
+      "fieldname": "items",
+      "fieldtype": "Table",
+      "label": "Items",
+      "options": "PO OCR Validation Item",
+      "read_only": 1
+    },
+    {
+      "fieldname": "raw_section",
+      "fieldtype": "Section Break",
+      "label": "Raw OCR Data",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "ocr_raw_response",
+      "fieldtype": "Code",
+      "label": "OCR Raw Response (JSON)",
+      "options": "JSON",
+      "read_only": 1
+    }
+  ],
+  "index_web_pages_for_search": 0,
+  "links": [],
+  "modified": "2026-05-28 15:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "AI Procurement",
+  "name": "PO OCR Validation",
+  "naming_rule": "Expression",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Purchase User",
+      "share": 1,
+      "write": 1
+    }
+  ],
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "states": [],
+  "title_field": "material_request",
+  "track_changes": 1
+}
