@@ -1,0 +1,302 @@
+{
+  "actions": [],
+  "autoname": "format:COLL-{YYYY}-{#####}",
+  "creation": "2026-05-29 16:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "flow_label",
+    "source_section",
+    "source_doctype",
+    "source_name",
+    "company",
+    "column_break_src",
+    "target_doctype",
+    "uploaded_file",
+    "extraction_section",
+    "supplier_name",
+    "supplier",
+    "supplier_status",
+    "supplier_address",
+    "column_break_ext",
+    "document_number",
+    "document_date",
+    "currency",
+    "payment_terms",
+    "totals_section",
+    "subtotal",
+    "column_break_tot",
+    "tax_amount",
+    "column_break_tot2",
+    "grand_total",
+    "validation_section",
+    "validation_result",
+    "ocr_status",
+    "column_break_val",
+    "matched_count",
+    "mismatch_count",
+    "items_section",
+    "items",
+    "output_section",
+    "created_document",
+    "raw_section",
+    "ocr_raw_response"
+  ],
+  "fields": [
+    {
+      "fieldname": "flow_label",
+      "fieldtype": "Data",
+      "label": "Flow",
+      "read_only": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "source_section",
+      "fieldtype": "Section Break",
+      "label": "Source"
+    },
+    {
+      "fieldname": "source_doctype",
+      "fieldtype": "Link",
+      "label": "Source Document Type",
+      "options": "DocType",
+      "read_only": 1
+    },
+    {
+      "fieldname": "source_name",
+      "fieldtype": "Dynamic Link",
+      "label": "Source Document",
+      "options": "source_doctype",
+      "reqd": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1
+    },
+    {
+      "fieldname": "company",
+      "fieldtype": "Link",
+      "label": "Company",
+      "options": "Company"
+    },
+    {
+      "fieldname": "column_break_src",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "target_doctype",
+      "fieldtype": "Link",
+      "label": "Target Document Type",
+      "options": "DocType",
+      "read_only": 1
+    },
+    {
+      "fieldname": "uploaded_file",
+      "fieldtype": "Attach",
+      "label": "Uploaded Document",
+      "reqd": 1
+    },
+    {
+      "fieldname": "extraction_section",
+      "fieldtype": "Section Break",
+      "label": "Extracted Details"
+    },
+    {
+      "fieldname": "supplier_name",
+      "fieldtype": "Data",
+      "label": "Supplier Name (extracted)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "supplier",
+      "fieldtype": "Link",
+      "label": "Supplier (matched)",
+      "options": "Supplier"
+    },
+    {
+      "fieldname": "supplier_status",
+      "fieldtype": "Select",
+      "label": "Supplier Status",
+      "options": "\nMatched\nNot Found\nCreated",
+      "read_only": 1
+    },
+    {
+      "fieldname": "supplier_address",
+      "fieldtype": "Small Text",
+      "label": "Supplier Address (extracted)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "column_break_ext",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "document_number",
+      "fieldtype": "Data",
+      "label": "Document No. (extracted)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "document_date",
+      "fieldtype": "Date",
+      "label": "Document Date (extracted)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "currency",
+      "fieldtype": "Link",
+      "label": "Currency",
+      "options": "Currency",
+      "read_only": 1
+    },
+    {
+      "fieldname": "payment_terms",
+      "fieldtype": "Data",
+      "label": "Payment Terms (extracted)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "totals_section",
+      "fieldtype": "Section Break",
+      "label": "Totals (extracted)"
+    },
+    {
+      "fieldname": "subtotal",
+      "fieldtype": "Currency",
+      "label": "Subtotal",
+      "read_only": 1
+    },
+    {
+      "fieldname": "column_break_tot",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "tax_amount",
+      "fieldtype": "Currency",
+      "label": "Tax",
+      "read_only": 1
+    },
+    {
+      "fieldname": "column_break_tot2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "grand_total",
+      "fieldtype": "Currency",
+      "label": "Grand Total",
+      "read_only": 1,
+      "bold": 1
+    },
+    {
+      "fieldname": "validation_section",
+      "fieldtype": "Section Break",
+      "label": "Validation"
+    },
+    {
+      "fieldname": "validation_result",
+      "fieldtype": "Select",
+      "label": "Validation Result",
+      "options": "\nFully Matched\nPartial Match\nMismatch",
+      "read_only": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1
+    },
+    {
+      "fieldname": "ocr_status",
+      "fieldtype": "Select",
+      "label": "OCR Status",
+      "options": "\nProcessing\nExtracted\nFailed",
+      "read_only": 1
+    },
+    {
+      "fieldname": "column_break_val",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "matched_count",
+      "fieldtype": "Int",
+      "label": "Matched Items",
+      "read_only": 1
+    },
+    {
+      "fieldname": "mismatch_count",
+      "fieldtype": "Int",
+      "label": "Flagged Items",
+      "read_only": 1
+    },
+    {
+      "fieldname": "items_section",
+      "fieldtype": "Section Break",
+      "label": "Item Comparison"
+    },
+    {
+      "fieldname": "items",
+      "fieldtype": "Table",
+      "label": "Items",
+      "options": "Collatio Validation Item",
+      "read_only": 1
+    },
+    {
+      "fieldname": "output_section",
+      "fieldtype": "Section Break",
+      "label": "Created Document"
+    },
+    {
+      "fieldname": "created_document",
+      "fieldtype": "Dynamic Link",
+      "label": "Created Document",
+      "options": "target_doctype",
+      "read_only": 1
+    },
+    {
+      "fieldname": "raw_section",
+      "fieldtype": "Section Break",
+      "label": "Raw Extraction",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "ocr_raw_response",
+      "fieldtype": "Code",
+      "label": "Raw Extraction (JSON)",
+      "options": "JSON",
+      "read_only": 1
+    }
+  ],
+  "index_web_pages_for_search": 0,
+  "links": [],
+  "modified": "2026-05-29 16:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "AI Procurement",
+  "name": "Collatio Validation",
+  "naming_rule": "Expression",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Purchase User",
+      "share": 1,
+      "write": 1
+    }
+  ],
+  "sort_field": "creation",
+  "sort_order": "DESC",
+  "states": [],
+  "title_field": "source_name",
+  "track_changes": 1
+}
