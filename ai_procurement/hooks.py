@@ -47,6 +47,7 @@ doctype_js = {
 	"Material Request": "public/js/collatio.js",
 	"Purchase Order": "public/js/collatio.js",
 	"Purchase Receipt": "public/js/collatio.js",
+	"Purchase Invoice": "public/js/three_way_match.js",
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}

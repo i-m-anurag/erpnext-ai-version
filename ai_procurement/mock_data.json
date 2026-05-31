@@ -1,0 +1,43 @@
+{
+  "_comment": "Central mock data for the AI Procurement (Collatio) app. Edit any value here to change the mocked OCR extraction and the three-way-match tolerances. When the real Collatio API is ready, replace _mock_extraction() in doctype/collatio_validation/collatio_validation.py — the rest of the engine reads from this file.",
+
+  "extraction": {
+    "supplier_name": "Dell Technologies",
+    "supplier_address": "123 Business Park, Tech City, India - 560001",
+    "tax_id": "29ABCDE1234F1Z5",
+    "payment_terms": "Net 30",
+    "currency": "INR",
+    "tax_rate_percent": 18,
+    "default_item_rate": 1000,
+    "processing_delay_seconds": 2,
+
+    "document_number_prefix": {
+      "Material Request": "PO",
+      "Purchase Order": "GRN",
+      "Purchase Receipt": "INV",
+      "_default": "DOC"
+    },
+
+    "inject_qty_mismatch": {
+      "enabled": true,
+      "line_index": 1,
+      "extra_qty": 2
+    },
+
+    "extra_item": {
+      "enabled": true,
+      "item_name": "Onsite Installation Service",
+      "qty": 1,
+      "rate": 1500,
+      "uom": "Nos",
+      "confidence": 78
+    }
+  },
+
+  "three_way_match": {
+    "price_variance_tolerance_percent": 2,
+    "quantity_variance_tolerance_units": 0,
+    "tax_compliance_rate_percent": 18,
+    "ap_analyst": "Priya Nair"
+  }
+}

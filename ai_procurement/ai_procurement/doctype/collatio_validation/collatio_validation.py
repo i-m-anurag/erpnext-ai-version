@@ -190,6 +190,7 @@ def create_target_document(source_doctype, source_name, file_url, payload):
 
 	# map source rows by item_code for traceability links
 	source_rows = {d.item_code: d for d in source.get("items", [])}
+	used_source_details = set()  # a source line may back only one target row
 
 	for row in usable_rows:
 		item_code = row.get("matched_item")
@@ -207,7 +208,7 @@ def create_target_document(source_doctype, source_name, file_url, payload):
 			and frappe.get_cached_value("Item", item_code, "is_stock_item")
 		):
 			ti.warehouse = target.set_warehouse
-		_apply_item_links(ti, flow, source, source_rows.get(item_code))
+		_apply_item_links(ti, flow, source, source_rows.get(item_code), used_source_details)
 
 	_apply_tax_template(target, company)
 
@@ -413,16 +414,27 @@ def _apply_warehouse(target, target_doctype, source):
 		target.set_warehouse = wh
 
 
-def _apply_item_links(target_item, flow, source, source_row):
-	"""Set traceability links so the created doc references the source."""
+def _apply_item_links(target_item, flow, source, source_row, used_source_details):
+	"""Set traceability links so the created doc references the source.
+
+	A given source line (its child-row name) may back only one target row,
+	otherwise ERPNext rejects duplicate detail references (e.g. two invoice
+	rows pointing at the same Purchase Receipt Item). The parent link is safe
+	to repeat; only the detail link is de-duplicated.
+	"""
 	if not source_row:
 		return
 	link_field = flow.get("source_link_field")
 	detail_field = flow.get("source_link_detail")
 	if link_field and target_item.meta.has_field(link_field):
 		target_item.set(link_field, source.name)
-	if detail_field and target_item.meta.has_field(detail_field):
+	if (
+		detail_field
+		and target_item.meta.has_field(detail_field)
+		and source_row.name not in used_source_details
+	):
 		target_item.set(detail_field, source_row.name)
+		used_source_details.add(source_row.name)
 
 
 def _apply_tax_template(target, company):
@@ -478,17 +490,25 @@ def _default(doctype):
 #   }
 # ===========================================================================
 def _mock_extraction(file_url, source, source_doctype):
-	time.sleep(2)  # simulate latency
+	cfg = _load_mock_data().get("extraction", {})
+	time.sleep(cfg.get("processing_delay_seconds", 2))  # simulate latency
 
-	supplier_name = source.get("supplier") or frappe.db.get_value("Supplier", {}, "supplier_name") or "Dell Technologies"
+	supplier_name = (
+		cfg.get("supplier_name")
+		or source.get("supplier")
+		or frappe.db.get_value("Supplier", {}, "supplier_name")
+		or "Acme Corp"
+	)
+	default_rate = flt(cfg.get("default_item_rate", 1000))
+	mismatch = cfg.get("inject_qty_mismatch", {})
 
 	items = []
 	subtotal = 0.0
 	for idx, d in enumerate(source.get("items", [])):
 		qty = flt(d.qty)
-		if idx == 1:
-			qty += 2  # inject a quantity mismatch on the 2nd line for demo
-		rate = flt(d.get("rate")) or 1000.0
+		if mismatch.get("enabled") and idx == mismatch.get("line_index"):
+			qty += flt(mismatch.get("extra_qty", 0))  # inject a qty mismatch for demo
+		rate = flt(d.get("rate")) or default_rate
 		subtotal += qty * rate
 		items.append({
 			"item_name": d.get("item_name") or d.item_code,
@@ -500,31 +520,45 @@ def _mock_extraction(file_url, source, source_doctype):
 		})
 
 	# an item the supplier shipped that isn't in the master (edge case b)
-	items.append({
-		"item_name": "Onsite Installation Service",
-		"matched_item": None,
-		"qty": 1,
-		"rate": 1500,
-		"uom": "Nos",
-		"confidence": 78,
-	})
-	subtotal += 1500
+	extra = cfg.get("extra_item", {})
+	if extra.get("enabled"):
+		items.append({
+			"item_name": extra.get("item_name"),
+			"matched_item": None,
+			"qty": flt(extra.get("qty", 1)),
+			"rate": flt(extra.get("rate", 0)),
+			"uom": extra.get("uom", "Nos"),
+			"confidence": extra.get("confidence", 75),
+		})
+		subtotal += flt(extra.get("qty", 1)) * flt(extra.get("rate", 0))
 
-	tax_amount = round(subtotal * 0.18, 2)
-	doc_no_prefix = {"Material Request": "PO", "Purchase Order": "GRN", "Purchase Receipt": "INV"}.get(
-		source_doctype, "DOC"
-	)
+	tax_amount = round(subtotal * flt(cfg.get("tax_rate_percent", 18)) / 100, 2)
+	prefixes = cfg.get("document_number_prefix", {})
+	doc_no_prefix = prefixes.get(source_doctype, prefixes.get("_default", "DOC"))
 
 	return {
 		"supplier_name": supplier_name,
-		"supplier_address": "123 Business Park, Tech City, India - 560001",
-		"tax_id": "29ABCDE1234F1Z5",
+		"supplier_address": cfg.get("supplier_address"),
+		"tax_id": cfg.get("tax_id"),
 		"document_number": f"{doc_no_prefix}-EXT-2026-0042",
 		"document_date": today(),
-		"currency": source.get("currency") or "INR",
-		"payment_terms": "Net 30",
+		"currency": source.get("currency") or cfg.get("currency", "INR"),
+		"payment_terms": cfg.get("payment_terms"),
 		"subtotal": round(subtotal, 2),
 		"tax_amount": tax_amount,
 		"grand_total": round(subtotal + tax_amount, 2),
 		"items": items,
 	}
+
+
+def load_mock_data():
+	"""Load the central mock data file (mock_data.json at the app root).
+	Read fresh each call so edits take effect without a restart.
+	"""
+	path = frappe.get_app_path("ai_procurement", "mock_data.json")
+	with open(path) as f:
+		return json.load(f)
+
+
+# internal alias
+_load_mock_data = load_mock_data
