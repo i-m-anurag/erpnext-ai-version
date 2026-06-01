@@ -34,6 +34,17 @@ COLLATIO_FLOWS = {
 	},
 }
 
+# ERPNext's native mapping functions — the SAME ones the "Create ->" button uses.
+# Building the target with these preserves the full link chain
+# (material_request_item -> purchase_order_item -> pr_detail) so status/qty
+# propagation (Ordered/Received/Billed, % received, etc.) works exactly like
+# the native flow. Collatio then overlays the extracted qty/rate + extra items.
+COLLATIO_MAPPERS = {
+	"Material Request": "erpnext.stock.doctype.material_request.material_request.make_purchase_order",
+	"Purchase Order": "erpnext.buying.doctype.purchase_order.purchase_order.make_purchase_receipt",
+	"Purchase Receipt": "erpnext.stock.doctype.purchase_receipt.purchase_receipt.make_purchase_invoice",
+}
+
 
 class CollatioValidation(Document):
 	pass
@@ -179,38 +190,27 @@ def create_target_document(source_doctype, source_name, file_url, payload):
 	source = frappe.get_doc(source_doctype, source_name)
 	company = source.get("company") or _default("Company")
 
-	target = frappe.new_doc(target_doctype)
+	# Build the target via ERPNext's native mapper so the entire link chain and
+	# all downstream status/qty updates behave exactly like the "Create" button.
+	make = frappe.get_attr(COLLATIO_MAPPERS[source_doctype])
+	target = make(source_name)
+
 	target.supplier = supplier
-	target.company = company
+	if not target.get("company"):
+		target.company = company
 	if header.get("currency"):
 		target.currency = header["currency"]
 
 	_apply_dates(target, target_doctype)
 	_apply_warehouse(target, target_doctype, source)
 
-	# map source rows by item_code for traceability links
-	source_rows = {d.item_code: d for d in source.get("items", [])}
-	used_source_details = set()  # a source line may back only one target row
+	# Reconcile the mapper's source-derived rows with the Collatio extraction:
+	# override qty/rate on matched lines, append extracted extras, and drop the
+	# source lines the uploaded document didn't include.
+	_reconcile_items(target, target_doctype, usable_rows)
 
-	for row in usable_rows:
-		item_code = row.get("matched_item")
-		if not item_code:
-			continue
-		ti = target.append("items", {
-			"item_code": item_code,
-			"qty": flt(row.get("extracted_qty")) or flt(row.get("source_qty")) or 1,
-			"rate": flt(row.get("rate")),
-		})
-		# Stock items on a PO/PR require a warehouse.
-		if (
-			target_doctype in ("Purchase Order", "Purchase Receipt")
-			and target.get("set_warehouse")
-			and frappe.get_cached_value("Item", item_code, "is_stock_item")
-		):
-			ti.warehouse = target.set_warehouse
-		_apply_item_links(ti, flow, source, source_rows.get(item_code), used_source_details)
-
-	_apply_tax_template(target, company)
+	if not target.get("taxes"):
+		_apply_tax_template(target, company)
 
 	target.flags.ignore_mandatory = True
 	target.insert(ignore_permissions=True)  # stays Draft (docstatus = 0)
@@ -414,27 +414,55 @@ def _apply_warehouse(target, target_doctype, source):
 		target.set_warehouse = wh
 
 
-def _apply_item_links(target_item, flow, source, source_row, used_source_details):
-	"""Set traceability links so the created doc references the source.
+def _reconcile_items(target, target_doctype, usable_rows):
+	"""Overlay the Collatio extraction onto the mapper-built target document.
 
-	A given source line (its child-row name) may back only one target row,
-	otherwise ERPNext rejects duplicate detail references (e.g. two invoice
-	rows pointing at the same Purchase Receipt Item). The parent link is safe
-	to repeat; only the detail link is de-duplicated.
+	The native mapper produced rows from the source doc (carrying all the
+	traceability links). We:
+	  - override qty/rate on rows whose item matches an extracted line,
+	  - drop mapper rows whose item was NOT on the uploaded document,
+	  - append extracted lines that weren't in the source (with no source link).
 	"""
-	if not source_row:
-		return
-	link_field = flow.get("source_link_field")
-	detail_field = flow.get("source_link_detail")
-	if link_field and target_item.meta.has_field(link_field):
-		target_item.set(link_field, source.name)
-	if (
-		detail_field
-		and target_item.meta.has_field(detail_field)
-		and source_row.name not in used_source_details
-	):
-		target_item.set(detail_field, source_row.name)
-		used_source_details.add(source_row.name)
+	from collections import defaultdict, deque
+
+	pool = defaultdict(deque)
+	for it in target.get("items", []):
+		pool[it.item_code].append(it)
+
+	keep_ids = set()
+	extras = []
+	for row in usable_rows:
+		code = row.get("matched_item")
+		if not code:
+			continue
+		queue = pool.get(code)
+		if queue and len(queue):
+			it = queue.popleft()
+			if flt(row.get("extracted_qty")):
+				it.qty = flt(row.get("extracted_qty"))
+			if flt(row.get("rate")):
+				it.rate = flt(row.get("rate"))
+			keep_ids.add(id(it))
+		else:
+			extras.append(row)
+
+	# keep only matched mapper rows (preserves their source links); drop the rest
+	target.set("items", [it for it in target.get("items", []) if id(it) in keep_ids])
+
+	# append extracted items that were not part of the source document
+	for row in extras:
+		code = row.get("matched_item")
+		ti = target.append("items", {
+			"item_code": code,
+			"qty": flt(row.get("extracted_qty")) or 1,
+			"rate": flt(row.get("rate")),
+		})
+		if (
+			target_doctype in ("Purchase Order", "Purchase Receipt")
+			and target.get("set_warehouse")
+			and frappe.get_cached_value("Item", code, "is_stock_item")
+		):
+			ti.warehouse = target.set_warehouse
 
 
 def _apply_tax_template(target, company):
@@ -521,7 +549,8 @@ def _mock_extraction(file_url, source, source_doctype):
 
 	# an item the supplier shipped that isn't in the master (edge case b)
 	extra = cfg.get("extra_item", {})
-	if extra.get("enabled"):
+	allowed_sources = extra.get("only_on_source_doctypes")
+	if extra.get("enabled") and (not allowed_sources or source_doctype in allowed_sources):
 		items.append({
 			"item_name": extra.get("item_name"),
 			"matched_item": None,

@@ -18,14 +18,17 @@
       "_default": "DOC"
     },
 
+    "_anomaly_note": "Set either 'enabled' below to true to DEMO validation on a single step (qty-mismatch detection / unknown-item resolution). Keep both false for a clean end-to-end chain — an injected over-qty would over-receive against the PO, and a repeated extra item would compound down the chain.",
+
     "inject_qty_mismatch": {
-      "enabled": true,
+      "enabled": false,
       "line_index": 1,
       "extra_qty": 2
     },
 
     "extra_item": {
-      "enabled": true,
+      "enabled": false,
+      "only_on_source_doctypes": ["Material Request"],
       "item_name": "Onsite Installation Service",
       "qty": 1,
       "rate": 1500,
