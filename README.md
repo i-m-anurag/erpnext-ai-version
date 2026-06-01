@@ -69,31 +69,19 @@ apps/ai_procurement/
 
 ## Integrating the real OCR engine
 
-OCR is mocked in `_mock_ocr_extraction()` inside
-`ai_procurement/ai_procurement/doctype/po_ocr_validation/po_ocr_validation.py`.
+OCR is mocked in `_mock_extraction()` inside
+`ai_procurement/ai_procurement/doctype/collatio_validation/collatio_validation.py`.
+Replace it with a call to your engine, returning the normalized extraction shape.
 
-Replace it with a call to your engine, returning data in this normalized shape:
+The full request/response contracts for the **OCR Extraction API** and the
+**Three-Way Match Report API** are documented in
+[`docs/API_CONTRACTS.md`](docs/API_CONTRACTS.md) — share that with your backend team.
 
-```python
-{
-    "supplier_name": "Dell Technologies",
-    "po_number": "EXT-PO-2026-0042",
-    "date": "2026-05-29",
-    "items": [
-        {
-            "item_name": "Dell Latitude 5540 Laptop",  # raw text from the PO
-            "matched_item": "LAPTOP-DELL-001",          # ERPNext Item code, or None
-            "qty": 5,
-            "uom": "Nos",
-            "confidence": 92.5,
-        },
-        # ...
-    ],
-}
-```
+All tweakable mock values (supplier, tolerances, anomaly toggles, etc.) live in
+[`mock_data.json`](ai_procurement/mock_data.json).
 
-Item matching (`_match_item`) and the request comparison (`_compare_with_material_request`)
-are engine-agnostic and will keep working as-is.
+The matching (`_match_item`) and collation (`_compare`) logic is engine-agnostic
+and keeps working as-is.
 
 ---
 
