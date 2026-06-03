@@ -187,6 +187,14 @@ fixtures = [
 # 	}
 # }
 
+# Global email redirect: route ALL outgoing email to the single address set in
+# site_config.json as "email_redirect_to" (empty/unset = normal delivery).
+doc_events = {
+	"Email Queue": {
+		"before_insert": "ai_procurement.ai_procurement.email_override.redirect_recipients",
+	},
+}
+
 # Scheduled Tasks
 # ---------------
 
