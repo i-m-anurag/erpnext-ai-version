@@ -49,6 +49,33 @@ doctype_js = {
 	"Purchase Receipt": "public/js/collatio.js",
 	"Purchase Invoice": "public/js/three_way_match.js",
 }
+
+# ---------------------------------------------------------------------------
+# Fixtures — ship the procurement approval workflows with the app so they are
+# recreated on any site via `bench migrate` (e.g. the Docker deployment).
+# ---------------------------------------------------------------------------
+fixtures = [
+	{
+		"dt": "Workflow",
+		"filters": [["name", "in", [
+			"Material Request Approval",
+			"Purchase Order Approval",
+			"Purchase Receipt Approval",
+			"Purchase Invoice Approval",
+		]]],
+	},
+	{"dt": "Workflow State", "filters": [["name", "in", ["Draft", "Pending Approval", "Approved", "Rejected"]]]},
+	{"dt": "Workflow Action Master", "filters": [["name", "in", ["Submit for Approval", "Approve", "Reject"]]]},
+	{
+		"dt": "Custom Field",
+		"filters": [["name", "in", [
+			"Material Request-workflow_state",
+			"Purchase Order-workflow_state",
+			"Purchase Receipt-workflow_state",
+			"Purchase Invoice-workflow_state",
+		]]],
+	},
+]
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
