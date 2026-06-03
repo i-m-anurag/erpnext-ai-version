@@ -1,29 +1,42 @@
 # Copyright (c) 2026, Anurag and contributors
 # For license information, please see license.txt
 #
-# Global email redirect — a single switch to route ALL outgoing email to one
-# address (e.g. for testing, so real users are never accidentally emailed).
+# Outgoing-email routing controlled by single site_config keys (driven by env
+# vars in Docker via the entrypoint). Hooked on Email Queue before_insert, so it
+# covers EVERY outgoing email: workflow approval alerts, notifications, password
+# resets, sendmail.
 #
-# Enable by adding ONE key to the site's site_config.json:
-#     "email_redirect_to": "you@example.com"
-# Remove the key (or set it empty) to disable. Set it once with:
-#     bench --site <site> set-config email_redirect_to you@example.com
+#   email_copy_to     -> ADD this address as an extra recipient. Both the real
+#                        recipient(s) (e.g. the approver) AND this monitor
+#                        address receive every email.  (env: EMAIL_COPY_TO)
 #
-# Hooked on Email Queue (the funnel every outgoing email passes through), so it
-# covers notifications, workflow alerts, password resets, sendmail — everything.
+#   email_redirect_to -> REPLACE all recipients with this single address. Real
+#                        users are never emailed — for safe testing. Takes
+#                        precedence over email_copy_to.  (env: EMAIL_REDIRECT_TO)
+#
+# Set neither -> normal delivery.
 
 import frappe
 
 
-def redirect_recipients(doc, method=None):
-	override = (frappe.conf.get("email_redirect_to") or "").strip()
-	if not override:
-		return  # disabled — normal delivery
+def apply_email_routing(doc, method=None):
+	redirect_to = (frappe.conf.get("email_redirect_to") or "").strip()
+	copy_to = (frappe.conf.get("email_copy_to") or "").strip()
 
-	# Replace every recipient with the single override address.
-	doc.set("recipients", [{"recipient": override}])
+	# Redirect (replace) wins — used for testing, never email real users.
+	if redirect_to:
+		doc.set("recipients", [{"recipient": redirect_to}])
+		_clear_cc_bcc(doc)
+		return
 
-	# Drop CC/BCC so nothing leaks to the original addresses.
+	# Copy (add) — the real recipients PLUS the monitor address.
+	if copy_to:
+		existing = {r.recipient for r in doc.get("recipients", [])}
+		if copy_to not in existing:
+			doc.append("recipients", {"recipient": copy_to})
+
+
+def _clear_cc_bcc(doc):
 	if doc.meta.has_field("show_as_cc"):
 		doc.show_as_cc = ""
 	for field in ("cc", "bcc"):

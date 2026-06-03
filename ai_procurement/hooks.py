@@ -187,11 +187,12 @@ fixtures = [
 # 	}
 # }
 
-# Global email redirect: route ALL outgoing email to the single address set in
-# site_config.json as "email_redirect_to" (empty/unset = normal delivery).
+# Outgoing-email routing (copy / redirect) controlled by site_config keys
+# email_copy_to / email_redirect_to (set from EMAIL_COPY_TO / EMAIL_REDIRECT_TO
+# env vars in Docker). Empty/unset = normal delivery.
 doc_events = {
 	"Email Queue": {
-		"before_insert": "ai_procurement.ai_procurement.email_override.redirect_recipients",
+		"before_insert": "ai_procurement.ai_procurement.email_override.apply_email_routing",
 	},
 }
 

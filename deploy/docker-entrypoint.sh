@@ -71,6 +71,13 @@ fi
 echo "[entrypoint] Running migrations..."
 bench --site "$SITE_NAME" migrate
 
+# Email routing — fully env-driven. Always set from env (empty = disabled), so
+# removing the env var turns it off on the next restart.
+#   EMAIL_COPY_TO     -> approver AND this address both receive every email
+#   EMAIL_REDIRECT_TO -> ONLY this address receives email (testing)
+bench --site "$SITE_NAME" set-config email_copy_to "${EMAIL_COPY_TO:-}"
+bench --site "$SITE_NAME" set-config email_redirect_to "${EMAIL_REDIRECT_TO:-}"
+
 case "$1" in
   start)
     echo "[entrypoint] Starting bench processes..."
