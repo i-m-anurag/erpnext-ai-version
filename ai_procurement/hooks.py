@@ -75,6 +75,15 @@ fixtures = [
 			"Purchase Invoice-workflow_state",
 		]]],
 	},
+	{
+		"dt": "Notification",
+		"filters": [["name", "in", [
+			"Material Request Pending Approval",
+			"Purchase Order Pending Approval",
+			"Purchase Receipt Pending Approval",
+			"Purchase Invoice Pending Approval",
+		]]],
+	},
 ]
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}

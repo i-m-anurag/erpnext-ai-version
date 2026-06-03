@@ -5,10 +5,10 @@
   "document_type": "Material Request",
   "enable_action_confirmation": 0,
   "is_active": 1,
-  "modified": "2026-06-03 17:23:51.264432",
+  "modified": "2026-06-03 18:36:46.685546",
   "name": "Material Request Approval",
   "override_status": 0,
-  "send_email_alert": 1,
+  "send_email_alert": 0,
   "states": [
    {
     "allow_edit": "Stock User",
@@ -123,10 +123,10 @@
   "document_type": "Purchase Order",
   "enable_action_confirmation": 0,
   "is_active": 1,
-  "modified": "2026-06-03 17:23:51.478486",
+  "modified": "2026-06-03 18:36:46.685976",
   "name": "Purchase Order Approval",
   "override_status": 0,
-  "send_email_alert": 1,
+  "send_email_alert": 0,
   "states": [
    {
     "allow_edit": "Purchase User",
@@ -241,10 +241,10 @@
   "document_type": "Purchase Receipt",
   "enable_action_confirmation": 0,
   "is_active": 1,
-  "modified": "2026-06-03 17:23:51.674144",
+  "modified": "2026-06-03 18:36:46.686482",
   "name": "Purchase Receipt Approval",
   "override_status": 0,
-  "send_email_alert": 1,
+  "send_email_alert": 0,
   "states": [
    {
     "allow_edit": "Stock User",
@@ -359,10 +359,10 @@
   "document_type": "Purchase Invoice",
   "enable_action_confirmation": 0,
   "is_active": 1,
-  "modified": "2026-06-03 17:23:51.837567",
+  "modified": "2026-06-03 18:36:46.686969",
   "name": "Purchase Invoice Approval",
   "override_status": 0,
-  "send_email_alert": 1,
+  "send_email_alert": 0,
   "states": [
    {
     "allow_edit": "Purchase User",
