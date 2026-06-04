@@ -1,0 +1,12 @@
+{
+  "slug": "uom",
+  "name": "Unit of Measure",
+  "managedBy": "seeded",
+  "editable": false,
+  "data": [
+    { "code": "EA", "name": "Each" },
+    { "code": "KG", "name": "Kilogram" },
+    { "code": "L", "name": "Litre" },
+    { "code": "BOX", "name": "Box" }
+  ]
+}

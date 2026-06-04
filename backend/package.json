@@ -1,0 +1,53 @@
+{
+  "name": "@erp/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "typeorm": "tsx src/db/typeorm-cli.ts",
+    "migration:generate": "npm run typeorm -- migration:generate -d src/db/data-source.ts",
+    "migration:create": "npm run typeorm -- migration:create",
+    "migration:run": "npm run typeorm -- migration:run -d src/db/data-source.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d src/db/data-source.ts",
+    "seed": "tsx src/db/seeds/run-seeds.ts",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "argon2": "^0.44.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.11.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^8.0.10",
+    "pg": "^8.21.0",
+    "pino": "^10.3.1",
+    "pino-http": "^11.0.0",
+    "reflect-metadata": "^0.2.2",
+    "swagger-ui-express": "^5.0.1",
+    "typeorm": "^1.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.10.7",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/nodemailer": "^6.4.17",
+    "@types/swagger-ui-express": "^4.1.6",
+    "pino-pretty": "^13.0.0",
+    "unplugin-swc": "^1.5.1",
+    "vitest": "^4.1.8"
+  }
+}

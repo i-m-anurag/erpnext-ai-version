@@ -1,0 +1,34 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// CORE DESIGN TOKENS — structural, theme-agnostic.
+// Colors/accent live in themes/ (swappable per client). These rarely change.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Typography (ERP-dense: 14px base)
+$erp-font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+$erp-font-size-base: 0.875rem;
+$erp-line-height-base: 1.5;
+
+// Spacing scale
+$erp-space-1: 0.25rem;
+$erp-space-2: 0.5rem;
+$erp-space-3: 0.75rem;
+$erp-space-4: 1rem;
+$erp-space-5: 1.5rem;
+$erp-space-6: 2rem;
+
+// Radius
+$erp-radius-sm: 4px;
+$erp-radius-md: 6px;
+$erp-radius-lg: 10px;
+
+// Elevation
+$erp-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+$erp-shadow-md: 0 2px 8px rgba(16, 24, 40, 0.08);
+$erp-shadow-lg: 0 8px 24px rgba(16, 24, 40, 0.12);
+
+// Layout
+$erp-sidebar-width: 248px;
+$erp-sidebar-width-collapsed: 64px;
+$erp-topbar-height: 56px;
+$erp-z-topbar: 1020;
+$erp-z-sidebar: 1030;

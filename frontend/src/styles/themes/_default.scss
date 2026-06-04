@@ -1,0 +1,45 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// DEFAULT THEME — the neutral white-label baseline.
+// Per-client builds replace _active-theme.scss to point at a client palette.
+// Values are exposed both as Sass vars (consumed by the Bootstrap bridge) and as
+// :root CSS custom properties (consumed at runtime by components / ag-grid / ng-select).
+// ─────────────────────────────────────────────────────────────────────────────
+
+$erp-accent: #2f6fed;
+$erp-accent-hover: #2558c8;
+$erp-accent-contrast: #ffffff;
+
+$erp-bg: #f5f7fa;
+$erp-surface: #ffffff;
+$erp-surface-alt: #fbfcfe;
+$erp-text: #1f2733;
+$erp-text-muted: #6b7280;
+$erp-border: #e5e9f0;
+
+$erp-danger: #d92d20;
+$erp-success: #12b76a;
+$erp-warning: #f79009;
+
+$erp-sidebar-bg: #111927;
+$erp-sidebar-text: #c7cdd6;
+$erp-sidebar-text-active: #ffffff;
+$erp-sidebar-active-bg: #1f2a3d;
+
+:root {
+  --erp-accent: #{$erp-accent};
+  --erp-accent-hover: #{$erp-accent-hover};
+  --erp-accent-contrast: #{$erp-accent-contrast};
+  --erp-bg: #{$erp-bg};
+  --erp-surface: #{$erp-surface};
+  --erp-surface-alt: #{$erp-surface-alt};
+  --erp-text: #{$erp-text};
+  --erp-text-muted: #{$erp-text-muted};
+  --erp-border: #{$erp-border};
+  --erp-danger: #{$erp-danger};
+  --erp-success: #{$erp-success};
+  --erp-warning: #{$erp-warning};
+  --erp-sidebar-bg: #{$erp-sidebar-bg};
+  --erp-sidebar-text: #{$erp-sidebar-text};
+  --erp-sidebar-text-active: #{$erp-sidebar-text-active};
+  --erp-sidebar-active-bg: #{$erp-sidebar-active-bg};
+}

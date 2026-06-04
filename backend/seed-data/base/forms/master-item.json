@@ -1,0 +1,11 @@
+{
+  "slug": "master-item",
+  "version": 1,
+  "title": "Item",
+  "layout": "two-column",
+  "fields": [
+    { "key": "sku", "type": "text", "label": "SKU", "required": true, "validators": { "maxLength": 64 } },
+    { "key": "name", "type": "text", "label": "Name", "required": true, "validators": { "maxLength": 200 } },
+    { "key": "uom", "type": "master-lookup", "label": "Unit of Measure", "required": true, "optionsSource": { "master": "uom" } }
+  ]
+}

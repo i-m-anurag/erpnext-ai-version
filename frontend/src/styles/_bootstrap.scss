@@ -1,0 +1,27 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// BOOTSTRAP BRIDGE — map our tokens/theme onto Bootstrap's $variables, then pull
+// in Bootstrap. Assumes _tokens.scss and themes/_active-theme.scss were imported
+// before this file (their vars are global), so $erp-* are in scope here.
+// ─────────────────────────────────────────────────────────────────────────────
+
+$primary: $erp-accent;
+$danger: $erp-danger;
+$success: $erp-success;
+$warning: $erp-warning;
+
+$font-family-sans-serif: $erp-font-sans;
+$font-size-base: $erp-font-size-base;
+$line-height-base: $erp-line-height-base;
+
+$body-bg: $erp-bg;
+$body-color: $erp-text;
+$border-color: $erp-border;
+$border-radius: $erp-radius-md;
+$border-radius-sm: $erp-radius-sm;
+$border-radius-lg: $erp-radius-lg;
+
+$input-bg: $erp-surface;
+$input-border-color: $erp-border;
+$component-active-bg: $erp-accent;
+
+@import 'bootstrap/scss/bootstrap';

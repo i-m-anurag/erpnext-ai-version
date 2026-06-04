@@ -1,0 +1,11 @@
+{
+  "slug": "login",
+  "version": 1,
+  "title": "Sign in",
+  "layout": "single-column",
+  "public": true,
+  "fields": [
+    { "key": "username", "type": "text", "label": "Username", "required": true, "placeholder": "your username" },
+    { "key": "password", "type": "password", "label": "Password", "required": true, "placeholder": "••••••••" }
+  ]
+}

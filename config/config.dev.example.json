@@ -1,0 +1,60 @@
+{
+  "app": {
+    "name": "ERP (dev)",
+    "env": "development",
+    "port": 3000,
+    "logLevel": "debug",
+    "publicUrl": "http://localhost:3000"
+  },
+  "database": {
+    "host": "localhost",
+    "port": 55432,
+    "user": "erp",
+    "password": "erp_dev_password",
+    "name": "erp",
+    "ssl": false
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6380,
+    "password": "",
+    "db": 0
+  },
+  "auth": {
+    "accessTokenSecret": "dev-access-secret-change-me-32chars",
+    "accessTokenTtl": 900,
+    "refreshTokenSecret": "dev-refresh-secret-change-me-32chars",
+    "refreshTokenTtl": 2592000,
+    "passwordResetTtl": 86400,
+    "sessionIdleTimeout": 1800,
+    "sessionAbsoluteTimeout": 43200,
+    "cookieDomain": "localhost",
+    "cookieSecure": false,
+    "concurrentSessions": true
+  },
+  "smtp": {
+    "host": "localhost",
+    "port": 1025,
+    "user": "",
+    "password": "",
+    "secure": false,
+    "from": "ERP <no-reply@erp.local>"
+  },
+  "admin": {
+    "username": "admin",
+    "email": "admin@erp.local",
+    "displayName": "Administrator"
+  },
+  "modules": {
+    "auth": true,
+    "permission": true,
+    "config": true,
+    "form": true,
+    "master": true,
+    "communication": true,
+    "org": true,
+    "workflow": false,
+    "inventory": false,
+    "ledger": false
+  }
+}

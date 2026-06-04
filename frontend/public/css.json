@@ -1,0 +1,9 @@
+{
+  "form": "erp-form",
+  "form.two-column": "erp-form erp-form--two-column",
+  "field": "erp-field",
+  "field.col2": "erp-field",
+  "label": "erp-field__label form-label",
+  "error": "erp-field__error",
+  "actions": "erp-form__actions"
+}

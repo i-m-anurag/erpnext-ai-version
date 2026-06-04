@@ -1,0 +1,7 @@
+{
+  "module": "communication",
+  "permissions": [
+    { "action": "template.read", "description": "View email templates" },
+    { "action": "template.update", "description": "Edit email template overrides" }
+  ]
+}

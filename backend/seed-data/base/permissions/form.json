@@ -1,0 +1,6 @@
+{
+  "module": "form",
+  "permissions": [
+    { "action": "view", "description": "Read resolved form definitions" }
+  ]
+}

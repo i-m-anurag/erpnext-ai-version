@@ -1,0 +1,7 @@
+{
+  "code": "admin",
+  "name": "Administrator",
+  "description": "Full access to all enabled modules",
+  "isSystem": true,
+  "permissions": "all"
+}

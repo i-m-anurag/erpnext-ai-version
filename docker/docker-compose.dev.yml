@@ -1,0 +1,52 @@
+# Local development infrastructure only (Postgres + Redis + Mailhog).
+# The full per-client stack (api, worker, web/nginx) is defined separately in a
+# later phase. Credentials here are dev-only and must match config/config.dev.json.
+name: erp-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: erp-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: erp_dev_password
+      POSTGRES_DB: erp
+    ports:
+      # host 55432 → container 5432 (host 5432 may be a native Postgres)
+      - '55432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U erp -d erp']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: erp-dev-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      # host 6380 → container 6379 (host 6379 may be a native Redis)
+      - '6380:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: erp-dev-mailhog
+    restart: unless-stopped
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # web UI — http://localhost:8025
+
+volumes:
+  pgdata:
+  redisdata:

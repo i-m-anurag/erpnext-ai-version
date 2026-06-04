@@ -1,0 +1,40 @@
+// Example CLIENT theme override (Acme). Same token contract as _default.scss,
+// different brand values. Selected at build time via angular.json fileReplacements.
+$erp-accent: #7c3aed;
+$erp-accent-hover: #6d28d9;
+$erp-accent-contrast: #ffffff;
+
+$erp-bg: #f6f5fb;
+$erp-surface: #ffffff;
+$erp-surface-alt: #fbfaff;
+$erp-text: #211f2e;
+$erp-text-muted: #6b6880;
+$erp-border: #e7e3f2;
+
+$erp-danger: #d92d20;
+$erp-success: #12b76a;
+$erp-warning: #f79009;
+
+$erp-sidebar-bg: #1d1530;
+$erp-sidebar-text: #cabfe0;
+$erp-sidebar-text-active: #ffffff;
+$erp-sidebar-active-bg: #2c2047;
+
+:root {
+  --erp-accent: #{$erp-accent};
+  --erp-accent-hover: #{$erp-accent-hover};
+  --erp-accent-contrast: #{$erp-accent-contrast};
+  --erp-bg: #{$erp-bg};
+  --erp-surface: #{$erp-surface};
+  --erp-surface-alt: #{$erp-surface-alt};
+  --erp-text: #{$erp-text};
+  --erp-text-muted: #{$erp-text-muted};
+  --erp-border: #{$erp-border};
+  --erp-danger: #{$erp-danger};
+  --erp-success: #{$erp-success};
+  --erp-warning: #{$erp-warning};
+  --erp-sidebar-bg: #{$erp-sidebar-bg};
+  --erp-sidebar-text: #{$erp-sidebar-text};
+  --erp-sidebar-text-active: #{$erp-sidebar-text-active};
+  --erp-sidebar-active-bg: #{$erp-sidebar-active-bg};
+}

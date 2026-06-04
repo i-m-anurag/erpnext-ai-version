@@ -1,0 +1,11 @@
+{
+  "module": "permission",
+  "permissions": [
+    { "action": "permission.read", "description": "View the permission catalog" },
+    { "action": "role.read", "description": "View roles and assignments" },
+    { "action": "role.create", "description": "Create roles" },
+    { "action": "role.update", "description": "Update roles and their permissions" },
+    { "action": "role.delete", "description": "Delete non-system roles" },
+    { "action": "role.assign", "description": "Assign/unassign roles to users" }
+  ]
+}

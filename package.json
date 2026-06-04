@@ -1,0 +1,35 @@
+{
+  "name": "erp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "White-label ERP — modular monolith (backend + worker), Angular frontend (later phase)",
+  "workspaces": [
+    "backend"
+  ],
+  "scripts": {
+    "gen:env": "tsx scripts/gen-env.ts",
+    "dev": "npm run dev --workspace backend",
+    "build": "npm run build --workspace backend",
+    "migration:generate": "npm run migration:generate --workspace backend",
+    "migration:run": "npm run migration:run --workspace backend",
+    "migration:revert": "npm run migration:revert --workspace backend",
+    "seed": "npm run seed --workspace backend",
+    "db:up": "docker compose -f docker/docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f docker/docker-compose.dev.yml down",
+    "db:logs": "docker compose -f docker/docker-compose.dev.yml logs -f",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.19.0",
+    "zod": "^4.4.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

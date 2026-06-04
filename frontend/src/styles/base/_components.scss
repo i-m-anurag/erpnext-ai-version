@@ -1,0 +1,116 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// App-level component styles. Many of these class names are referenced by
+// css.json (the dynamic-form class mapping) so the same components can be molded
+// per deployment. Uses CSS custom properties so client themes apply at runtime.
+// ─────────────────────────────────────────────────────────────────────────────
+
+html, body {
+  height: 100%;
+}
+body {
+  background: var(--erp-bg);
+  color: var(--erp-text);
+}
+
+// ── App shell ────────────────────────────────────────────────────────────────
+.erp-shell {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'sidebar topbar'
+    'sidebar main';
+  height: 100vh;
+}
+.erp-topbar {
+  grid-area: topbar;
+  height: $erp-topbar-height;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 $erp-space-4;
+  background: var(--erp-surface);
+  border-bottom: 1px solid var(--erp-border);
+}
+.erp-sidebar {
+  grid-area: sidebar;
+  width: $erp-sidebar-width;
+  background: var(--erp-sidebar-bg);
+  color: var(--erp-sidebar-text);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+
+  .erp-sidebar__brand {
+    height: $erp-topbar-height;
+    display: flex;
+    align-items: center;
+    gap: $erp-space-2;
+    padding: 0 $erp-space-4;
+    font-weight: 600;
+    color: var(--erp-sidebar-text-active);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .erp-sidebar__nav { padding: $erp-space-2; }
+  .erp-sidebar__link {
+    display: flex;
+    align-items: center;
+    gap: $erp-space-3;
+    padding: $erp-space-2 $erp-space-3;
+    border-radius: $erp-radius-md;
+    color: var(--erp-sidebar-text);
+    text-decoration: none;
+    font-size: $erp-font-size-base;
+    cursor: pointer;
+
+    &:hover { background: rgba(255, 255, 255, 0.05); color: var(--erp-sidebar-text-active); }
+    &.active { background: var(--erp-sidebar-active-bg); color: var(--erp-sidebar-text-active); }
+  }
+}
+.erp-main {
+  grid-area: main;
+  overflow-y: auto;
+  padding: $erp-space-5;
+}
+
+// ── Cards / surfaces ───────────────────────────────────────────────────────
+.erp-card {
+  background: var(--erp-surface);
+  border: 1px solid var(--erp-border);
+  border-radius: $erp-radius-lg;
+  box-shadow: $erp-shadow-sm;
+}
+
+// ── Login ──────────────────────────────────────────────────────────────────
+.erp-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, var(--erp-bg), var(--erp-surface-alt));
+  padding: $erp-space-4;
+
+  .erp-login__card {
+    width: 100%;
+    max-width: 380px;
+    padding: $erp-space-6;
+  }
+  .erp-login__brand {
+    text-align: center;
+    margin-bottom: $erp-space-5;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+}
+
+// ── Dynamic form layout (slugs also live in css.json) ────────────────────────
+.erp-form { display: block; }
+.erp-form--two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $erp-space-4;
+}
+.erp-field { margin-bottom: $erp-space-4; }
+.erp-field__label { display: block; margin-bottom: $erp-space-1; font-weight: 500; }
+.erp-field__error { color: var(--erp-danger); font-size: 0.8125rem; margin-top: $erp-space-1; }
+.erp-form__actions { display: flex; gap: $erp-space-2; margin-top: $erp-space-2; }

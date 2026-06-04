@@ -1,0 +1,9 @@
+{
+  "module": "master",
+  "permissions": [
+    { "action": "view", "description": "Access master screens; read registry, rows and options" },
+    { "action": "create", "description": "Create master rows" },
+    { "action": "update", "description": "Edit master rows" },
+    { "action": "delete", "description": "Delete master rows" }
+  ]
+}

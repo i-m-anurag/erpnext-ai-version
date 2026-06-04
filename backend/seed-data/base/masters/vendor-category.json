@@ -1,0 +1,7 @@
+{
+  "slug": "vendor-category",
+  "name": "Vendor Category",
+  "managedBy": "ui",
+  "editable": true,
+  "formSlug": "master-vendor-category"
+}

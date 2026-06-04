@@ -1,0 +1,10 @@
+{
+  "slug": "master-vendor-category",
+  "version": 1,
+  "title": "Vendor Category",
+  "layout": "single-column",
+  "fields": [
+    { "key": "code", "type": "text", "label": "Code", "required": true, "validators": { "maxLength": 32 } },
+    { "key": "name", "type": "text", "label": "Name", "required": true, "validators": { "maxLength": 120 } }
+  ]
+}

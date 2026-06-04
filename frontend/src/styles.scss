@@ -1,0 +1,9 @@
+// Global stylesheet entry. Import order matters:
+//   1. structural tokens          (Sass vars)
+//   2. active theme               (Sass vars + :root CSS custom properties)
+//   3. Bootstrap bridge           (maps tokens/theme → Bootstrap $vars, imports Bootstrap)
+//   4. app component styles
+@import 'styles/tokens';
+@import 'styles/themes/active-theme';
+@import 'styles/bootstrap';
+@import 'styles/base/components';

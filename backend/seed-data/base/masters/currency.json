@@ -1,0 +1,12 @@
+{
+  "slug": "currency",
+  "name": "Currency",
+  "managedBy": "seeded",
+  "editable": false,
+  "data": [
+    { "code": "INR", "name": "Indian Rupee" },
+    { "code": "USD", "name": "US Dollar" },
+    { "code": "GBP", "name": "Pound Sterling" },
+    { "code": "AED", "name": "UAE Dirham" }
+  ]
+}

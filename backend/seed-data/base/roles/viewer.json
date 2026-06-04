@@ -1,0 +1,7 @@
+{
+  "code": "viewer",
+  "name": "Viewer",
+  "description": "Read-only access",
+  "isSystem": true,
+  "permissions": ["*:*.read", "*:view"]
+}

@@ -1,0 +1,7 @@
+{
+  "slug": "welcome",
+  "subject": "Welcome to {{appName}} — set your password",
+  "variables": ["appName", "userName", "link", "expiryHours"],
+  "html": "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td><p>Hi {{userName}},</p><p>An account has been created for you on {{appName}}. Set your password to get started:</p><p><a href=\"{{link}}\">Set your password</a></p><p>This link expires in {{expiryHours}} hours and can be used once.</p></td></tr></table>",
+  "text": "Hi {{userName}},\n\nAn account has been created for you on {{appName}}. Set your password: {{link}}\n\nThis link expires in {{expiryHours}} hours and can be used once."
+}

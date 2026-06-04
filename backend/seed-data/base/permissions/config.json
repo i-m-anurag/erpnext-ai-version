@@ -1,0 +1,7 @@
+{
+  "module": "config",
+  "permissions": [
+    { "action": "config.read", "description": "View configuration resources" },
+    { "action": "config.update", "description": "Edit configuration overrides" }
+  ]
+}

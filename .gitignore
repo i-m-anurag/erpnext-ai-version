@@ -1,0 +1,44 @@
+# dependencies
+node_modules/
+.pnp.*
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# generated env files (produced by scripts/gen-env.ts)
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+worker/.env
+worker/.env.*
+
+# real config (contains secrets) — only *.example.json is committed
+config/config.*.json
+!config/config.*.example.json
+
+# logs
+*.log
+logs/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# claude — keep shared launch.json, ignore local settings
+.claude/settings.local.json
+
+# Angular cache
+.angular/
+
+# docker volumes (if bind-mounted locally)
+docker/data/
+
+# third-party design reference (ERPNext/Frappe assets — not part of the product).
+# Remove this line if you want the reference assets tracked.
+/ERP Next Theme scss/

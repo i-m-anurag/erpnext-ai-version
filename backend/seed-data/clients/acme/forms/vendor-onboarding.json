@@ -1,0 +1,11 @@
+{
+  "slug": "vendor-onboarding",
+  "title": "Supplier Onboarding (Acme)",
+  "fields": [
+    { "key": "gstin", "type": "text", "label": "GST Number", "required": true },
+    { "key": "paymentTerms", "type": "select", "label": "Payment Terms", "options": [
+      { "value": "net30", "label": "Net 30" },
+      { "value": "net60", "label": "Net 60" }
+    ] }
+  ]
+}

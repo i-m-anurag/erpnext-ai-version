@@ -1,0 +1,12 @@
+{
+  "slug": "vendor-onboarding",
+  "version": 1,
+  "title": "Vendor Onboarding",
+  "layout": "two-column",
+  "fields": [
+    { "key": "vendorName", "type": "text", "label": "Vendor Name", "required": true, "validators": { "minLength": 3, "maxLength": 120 } },
+    { "key": "gstin", "type": "text", "label": "GSTIN", "validators": { "pattern": "^[0-9A-Z]{15}$" }, "visibleWhen": { "field": "country", "equals": "IN" } },
+    { "key": "country", "type": "master-lookup", "label": "Country", "required": true, "optionsSource": { "master": "country" } },
+    { "key": "category", "type": "select", "label": "Category", "optionsSource": { "master": "vendor-category" } }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "slug": "item",
+  "name": "Item",
+  "managedBy": "ui",
+  "editable": true,
+  "formSlug": "master-item",
+  "codeField": "sku"
+}
