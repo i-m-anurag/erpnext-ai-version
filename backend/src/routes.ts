@@ -37,8 +37,9 @@ export function registerRoutes(app: Express): void {
     res.status(healthy ? 200 : 503).json({ status: healthy ? 'ready' : 'degraded', checks });
   });
 
-  // Surfaces which modules this deployment runs (Layer-1 config).
-  app.get('/meta', (_req: Request, res: Response) => {
+  // Surfaces which modules this deployment runs (Layer-1 config). Under /api so
+  // the SPA reaches it through the same-origin proxy (health probes stay at root).
+  app.get('/api/meta', (_req: Request, res: Response) => {
     res.json({ name: env.app.name, env: env.nodeEnv, modules: env.modules });
   });
 

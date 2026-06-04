@@ -134,7 +134,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           },
         },
       },
-      '/meta': {
+      '/api/meta': {
         get: {
           tags: ['Health'],
           summary: 'Deployment name, env, and enabled modules',
