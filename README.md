@@ -28,7 +28,19 @@ docker/        docker-compose.dev.yml (Postgres + Redis + Mailhog)
 - Node.js ≥ 22, npm ≥ 10
 - Docker Desktop (for the local Postgres/Redis/Mailhog stack)
 
-## First-time setup
+## Quick start (one command)
+
+```bash
+./start.sh                      # docker up → gen env → migrate → seed → run backend + frontend
+./start.sh --frontend-port 4300 # if 4200 is taken
+./start.sh --skip-seed          # warm DB
+./start.sh --down               # stop the docker infra
+```
+
+Backend on `http://localhost:<APP_PORT>` (3000 by default), Angular on `:4200`
+(proxying `/api` to the backend), Mailhog on `:8025`. Ctrl+C stops both servers.
+
+## First-time setup (manual)
 
 ```bash
 npm install
