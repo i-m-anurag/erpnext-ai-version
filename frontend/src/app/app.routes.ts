@@ -41,6 +41,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
       },
+      {
+        path: 'playground',
+        loadComponent: () =>
+          import('./features/playground/playground.component').then((m) => m.PlaygroundComponent),
+      },
     ],
   },
   { path: '', pathMatch: 'full', redirectTo: 'app' },
