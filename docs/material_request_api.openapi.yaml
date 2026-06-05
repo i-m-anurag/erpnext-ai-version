@@ -1,0 +1,545 @@
+openapi: 3.0.3
+info:
+  title: ERPNext — Material Request API
+  version: "1.0"
+  description: >
+    All Material Request endpoints exposed by ERPNext / Frappe. Two families:
+
+    1. **Generic REST resource API** — auto-generated CRUD + list for the
+       `Material Request` doctype under `/api/resource/Material Request`.
+    2. **Material-Request-specific whitelisted methods** — server actions under
+       `/api/method/erpnext.stock.doctype.material_request.material_request.*`
+       (create PO/RFQ/Supplier Quotation/Stock Entry/Pick List from an MR,
+       update status, etc.).
+
+    Frappe wraps responses as `{"data": ...}` for resource calls and
+    `{"message": ...}` for method calls.
+
+servers:
+  - url: https://your-erpnext-host
+    description: Your ERPNext site
+
+security:
+  - tokenAuth: []
+
+tags:
+  - name: Resource (CRUD)
+    description: Generic create/read/update/delete/list for Material Request
+  - name: Document Actions
+    description: Submit / cancel
+  - name: Mapped Documents
+    description: Create downstream docs (PO, RFQ, Stock Entry, ...) from an MR
+  - name: Helpers
+    description: Status update and lookup helpers
+
+paths:
+  # ----------------------------------------------------------------- LIST / CREATE
+  /api/resource/Material Request:
+    get:
+      tags: [Resource (CRUD)]
+      summary: List Material Requests
+      parameters:
+        - $ref: '#/components/parameters/fields'
+        - $ref: '#/components/parameters/filters'
+        - $ref: '#/components/parameters/orderBy'
+        - $ref: '#/components/parameters/limitStart'
+        - $ref: '#/components/parameters/limitPageLength'
+      responses:
+        '200':
+          description: A page of Material Requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/MaterialRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Resource (CRUD)]
+      summary: Create a Material Request (Draft)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MaterialRequestInput' }
+            example:
+              material_request_type: Purchase
+              company: "Your Company"
+              transaction_date: "2026-06-01"
+              schedule_date: "2026-06-08"
+              items:
+                - item_code: "LAPTOP-DELL-001"
+                  qty: 5
+                  schedule_date: "2026-06-08"
+                  warehouse: "Stores - YC"
+      responses:
+        '200':
+          description: Created document
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/MaterialRequest' }
+        '417': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # --------------------------------------------------------------- READ / UPDATE / DELETE
+  /api/resource/Material Request/{name}:
+    parameters:
+      - $ref: '#/components/parameters/docName'
+    get:
+      tags: [Resource (CRUD)]
+      summary: Get a single Material Request (with child tables)
+      responses:
+        '200':
+          description: The document
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/MaterialRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Resource (CRUD)]
+      summary: Update a Material Request (only while Draft)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MaterialRequestInput' }
+      responses:
+        '200':
+          description: Updated document
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/MaterialRequest' }
+        '417': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Resource (CRUD)]
+      summary: Delete a Material Request (only while Draft)
+      responses:
+        '202': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ----------------------------------------------------------------- SUBMIT / CANCEL
+  /api/method/frappe.client.submit:
+    post:
+      tags: [Document Actions]
+      summary: Submit a document (Draft → Submitted, docstatus 1)
+      description: >
+        Pass the full document JSON as a string in `doc`. For Material Requests
+        under an approval workflow, use the workflow action endpoint instead
+        (`frappe.model.workflow.apply_workflow`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doc]
+              properties:
+                doc:
+                  type: string
+                  description: JSON string of the full document (must include name)
+      responses:
+        '200':
+          description: Submitted document
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { $ref: '#/components/schemas/MaterialRequest' }
+
+  /api/method/frappe.client.cancel:
+    post:
+      tags: [Document Actions]
+      summary: Cancel a submitted document (docstatus 2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doctype, name]
+              properties:
+                doctype: { type: string, example: Material Request }
+                name: { type: string, example: MAT-MR-2026-00001 }
+      responses:
+        '200':
+          description: Cancelled document
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { $ref: '#/components/schemas/MaterialRequest' }
+
+  /api/method/frappe.model.workflow.apply_workflow:
+    post:
+      tags: [Document Actions]
+      summary: Apply a workflow action (e.g. "Submit for Approval", "Approve")
+      description: Use this when the Material Request has an approval Workflow.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doc, action]
+              properties:
+                doc:
+                  type: string
+                  description: JSON string of the document (must include name)
+                action:
+                  type: string
+                  example: Submit for Approval
+      responses:
+        '200':
+          description: Document after the transition
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { $ref: '#/components/schemas/MaterialRequest' }
+
+  # ----------------------------------------------------------------- MAPPED DOCUMENTS
+  /api/method/erpnext.stock.doctype.material_request.material_request.make_purchase_order:
+    post:
+      tags: [Mapped Documents]
+      summary: Create a Purchase Order from a Material Request
+      description: Returns the mapped (unsaved) Purchase Order document.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_name]
+              properties:
+                source_name: { type: string, example: MAT-MR-2026-00001 }
+                args:
+                  type: object
+                  description: Optional overrides (e.g. supplier)
+      responses:
+        '200': { $ref: '#/components/responses/MappedDocument' }
+
+  /api/method/erpnext.stock.doctype.material_request.material_request.make_request_for_quotation:
+    post:
+      tags: [Mapped Documents]
+      summary: Create a Request for Quotation from a Material Request
+      requestBody: { $ref: '#/components/requestBodies/SourceName' }
+      responses:
+        '200': { $ref: '#/components/responses/MappedDocument' }
+
+  /api/method/erpnext.stock.doctype.material_request.material_request.make_supplier_quotation:
+    post:
+      tags: [Mapped Documents]
+      summary: Create a Supplier Quotation from a Material Request
+      requestBody: { $ref: '#/components/requestBodies/SourceName' }
+      responses:
+        '200': { $ref: '#/components/responses/MappedDocument' }
+
+  /api/method/erpnext.stock.doctype.material_request.material_request.make_purchase_order_based_on_supplier:
+    post:
+      tags: [Mapped Documents]
+      summary: Create a PO grouped by item default-supplier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_name, args]
+              properties:
+                source_name: { type: string, example: MAT-MR-2026-00001 }
+                args:
+                  type: object
+                  properties:
+                    supplier: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/MappedDocument' }
+
+  /api/method/erpnext.stock.doctype.material_request.material_request.make_stock_entry:
+    post:
+      tags: [Mapped Documents]
+      summary: Create a Stock Entry (for Material Transfer/Issue/Manufacture MRs)
+      requestBody: { $ref: '#/components/requestBodies/SourceName' }
+      responses:
+        '200': { $ref: '#/components/responses/MappedDocument' }
+
+  /api/method/erpnext.stock.doctype.material_request.material_request.make_in_transit_stock_entry:
+    post:
+      tags: [Mapped Documents]
+      summary: Create an in-transit Stock Entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_name, in_transit_warehouse]
+              properties:
+                source_name: { type: string, example: MAT-MR-2026-00001 }
+                in_transit_warehouse: { type: string, example: "Transit - YC" }
+      responses:
+        '200': { $ref: '#/components/responses/MappedDocument' }
+
+  /api/method/erpnext.stock.doctype.material_request.material_request.create_pick_list:
+    post:
+      tags: [Mapped Documents]
+      summary: Create a Pick List from a Material Request
+      requestBody: { $ref: '#/components/requestBodies/SourceName' }
+      responses:
+        '200': { $ref: '#/components/responses/MappedDocument' }
+
+  /api/method/erpnext.stock.doctype.material_request.material_request.raise_work_orders:
+    post:
+      tags: [Mapped Documents]
+      summary: Raise Work Orders from a Manufacture-type Material Request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [material_request, company]
+              properties:
+                material_request: { type: string, example: MAT-MR-2026-00001 }
+                company: { type: string, example: "Your Company" }
+      responses:
+        '200':
+          description: List of created Work Order names
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: array
+                    items: { type: string }
+
+  # ----------------------------------------------------------------- HELPERS
+  /api/method/erpnext.stock.doctype.material_request.material_request.update_status:
+    post:
+      tags: [Helpers]
+      summary: Update the status of a Material Request
+      description: e.g. Stop / Re-open a request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, status]
+              properties:
+                name: { type: string, example: MAT-MR-2026-00001 }
+                status:
+                  type: string
+                  enum: [Draft, Submitted, Stopped, Cancelled, Pending, Ordered, Issued, Transferred, Received]
+      responses:
+        '200': { description: OK }
+
+  /api/method/erpnext.stock.doctype.material_request.material_request.get_items_based_on_default_supplier:
+    post:
+      tags: [Helpers]
+      summary: Get MR items whose Item default-supplier matches the given supplier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [supplier]
+              properties:
+                supplier: { type: string, example: "Dell Technologies" }
+      responses:
+        '200':
+          description: Matching item rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: array
+                    items: { $ref: '#/components/schemas/MaterialRequestItem' }
+
+components:
+  securitySchemes:
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: >
+        Use an API key/secret pair (User > API Access > Generate Keys):
+        `Authorization: token <api_key>:<api_secret>`. Session cookies also work
+        for browser clients.
+
+  parameters:
+    docName:
+      name: name
+      in: path
+      required: true
+      schema: { type: string }
+      example: MAT-MR-2026-00001
+    fields:
+      name: fields
+      in: query
+      description: JSON array of fieldnames to return
+      schema: { type: string }
+      example: '["name","status","transaction_date","per_ordered"]'
+    filters:
+      name: filters
+      in: query
+      description: JSON array of filter triples [field, operator, value]
+      schema: { type: string }
+      example: '[["status","=","Pending"],["company","=","Your Company"]]'
+    orderBy:
+      name: order_by
+      in: query
+      schema: { type: string }
+      example: transaction_date desc
+    limitStart:
+      name: limit_start
+      in: query
+      schema: { type: integer, default: 0 }
+    limitPageLength:
+      name: limit_page_length
+      in: query
+      description: Page size (use 0 for all)
+      schema: { type: integer, default: 20 }
+
+  requestBodies:
+    SourceName:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [source_name]
+            properties:
+              source_name: { type: string, example: MAT-MR-2026-00001 }
+
+  responses:
+    Unauthorized:
+      description: Missing/invalid credentials
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Document not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Validation failed (Frappe returns 417 with server messages)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    MappedDocument:
+      description: A mapped (unsaved) target document is returned in `message`
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: object
+                description: The target document (e.g. Purchase Order) as a dict
+
+  schemas:
+    MaterialRequest:
+      type: object
+      properties:
+        name: { type: string, readOnly: true, example: MAT-MR-2026-00001 }
+        naming_series: { type: string, example: "MAT-MR-.YYYY.-" }
+        title: { type: string }
+        material_request_type:
+          type: string
+          enum: [Purchase, Material Transfer, Material Issue, Manufacture, Subcontracting, Customer Provided]
+        customer: { type: string, description: "Link: Customer" }
+        company: { type: string, description: "Link: Company" }
+        transaction_date: { type: string, format: date }
+        schedule_date: { type: string, format: date }
+        set_warehouse: { type: string, description: "Link: Warehouse" }
+        set_from_warehouse: { type: string, description: "Link: Warehouse" }
+        status:
+          type: string
+          enum: [Draft, Submitted, Stopped, Cancelled, Pending, Partially Ordered, Partially Received, Ordered, Issued, Transferred, Received]
+          readOnly: true
+        transfer_status:
+          type: string
+          enum: [Not Started, In Transit, Completed]
+          readOnly: true
+        per_ordered: { type: number, format: float, readOnly: true }
+        per_received: { type: number, format: float, readOnly: true }
+        docstatus: { type: integer, enum: [0, 1, 2], readOnly: true, description: "0=Draft, 1=Submitted, 2=Cancelled" }
+        workflow_state: { type: string, description: "Approval workflow state (if a Workflow is configured)" }
+        tc_name: { type: string, description: "Link: Terms and Conditions" }
+        terms: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/MaterialRequestItem' }
+
+    MaterialRequestInput:
+      type: object
+      required: [material_request_type, company, transaction_date, items]
+      properties:
+        material_request_type:
+          type: string
+          enum: [Purchase, Material Transfer, Material Issue, Manufacture, Subcontracting, Customer Provided]
+        company: { type: string }
+        transaction_date: { type: string, format: date }
+        schedule_date: { type: string, format: date }
+        set_warehouse: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/MaterialRequestItemInput' }
+
+    MaterialRequestItem:
+      type: object
+      properties:
+        name: { type: string, readOnly: true, description: "Child row id (used for traceability links)" }
+        item_code: { type: string, description: "Link: Item" }
+        item_name: { type: string }
+        description: { type: string }
+        qty: { type: number, format: float }
+        uom: { type: string, description: "Link: UOM" }
+        stock_uom: { type: string, description: "Link: UOM" }
+        conversion_factor: { type: number, format: float }
+        warehouse: { type: string, description: "Link: Warehouse" }
+        schedule_date: { type: string, format: date }
+        rate: { type: number, format: float }
+        amount: { type: number, format: float, readOnly: true }
+        ordered_qty: { type: number, format: float, readOnly: true }
+        received_qty: { type: number, format: float, readOnly: true }
+        projected_qty: { type: number, format: float, readOnly: true }
+        actual_qty: { type: number, format: float, readOnly: true }
+        project: { type: string, description: "Link: Project" }
+
+    MaterialRequestItemInput:
+      type: object
+      required: [item_code, qty, schedule_date]
+      properties:
+        item_code: { type: string }
+        qty: { type: number, format: float }
+        uom: { type: string }
+        warehouse: { type: string }
+        schedule_date: { type: string, format: date }
+        rate: { type: number, format: float }
+
+    Error:
+      type: object
+      properties:
+        exc_type: { type: string, example: ValidationError }
+        _server_messages: { type: string, description: "JSON-encoded list of user-facing messages" }
+        exception: { type: string }
