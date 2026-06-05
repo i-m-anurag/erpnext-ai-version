@@ -8,6 +8,7 @@ import type { FormFieldDef } from '../../core/models/api.models';
   imports: [ReactiveFormsModule, NgSelectModule],
   template: `
     <ng-select
+      [class]="controlClass()"
       [items]="options()"
       bindValue="value"
       bindLabel="label"
@@ -21,6 +22,7 @@ import type { FormFieldDef } from '../../core/models/api.models';
 export class SelectFieldComponent {
   readonly config = input.required<FormFieldDef>();
   readonly control = input.required<FormControl>();
+  readonly controlClass = input<string>('');
   readonly options = computed(() => this.config().options ?? []);
   readonly multiple = computed(() => this.config().type === 'multiselect');
 

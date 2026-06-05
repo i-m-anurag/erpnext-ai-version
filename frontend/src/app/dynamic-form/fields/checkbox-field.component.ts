@@ -9,7 +9,7 @@ import type { FormFieldDef } from '../../core/models/api.models';
     <div class="form-check">
       <input
         type="checkbox"
-        class="form-check-input"
+        [class]="controlClass()"
         [id]="config().key"
         [formControl]="control()"
       />
@@ -20,4 +20,5 @@ import type { FormFieldDef } from '../../core/models/api.models';
 export class CheckboxFieldComponent {
   readonly config = input.required<FormFieldDef>();
   readonly control = input.required<FormControl>();
+  readonly controlClass = input<string>('form-check-input');
 }

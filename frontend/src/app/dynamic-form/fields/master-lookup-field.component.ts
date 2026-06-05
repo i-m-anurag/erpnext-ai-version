@@ -9,6 +9,7 @@ import type { FormFieldDef, MasterOption } from '../../core/models/api.models';
   imports: [ReactiveFormsModule, NgSelectModule],
   template: `
     <ng-select
+      [class]="controlClass()"
       [items]="options()"
       bindValue="value"
       bindLabel="label"
@@ -22,6 +23,7 @@ import type { FormFieldDef, MasterOption } from '../../core/models/api.models';
 export class MasterLookupFieldComponent implements OnInit {
   readonly config = input.required<FormFieldDef>();
   readonly control = input.required<FormControl>();
+  readonly controlClass = input<string>('');
   private readonly api = inject(MasterApiService);
 
   readonly options = signal<MasterOption[]>([]);

@@ -9,7 +9,7 @@ import type { FormFieldDef } from '../../core/models/api.models';
   template: `
     <input
       type="text"
-      class="form-control"
+      [class]="controlClass()"
       bsDatepicker
       [id]="config().key"
       [formControl]="control()"
@@ -22,6 +22,7 @@ import type { FormFieldDef } from '../../core/models/api.models';
 export class DateFieldComponent {
   readonly config = input.required<FormFieldDef>();
   readonly control = input.required<FormControl>();
+  readonly controlClass = input<string>('form-control');
 
   invalid(): boolean {
     const c = this.control();

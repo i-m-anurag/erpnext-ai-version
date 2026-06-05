@@ -5,13 +5,10 @@ import { CssMapService } from './css-map.service';
 import type { FormDefinition, FormFieldDef } from '../core/models/api.models';
 
 /**
- * Renders a reactive form from a JSON definition + a FormGroup. The use-case
- * component passes `[config]` and `[group]`; this component does all the field
- * generation/mapping (via DynamicFieldDirective) and applies css.json classes to
- * the wrapper elements so the same form can be molded per deployment.
- *
- * Action buttons are projected via <ng-content> into the actions slot, and the
- * form emits `(submitted)` on a valid native submit.
+ * Renders a reactive form from a JSON definition + a FormGroup. All wrapper
+ * classes resolve from css.json keyed by the form's slug (slug → part → node),
+ * so each div is configurable per form. The control class is resolved per field
+ * and passed down to the field component.
  */
 @Component({
   selector: 'erp-dynamic-form',
@@ -20,20 +17,20 @@ import type { FormDefinition, FormFieldDef } from '../core/models/api.models';
     <form [formGroup]="group()" [class]="formClass()" (ngSubmit)="submitted.emit()">
       @for (field of fields(); track field.key) {
         @if (isVisible(field)) {
-          <div [class]="fieldClass(field)">
+          <div [class]="fieldClass(field.key)">
             @if (field.type !== 'checkbox') {
-              <label [class]="css.cls('label')" [attr.for]="field.key">
+              <label [class]="labelClass(field.key)" [attr.for]="field.key">
                 {{ field.label }}@if (field.required) { <span class="text-danger"> *</span> }
               </label>
             }
-            <ng-container [erpDynamicField]="field" [control]="controlFor(field.key)" />
+            <ng-container [erpDynamicField]="field" [control]="controlFor(field.key)" [formSlug]="slug()" />
             @if (showError(field.key)) {
-              <div [class]="css.cls('error')">{{ errorText(field.key) }}</div>
+              <div [class]="errorClass(field.key)">{{ errorText(field.key) }}</div>
             }
           </div>
         }
       }
-      <div [class]="css.cls('actions')">
+      <div [class]="actionsClass()">
         <ng-content />
       </div>
     </form>
@@ -44,14 +41,24 @@ export class DynamicFormComponent {
   readonly group = input.required<FormGroup>();
   readonly submitted = output<void>();
 
-  protected readonly css = inject(CssMapService);
+  private readonly css = inject(CssMapService);
+  protected readonly slug = computed(() => this.config().slug);
   protected readonly fields = computed(() => this.config().fields);
-  protected readonly formClass = computed(() =>
-    this.config().layout === 'two-column' ? this.css.cls('form.two-column') : this.css.cls('form'),
-  );
 
-  protected fieldClass(field: FormFieldDef): string {
-    return field.cssSlug ? this.css.cls('field', `field.${field.cssSlug}`) : this.css.cls('field');
+  protected formClass(): string {
+    return this.css.formClass(this.slug(), this.config().layout === 'two-column');
+  }
+  protected fieldClass(key: string): string {
+    return this.css.fieldClass(this.slug(), key);
+  }
+  protected labelClass(key: string): string {
+    return this.css.labelClass(this.slug(), key);
+  }
+  protected errorClass(key: string): string {
+    return this.css.errorClass(this.slug(), key);
+  }
+  protected actionsClass(): string {
+    return this.css.actionsClass(this.slug());
   }
 
   protected controlFor(key: string): FormControl {

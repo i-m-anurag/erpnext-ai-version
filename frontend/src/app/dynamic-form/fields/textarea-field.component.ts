@@ -7,7 +7,7 @@ import type { FormFieldDef } from '../../core/models/api.models';
   imports: [ReactiveFormsModule],
   template: `
     <textarea
-      class="form-control"
+      [class]="controlClass()"
       rows="3"
       [id]="config().key"
       [formControl]="control()"
@@ -19,6 +19,7 @@ import type { FormFieldDef } from '../../core/models/api.models';
 export class TextareaFieldComponent {
   readonly config = input.required<FormFieldDef>();
   readonly control = input.required<FormControl>();
+  readonly controlClass = input<string>('form-control');
 
   invalid(): boolean {
     const c = this.control();

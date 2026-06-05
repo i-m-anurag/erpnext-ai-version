@@ -8,7 +8,7 @@ import type { FormFieldDef } from '../../core/models/api.models';
   template: `
     <input
       [type]="type()"
-      class="form-control"
+      [class]="controlClass()"
       [id]="config().key"
       [formControl]="control()"
       [placeholder]="config().placeholder ?? ''"
@@ -19,6 +19,7 @@ import type { FormFieldDef } from '../../core/models/api.models';
 export class TextFieldComponent {
   readonly config = input.required<FormFieldDef>();
   readonly control = input.required<FormControl>();
+  readonly controlClass = input<string>('form-control');
   readonly type = computed(() => (this.config().type === 'number' ? 'number' : 'text'));
 
   invalid(): boolean {

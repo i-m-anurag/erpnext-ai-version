@@ -1,9 +1,22 @@
 {
-  "form": "erp-form",
-  "form.two-column": "erp-form erp-form--two-column",
-  "field": "erp-field",
-  "field.col2": "erp-field",
-  "label": "erp-field__label form-label",
-  "error": "erp-field__error",
-  "actions": "erp-form__actions"
+  "default": {
+    "form": { "parent": "erp-form", "twoColumn": "erp-form erp-form--two-column" },
+    "field": {
+      "parent": "erp-field",
+      "label": "erp-field__label form-label",
+      "error": "erp-field__error"
+    },
+    "actions": { "parent": "erp-form__actions" }
+  },
+
+  "login": {
+    "field": { "parent": "erp-field mb-3", "control": "form-control form-control-lg" }
+  },
+
+  "vendor-onboarding": {
+    "form": { "parent": "erp-form erp-form--two-column" },
+    "fields": {
+      "gstin": { "parent": "erp-field" }
+    }
+  }
 }
