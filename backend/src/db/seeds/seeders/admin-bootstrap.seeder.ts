@@ -2,14 +2,18 @@ import { BaseRepository } from '../../../shared/base.repository.js';
 import { env } from '../../../config/env.js';
 import { logger } from '../../../config/logger.js';
 import { User, authService } from '../../../modules/auth/index.js';
+import { passwordService } from '../../../modules/auth/password.service.js';
 import { permissionService, Role } from '../../../modules/permission/index.js';
 import type { Seeder } from '../seeder.js';
 
 /**
- * Bootstrap the first admin user from config (config/*.json → admin.*). On first
- * run: create the user (no password), grant the admin role, and send a welcome /
- * set-password email. Idempotent: if the user already exists, only ensure the
- * admin role is assigned — no duplicate user, no repeat email.
+ * Bootstrap the first admin user from config (config/*.json → admin.*), idempotently.
+ *
+ *  - If config.admin.password is set: the admin is created WITH that password and
+ *    can log in immediately (dev / fresh-checkout convenience). A pre-existing
+ *    admin that has no password yet is also recovered to this password.
+ *  - If no password is configured: the admin is created WITHOUT one and receives a
+ *    welcome / set-password email (the production-correct flow).
  */
 export const adminBootstrapSeeder: Seeder = {
   name: 'admin-bootstrap',
@@ -21,11 +25,21 @@ export const adminBootstrapSeeder: Seeder = {
     if (!adminRole) throw new Error('admin role missing — run system-roles seeder first');
 
     const username = env.admin.username.toLowerCase();
+    const configuredPassword = env.admin.password;
     const existing = await users.findOne({ username });
 
     if (existing) {
       await permissionService.assignRole(existing.id, adminRole.id);
-      logger.info(`admin user '${username}' already exists — ensured admin role`);
+      // Recover an admin that never got a password (e.g. seeded via welcome flow,
+      // then a password was added to config). Never clobber an existing password.
+      if (configuredPassword && !existing.passwordHash) {
+        existing.passwordHash = await passwordService.hash(configuredPassword);
+        existing.isFirstLogin = false;
+        await users.save(existing);
+        logger.info(`admin user '${username}' existed without a password — set from config`);
+      } else {
+        logger.info(`admin user '${username}' already exists — ensured admin role`);
+      }
       return;
     }
 
@@ -34,11 +48,17 @@ export const adminBootstrapSeeder: Seeder = {
         username,
         email: env.admin.email.toLowerCase(),
         displayName: env.admin.displayName,
-        isFirstLogin: true,
+        isFirstLogin: !configuredPassword,
+        passwordHash: configuredPassword ? await passwordService.hash(configuredPassword) : null,
       }),
     );
     await permissionService.assignRole(user.id, adminRole.id);
-    await authService.sendWelcome(user.id);
-    logger.info(`admin user '${username}' created, admin role granted, welcome email sent to ${user.email}`);
+
+    if (configuredPassword) {
+      logger.info(`admin user '${username}' created with a password from config (can log in now)`);
+    } else {
+      await authService.sendWelcome(user.id);
+      logger.info(`admin user '${username}' created; welcome/set-password email sent to ${user.email}`);
+    }
   },
 };

@@ -100,6 +100,7 @@ function flatten(c: AppConfig): Record<string, string | number | boolean> {
     ADMIN_USERNAME: c.admin.username,
     ADMIN_EMAIL: c.admin.email,
     ADMIN_DISPLAY_NAME: c.admin.displayName,
+    ADMIN_PASSWORD: c.admin.password ?? '',
 
     CLIENT_SLUG: c.clientSlug ?? '',
 

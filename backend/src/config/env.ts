@@ -58,6 +58,7 @@ const EnvSchema = z.object({
   ADMIN_USERNAME: z.string(),
   ADMIN_EMAIL: z.string().email(),
   ADMIN_DISPLAY_NAME: z.string().default('Administrator'),
+  ADMIN_PASSWORD: z.string().default(''),
 
   CLIENT_SLUG: z.string().default(''),
 
@@ -134,6 +135,7 @@ export const env = {
     username: e.ADMIN_USERNAME,
     email: e.ADMIN_EMAIL,
     displayName: e.ADMIN_DISPLAY_NAME,
+    password: e.ADMIN_PASSWORD || undefined,
   },
   /** Active client slug for this deployment (drives client-override seeding). */
   clientSlug: e.CLIENT_SLUG || undefined,

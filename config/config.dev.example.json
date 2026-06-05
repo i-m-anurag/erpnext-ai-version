@@ -47,7 +47,8 @@
   "admin": {
     "username": "admin",
     "email": "admin@erp.local",
-    "displayName": "Administrator"
+    "displayName": "Administrator",
+    "password": "AdminPass123"
   },
   "modules": {
     "auth": true,

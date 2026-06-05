@@ -84,11 +84,19 @@ export const ConfigSchema = z.object({
    */
   clientSlug: z.string().optional(),
 
-  /** First-admin bootstrap — seeded on deploy, receives a welcome/set-password email. */
+  /** First-admin bootstrap — seeded on deploy. */
   admin: z.object({
     username: z.string().min(1),
     email: z.string().email(),
     displayName: z.string().default('Administrator'),
+    /**
+     * Optional initial password. If set, the seeder creates the admin with this
+     * password so it can log in immediately (handy for dev / fresh checkouts). If
+     * omitted, the admin is created WITHOUT a password and gets a welcome /
+     * set-password email instead (the production-correct flow). Don't ship a real
+     * password here in production configs.
+     */
+    password: z.string().optional(),
   }),
 
   /** Layer-1 config: which modules this deployment runs (feature toggles). */
