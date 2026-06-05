@@ -58,6 +58,27 @@ export interface MasterOption {
   label: string;
 }
 
+export interface MasterRegistry {
+  id: string;
+  slug: string;
+  name: string;
+  managedBy: 'seeded' | 'ui';
+  editable: boolean;
+  formSlug: string | null;
+  codeField: string;
+  labelField: string;
+  cacheTtlSeconds: number;
+  status: string;
+}
+
+export interface MasterRow {
+  id: string;
+  masterSlug: string;
+  code: string;
+  data: Record<string, unknown>;
+  status: string;
+}
+
 export interface FormDefinition {
   slug: string;
   version?: number;

@@ -1,13 +1,15 @@
 import {
   type ApplicationConfig,
+  importProvidersFrom,
   inject,
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   provideZoneChangeDetection,
 } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
+import { ModalModule } from 'ngx-bootstrap/modal';
 
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
@@ -18,8 +20,9 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(routes),
+    provideRouter(routes, withComponentInputBinding()),
     provideHttpClient(withInterceptors([authInterceptor])),
+    importProvidersFrom(ModalModule.forRoot()),
     provideAnimations(), // ngx-bootstrap (datepicker, etc.) needs animations
     // Load the css.json class map (dynamic-form theming) before first render.
     provideAppInitializer(() => inject(CssMapService).load()),

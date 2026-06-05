@@ -21,8 +21,18 @@ export const routes: Routes = [
         path: 'masters',
         canActivate: [permissionGuard],
         data: { permission: 'master:view', title: 'Masters' },
-        loadComponent: () =>
-          import('./features/placeholder/placeholder.component').then((m) => m.PlaceholderComponent),
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/masters/masters-list.component').then((m) => m.MastersListComponent),
+          },
+          {
+            path: ':slug',
+            loadComponent: () =>
+              import('./features/masters/master-detail.component').then((m) => m.MasterDetailComponent),
+          },
+        ],
       },
       {
         path: 'roles',
