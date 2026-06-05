@@ -95,6 +95,7 @@ export const metaSchema = z
     name: z.string(),
     env: z.string(),
     modules: z.record(z.string(), z.boolean()),
+    branding: z.object({ productName: z.string(), logoUrl: z.string() }),
   })
   .meta({ id: 'Meta' });
 

@@ -67,6 +67,18 @@ export const ConfigSchema = z.object({
   }),
 
   /**
+   * Per-deployment white-label branding (§5.12). Surfaced via /api/meta and used
+   * by the SPA on the login + main screens. The logo is a frontend asset (default
+   * /branding/logo.svg) that a client build can replace; productName defaults to app.name.
+   */
+  branding: z
+    .object({
+      productName: z.string().optional(),
+      logoUrl: z.string().default('/branding/logo.svg'),
+    })
+    .default({ logoUrl: '/branding/logo.svg' }),
+
+  /**
    * This deployment's client. When set, the seeder applies client-specific
    * overrides from seed-data/clients/<clientSlug>/ on top of the shipped base.
    */

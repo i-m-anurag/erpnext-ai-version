@@ -60,6 +60,9 @@ const EnvSchema = z.object({
   ADMIN_DISPLAY_NAME: z.string().default('Administrator'),
 
   CLIENT_SLUG: z.string().default(''),
+
+  BRANDING_PRODUCT_NAME: z.string().default(''),
+  BRANDING_LOGO_URL: z.string().default('/branding/logo.svg'),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -134,6 +137,11 @@ export const env = {
   },
   /** Active client slug for this deployment (drives client-override seeding). */
   clientSlug: e.CLIENT_SLUG || undefined,
+  /** White-label branding surfaced to the SPA via /api/meta. */
+  branding: {
+    productName: e.BRANDING_PRODUCT_NAME || e.APP_NAME,
+    logoUrl: e.BRANDING_LOGO_URL,
+  },
   modules: readModules(),
 } as const;
 

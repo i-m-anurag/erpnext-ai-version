@@ -102,6 +102,9 @@ function flatten(c: AppConfig): Record<string, string | number | boolean> {
     ADMIN_DISPLAY_NAME: c.admin.displayName,
 
     CLIENT_SLUG: c.clientSlug ?? '',
+
+    BRANDING_PRODUCT_NAME: c.branding.productName ?? '',
+    BRANDING_LOGO_URL: c.branding.logoUrl,
   };
 
   // Module toggles → MODULE_<NAME>=true|false

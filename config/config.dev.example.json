@@ -40,6 +40,10 @@
     "secure": false,
     "from": "ERP <no-reply@erp.local>"
   },
+  "branding": {
+    "productName": "ERP",
+    "logoUrl": "/branding/logo.svg"
+  },
   "admin": {
     "username": "admin",
     "email": "admin@erp.local",

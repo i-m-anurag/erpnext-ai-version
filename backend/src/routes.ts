@@ -40,7 +40,7 @@ export function registerRoutes(app: Express): void {
   // Surfaces which modules this deployment runs (Layer-1 config). Under /api so
   // the SPA reaches it through the same-origin proxy (health probes stay at root).
   app.get('/api/meta', (_req: Request, res: Response) => {
-    res.json({ name: env.app.name, env: env.nodeEnv, modules: env.modules });
+    res.json({ name: env.app.name, env: env.nodeEnv, modules: env.modules, branding: env.branding });
   });
 
   // Module routers — each gated by its Layer-1 enablement flag.
