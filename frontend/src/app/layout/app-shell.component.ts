@@ -2,6 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
 import { AuthStore } from '../core/state/auth.store';
+import { BrandingService } from '../core/branding/branding.service';
 import { NAV_ITEMS } from './nav';
 
 /**
@@ -14,11 +15,15 @@ import { NAV_ITEMS } from './nav';
   template: `
     <div class="erp-shell">
       <aside class="erp-sidebar">
-        <div class="erp-sidebar__brand">ERP</div>
+        <div class="erp-sidebar__brand">
+          <img [src]="branding.logoUrl()" [alt]="branding.productName()" height="28" />
+          <span>{{ branding.productName() }}</span>
+        </div>
         <nav class="erp-sidebar__nav">
           @for (item of visibleNav(); track item.route) {
             <a class="erp-sidebar__link" [routerLink]="item.route" routerLinkActive="active">
-              {{ item.label }}
+              <i class="ph {{ item.icon }} erp-sidebar__icon"></i>
+              <span>{{ item.label }}</span>
             </a>
           }
         </nav>
@@ -40,6 +45,7 @@ import { NAV_ITEMS } from './nav';
 })
 export class AppShellComponent {
   protected readonly store = inject(AuthStore);
+  protected readonly branding = inject(BrandingService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 

@@ -26,10 +26,16 @@ export interface MeResponse {
   branchId: string | null;
 }
 
+export interface Branding {
+  productName: string;
+  logoUrl: string;
+}
+
 export interface MetaResponse {
   name: string;
   env: string;
   modules: Record<string, boolean>;
+  branding?: Branding;
 }
 
 /** A resolved form definition (public or authed endpoint). */

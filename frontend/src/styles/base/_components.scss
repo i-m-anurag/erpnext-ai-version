@@ -50,6 +50,8 @@ body {
     font-weight: 600;
     color: var(--erp-sidebar-text-active);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+    img { display: block; border-radius: $erp-radius-sm; }
   }
   .erp-sidebar__nav { padding: $erp-space-2; }
   .erp-sidebar__link {
@@ -66,6 +68,7 @@ body {
     &:hover { background: rgba(255, 255, 255, 0.05); color: var(--erp-sidebar-text-active); }
     &.active { background: var(--erp-sidebar-active-bg); color: var(--erp-sidebar-text-active); }
   }
+  .erp-sidebar__icon { font-size: 1.15rem; line-height: 1; flex: 0 0 auto; }
 }
 .erp-main {
   grid-area: main;
@@ -95,11 +98,22 @@ body {
     max-width: 380px;
     padding: $erp-space-6;
   }
+  .erp-login__logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $erp-space-2;
+    margin-bottom: $erp-space-4;
+
+    img { display: block; }
+    .erp-login__product { font-weight: 600; font-size: 1.05rem; }
+  }
   .erp-login__brand {
     text-align: center;
     margin-bottom: $erp-space-5;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 600;
+    color: var(--erp-text-muted);
   }
 }
 

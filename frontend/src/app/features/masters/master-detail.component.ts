@@ -12,6 +12,7 @@ import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { MasterApiService } from '../../core/api/master.api.service';
 import { FormApiService } from '../../core/api/form.api.service';
+import { NotificationService } from '../../core/notify/notification.service';
 import { HasPermissionDirective } from '../../core/auth/has-permission.directive';
 import { MasterFormModalComponent } from './master-form-modal.component';
 import type { FormDefinition, MasterRegistry, MasterRow } from '../../core/models/api.models';
@@ -72,6 +73,7 @@ export class MasterDetailComponent {
   private readonly api = inject(MasterApiService);
   private readonly formApi = inject(FormApiService);
   private readonly modal = inject(BsModalService);
+  private readonly notify = inject(NotificationService);
 
   protected editable(): boolean {
     return this.master()?.editable === true;
@@ -124,7 +126,13 @@ export class MasterDetailComponent {
     const m = this.master();
     if (!row || !m) return;
     if (!confirm(`Delete "${row.code}"?`)) return;
-    this.api.deleteData(m.slug, row.id).subscribe(() => this.reload());
+    this.api.deleteData(m.slug, row.id).subscribe({
+      next: () => {
+        this.notify.success(`Deleted "${row.code}"`);
+        this.reload();
+      },
+      error: () => this.notify.error('Delete failed'),
+    });
   }
 
   private openModal(row?: MasterRow): void {

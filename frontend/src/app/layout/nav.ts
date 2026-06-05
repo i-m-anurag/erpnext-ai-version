@@ -3,6 +3,8 @@
 export interface NavItem {
   label: string;
   route: string;
+  /** Phosphor icon class, e.g. 'ph-gauge' (rendered as `<i class="ph ph-gauge">`). */
+  icon: string;
   /** Layer-1 module-enablement gate (optional). */
   module?: string;
   /** Permission required to see this item (optional). */
@@ -10,7 +12,8 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', route: '/app/dashboard' },
-  { label: 'Masters', route: '/app/masters', module: 'master', permission: 'master:view' },
-  { label: 'Roles & Permissions', route: '/app/roles', module: 'permission', permission: 'permission:role.read' },
+  { label: 'Dashboard', route: '/app/dashboard', icon: 'ph-gauge' },
+  { label: 'Masters', route: '/app/masters', icon: 'ph-database', module: 'master', permission: 'master:view' },
+  { label: 'Roles & Permissions', route: '/app/roles', icon: 'ph-shield-check', module: 'permission', permission: 'permission:role.read' },
+  { label: 'Form Playground', route: '/app/playground', icon: 'ph-flask' },
 ];

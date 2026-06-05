@@ -7,6 +7,7 @@ import { FormBuilderService } from '../../dynamic-form/form-builder.service';
 import { FormApiService } from '../../core/api/form.api.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/state/auth.store';
+import { BrandingService } from '../../core/branding/branding.service';
 import type { FormDefinition } from '../../core/models/api.models';
 
 /** Used if the public login form can't be fetched (API down) — login stays usable. */
@@ -26,6 +27,10 @@ const FALLBACK_LOGIN: FormDefinition = {
   template: `
     <div class="erp-login">
       <div class="erp-card erp-login__card">
+        <div class="erp-login__logo">
+          <img [src]="branding.logoUrl()" [alt]="branding.productName()" height="44" />
+          <div class="erp-login__product">{{ branding.productName() }}</div>
+        </div>
         <div class="erp-login__brand">{{ config()?.title ?? 'Sign in' }}</div>
         @if (error()) {
           <div class="alert alert-danger py-2">{{ error() }}</div>
@@ -49,6 +54,7 @@ export class LoginComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly store = inject(AuthStore);
+  protected readonly branding = inject(BrandingService);
 
   readonly config = signal<FormDefinition | null>(null);
   readonly group = signal<FormGroup | null>(null);

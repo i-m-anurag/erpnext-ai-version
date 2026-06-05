@@ -6,6 +6,7 @@ import { DynamicFormComponent } from '../../dynamic-form/dynamic-form.component'
 import { FormBuilderService } from '../../dynamic-form/form-builder.service';
 import { FormApiService } from '../../core/api/form.api.service';
 import { MasterApiService } from '../../core/api/master.api.service';
+import { NotificationService } from '../../core/notify/notification.service';
 import type { FormDefinition } from '../../core/models/api.models';
 
 /**
@@ -55,6 +56,7 @@ export class MasterFormModalComponent implements OnInit {
   private readonly formApi = inject(FormApiService);
   private readonly fb = inject(FormBuilderService);
   private readonly api = inject(MasterApiService);
+  private readonly notify = inject(NotificationService);
   readonly modalRef = inject(BsModalRef);
 
   ngOnInit(): void {
@@ -81,11 +83,14 @@ export class MasterFormModalComponent implements OnInit {
       : this.api.createData(this.masterSlug, data);
     op.subscribe({
       next: () => {
+        this.notify.success(`${this.title} ${this.rowId ? 'updated' : 'created'}`);
         this.saved.next();
         this.modalRef.hide();
       },
       error: (e: { error?: { error?: { message?: string } } }) => {
-        this.error.set(e?.error?.error?.message ?? 'Save failed');
+        const msg = e?.error?.error?.message ?? 'Save failed';
+        this.error.set(msg);
+        this.notify.error(msg);
         this.saving.set(false);
       },
     });

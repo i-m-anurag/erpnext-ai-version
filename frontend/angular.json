@@ -54,6 +54,8 @@
             "styles": [
               "node_modules/@ng-select/ng-select/themes/default.theme.css",
               "node_modules/ngx-bootstrap/datepicker/bs-datepicker.css",
+              "node_modules/ngx-toastr/toastr.css",
+              "node_modules/@phosphor-icons/web/src/regular/style.css",
               "src/styles.scss"
             ],
             "stylePreprocessorOptions": {
