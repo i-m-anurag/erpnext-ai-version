@@ -54,10 +54,8 @@ if [ ! -d "sites/$SITE_NAME" ]; then
     --admin-password "$ADMIN_PASSWORD" \
     --mariadb-user-host-login-scope='%'
 
-  echo "[entrypoint] Installing apps (erpnext, hrms, ai_procurement) ..."
+  echo "[entrypoint] Installing erpnext (needed early for the v16 fix) ..."
   bench --site "$SITE_NAME" install-app erpnext
-  bench --site "$SITE_NAME" install-app hrms
-  bench --site "$SITE_NAME" install-app ai_procurement
 
   # Known v16 fix: programmatic Address/Contact custom fields
   # (avoids the missing 'is_billing_contact' column we hit earlier)
@@ -68,6 +66,22 @@ if [ ! -d "sites/$SITE_NAME" ]; then
 else
   echo "[entrypoint] Site $SITE_NAME already exists, skipping creation."
 fi
+
+# ---------------------------------------------------------------------------
+# Ensure every bundled app is registered in apps.txt and installed on the site.
+# This is NON-DESTRUCTIVE: it installs apps added via an image rebuild into the
+# EXISTING site (preserving all data/settings) — so you never need `down -v`.
+# Order matters (erpnext -> hrms/india_compliance -> custom app last).
+# ---------------------------------------------------------------------------
+for app in erpnext hrms india_compliance ai_procurement; do
+  [ -d "apps/$app" ] || continue
+  grep -qxF "$app" sites/apps.txt 2>/dev/null \
+    || printf '%s\n' "$(cat sites/apps.txt)" "$app" > sites/apps.txt
+  if ! bench --site "$SITE_NAME" list-apps 2>/dev/null | awk '{print $1}' | grep -qxF "$app"; then
+    echo "[entrypoint] Installing newly-added app into existing site: $app"
+    bench --site "$SITE_NAME" install-app "$app" || echo "[entrypoint] WARN: install-app $app failed (continuing)"
+  fi
+done
 
 echo "[entrypoint] Running migrations..."
 bench --site "$SITE_NAME" migrate
