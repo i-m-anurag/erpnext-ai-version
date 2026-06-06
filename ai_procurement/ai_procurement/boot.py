@@ -7,7 +7,12 @@ BRAND = "IQ-SMART ERP"
 BRANDED_APPS = {"frappe", "erpnext", "hrms", "india_compliance", "ai_procurement"}
 
 # Relabel desk-home grid tiles / popups (desktop icons) to drop vendor names.
-ICON_RELABEL = {"Frappe HR": "HR"}
+ICON_RELABEL = {
+	"Frappe HR": "HR",
+	"India Compliance": "GST and Tax",
+	"ERPNext Settings": "IQ-SMART ERP Settings",
+	"ERPNext": BRAND,
+}
 
 
 def extend_bootinfo(bootinfo):
