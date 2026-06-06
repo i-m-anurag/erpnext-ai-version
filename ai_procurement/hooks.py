@@ -84,6 +84,8 @@ fixtures = [
 			"Purchase Invoice Pending Approval",
 		]]],
 	},
+	# White-label: rename "ERPNext" -> "IQ-SMART ERP" in the UI (sidebar, etc.)
+	{"dt": "Translation", "filters": [["source_text", "=", "ERPNext"]]},
 ]
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
