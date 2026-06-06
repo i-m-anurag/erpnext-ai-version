@@ -189,6 +189,10 @@ fixtures = [
 # 	}
 # }
 
+# White-label: rebrand the desk sidebar app title ("ERPNext" -> "IQ-SMART ERP").
+# boot sends app_title RAW (not translated), so a Translation can't cover it.
+extend_bootinfo = "ai_procurement.ai_procurement.boot.extend_bootinfo"
+
 # Outgoing-email routing (copy / redirect) controlled by site_config keys
 # email_copy_to / email_redirect_to (set from EMAIL_COPY_TO / EMAIL_REDIRECT_TO
 # env vars in Docker). Empty/unset = normal delivery.
