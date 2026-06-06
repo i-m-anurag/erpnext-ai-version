@@ -3,19 +3,29 @@
 
 BRAND = "IQ-SMART ERP"
 
-# Apps whose desk-sidebar title should show the unified brand
-# (so HR, GST, etc. all read "IQ-SMART ERP" instead of "Frappe HR" /
-# "India Compliance" / "ERPNext").
-BRANDED_APPS = {"erpnext", "hrms", "india_compliance", "ai_procurement"}
+# Every bundled app -> unified brand for the desk sidebar subtitle.
+BRANDED_APPS = {"frappe", "erpnext", "hrms", "india_compliance", "ai_procurement"}
+
+# Relabel desk-home grid tiles / popups (desktop icons) to drop vendor names.
+ICON_RELABEL = {"Frappe HR": "HR"}
 
 
 def extend_bootinfo(bootinfo):
-	"""Rebrand the app title shown in the desk sidebar.
+	"""White-label the desk.
 
-	Frappe sends the sidebar app title (boot.app_data[].app_title) RAW — it is
-	not passed through the translation system — so a Translation alone can't
-	rename it. We rewrite it here on every boot for each bundled app.
+	- Sidebar subtitle reads boot.app_data[].app_title (raw) -> unify to BRAND.
+	- The /desk home grid + popup read boot.desktop_icons[].label / .parent_icon
+	  (raw) -> relabel vendor names (e.g. "Frappe HR" -> "HR"), keeping child
+	  icons grouped under the new label.
+
+	Both fields are sent un-translated, so a Translation can't reach them.
 	"""
 	for app in bootinfo.get("app_data") or []:
 		if app.get("app_name") in BRANDED_APPS:
 			app["app_title"] = BRAND
+
+	for icon in bootinfo.get("desktop_icons") or []:
+		if icon.get("label") in ICON_RELABEL:
+			icon["label"] = ICON_RELABEL[icon["label"]]
+		if icon.get("parent_icon") in ICON_RELABEL:
+			icon["parent_icon"] = ICON_RELABEL[icon["parent_icon"]]
