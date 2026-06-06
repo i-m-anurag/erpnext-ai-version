@@ -54,8 +54,9 @@ if [ ! -d "sites/$SITE_NAME" ]; then
     --admin-password "$ADMIN_PASSWORD" \
     --mariadb-user-host-login-scope='%'
 
-  echo "[entrypoint] Installing apps (erpnext, ai_procurement) ..."
+  echo "[entrypoint] Installing apps (erpnext, hrms, ai_procurement) ..."
   bench --site "$SITE_NAME" install-app erpnext
+  bench --site "$SITE_NAME" install-app hrms
   bench --site "$SITE_NAME" install-app ai_procurement
 
   # Known v16 fix: programmatic Address/Contact custom fields

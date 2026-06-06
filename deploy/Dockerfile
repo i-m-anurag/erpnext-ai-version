@@ -12,7 +12,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     NODE_VERSION=24 \
     FRAPPE_BRANCH=version-16 \
-    ERPNEXT_BRANCH=version-16
+    ERPNEXT_BRANCH=version-16 \
+    HRMS_BRANCH=version-16
 
 # ---------------------------------------------------------------------------
 # 1. System dependencies
@@ -64,9 +65,10 @@ RUN bench init \
 WORKDIR /home/frappe/frappe-bench
 
 # ---------------------------------------------------------------------------
-# 5. Pull ERPNext
+# 5. Pull ERPNext + Frappe HR (hrms = HR + Payroll modules)
 # ---------------------------------------------------------------------------
-RUN bench get-app --branch ${ERPNEXT_BRANCH} erpnext
+RUN bench get-app --branch ${ERPNEXT_BRANCH} erpnext \
+    && bench get-app --branch ${HRMS_BRANCH} hrms
 
 # ---------------------------------------------------------------------------
 # 6. Copy + register the custom app from the repo root (build context).
