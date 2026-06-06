@@ -10,7 +10,7 @@ BRANDED_APPS = {"frappe", "erpnext", "hrms", "india_compliance", "ai_procurement
 ICON_RELABEL = {
 	"Frappe HR": "HR",
 	"India Compliance": "GST and Tax",
-	"ERPNext Settings": "IQ-SMART ERP Settings",
+	"ERPNext Settings": "Settings",
 	"ERPNext": BRAND,
 }
 
@@ -34,3 +34,14 @@ def extend_bootinfo(bootinfo):
 			icon["label"] = ICON_RELABEL[icon["label"]]
 		if icon.get("parent_icon") in ICON_RELABEL:
 			icon["parent_icon"] = ICON_RELABEL[icon["parent_icon"]]
+
+	# Leaf (Link-type) icons resolve their route client-side via
+	# workspace_sidebar_item[label.lower()]. Renaming the label would make that
+	# lookup miss ("Icon is not correctly configured"), so alias the original
+	# key to the new label too. (App/Folder tiles open a modal and need no route.)
+	sidebar_items = bootinfo.get("workspace_sidebar_item")
+	if isinstance(sidebar_items, dict):
+		for old, new in ICON_RELABEL.items():
+			old_key, new_key = old.lower(), new.lower()
+			if old_key in sidebar_items and new_key not in sidebar_items:
+				sidebar_items[new_key] = sidebar_items[old_key]
