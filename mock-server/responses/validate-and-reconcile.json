@@ -1,0 +1,77 @@
+{
+  "header": {
+    "invoice_no": "ACC-PINV-2026-00009",
+    "bill_no": "INV-TSG-2024-44621",
+    "match_date": "2026-05-31",
+    "po_no": "PUR-ORD-2026-00013",
+    "gr_no": "MAT-PRE-2026-00003",
+    "ap_analyst": "Priya Nair",
+    "supplier": "Dell Technologies",
+    "overall_result": "MATCH — APPROVED FOR PAYMENT",
+    "approved": true
+  },
+  "lines": [
+    {
+      "line": "L.001",
+      "description": "Dell Latitude 5540",
+      "po_qty": 5,
+      "gr_qty": 5,
+      "inv_qty": 5,
+      "qty_match": true,
+      "po_price": 72000.0,
+      "inv_price": 72000.0,
+      "variance": 0.0,
+      "price_match": true,
+      "po_total": 360000.0,
+      "inv_total": 360000.0,
+      "result": "PASS"
+    }
+  ],
+  "totals": {
+    "po_total": 360000.0,
+    "inv_total": 360000.0,
+    "match": true
+  },
+  "tolerances": [
+    {
+      "control": "Price Variance",
+      "setting": "±2% of PO price",
+      "result": "0.00",
+      "status": "WITHIN TOLERANCE",
+      "ok": true
+    },
+    {
+      "control": "Quantity Variance",
+      "setting": "±0 units (strict)",
+      "result": "0 units",
+      "status": "WITHIN TOLERANCE",
+      "ok": true
+    },
+    {
+      "control": "Tax Amount",
+      "setting": "Per TX State Rules (18%)",
+      "result": "64800.00",
+      "status": "COMPLIANT",
+      "ok": true
+    }
+  ],
+  "checks": [
+    {
+      "control": "Duplicate Check",
+      "detail": "Vendor + Inv No + Amount",
+      "result": "No duplicate",
+      "status": "CLEAR",
+      "ok": true
+    },
+    {
+      "control": "Vendor Verification",
+      "detail": "Approved vendor master",
+      "result": "Dell Technologies verified",
+      "status": "CLEAR",
+      "ok": true
+    }
+  ],
+  "currency": "INR",
+  "outstanding": 424800.0,
+  "next_action": "Invoice approved for payment run"
+}

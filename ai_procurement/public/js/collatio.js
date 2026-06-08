@@ -293,6 +293,82 @@ function save_validation(frm, dialog) {
 	});
 }
 
+// ===========================================================================
+// Material Request: "Purchase Requisition with Collatio" — upload the physical
+// requisition to the Collatio OCR queue (POST /collatio/upload-and-download).
+// Separate from the PO-creation flow above; this only uploads & acks.
+// ===========================================================================
+const GATEWAY = "ai_procurement.ai_procurement.collatio_gateway";
+
+frappe.ui.form.on("Material Request", {
+	refresh(frm) {
+		frm.add_custom_button(__("Purchase Requisition with Collatio"), () =>
+			open_pr_upload_dialog(frm)
+		);
+	},
+});
+
+function open_pr_upload_dialog(frm) {
+	const dialog = new frappe.ui.Dialog({
+		title: __("Purchase Requisition with Collatio"),
+		size: "large",
+		fields: [
+			{
+				fieldname: "intro_html",
+				fieldtype: "HTML",
+				options: `<p class="text-muted">Upload the physical Purchase Requisition (PDF / image).
+					It will be sent to Collatio and queued for OCR processing.</p>`,
+			},
+			{
+				fieldname: "pr_file",
+				fieldtype: "Attach",
+				label: __("Upload Document (PDF / Image)"),
+				reqd: 1,
+				onchange() {
+					const f = dialog.get_value("pr_file");
+					if (f) upload_pr(dialog, f);
+				},
+			},
+			{ fieldname: "result_html", fieldtype: "HTML" },
+		],
+	});
+	dialog.show();
+}
+
+function upload_pr(dialog, file_url) {
+	const $o = dialog.fields_dict.result_html.$wrapper;
+	$o.html(spinner_html());
+	frappe.call({
+		method: `${GATEWAY}.upload_and_download`,
+		args: { file_url, document_type: "Purchase Requisition" },
+		callback(r) {
+			if (r.message) render_pr_upload($o, r.message);
+			else $o.html(`<div class="alert alert-danger">${__("Upload failed.")}</div>`);
+		},
+		error() {
+			$o.html(`<div class="alert alert-danger">${__("Upload request failed.")}</div>`);
+		},
+	});
+}
+
+function render_pr_upload($o, data) {
+	const up = data.upload_response || {};
+	const ok = String(up.Status || "").toLowerCase() === "success";
+	const ids = (up.Data || []).join(", ");
+	$o.html(`
+		<div class="alert alert-${ok ? "success" : "danger"}" style="margin-top:8px;">
+			<b>${frappe.utils.escape_html(up.Message || (ok ? "Queued" : "Failed"))}</b>
+		</div>
+		<table class="table table-bordered" style="font-size:13px;">
+			<tr><td class="text-muted" style="width:170px;">Status</td>
+				<td>${frappe.utils.escape_html(up.Status || "—")}</td></tr>
+			<tr><td class="text-muted">Document ID</td>
+				<td><code>${frappe.utils.escape_html(data.documentId || "—")}</code></td></tr>
+			<tr><td class="text-muted">Queued ID(s)</td>
+				<td>${frappe.utils.escape_html(ids || "—")}</td></tr>
+		</table>`);
+}
+
 function spinner_html() {
 	return `<div class="text-center" style="padding:40px 0;">
 		<div style="width:48px;height:48px;margin:0 auto 16px;border:4px solid #e0e0e0;border-top-color:#5e64ff;border-radius:50%;animation:coll-spin .8s linear infinite;"></div>

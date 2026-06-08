@@ -93,6 +93,11 @@ bench --site "$SITE_NAME" migrate
 bench --site "$SITE_NAME" set-config email_copy_to "${EMAIL_COPY_TO:-}"
 bench --site "$SITE_NAME" set-config email_redirect_to "${EMAIL_REDIRECT_TO:-}"
 
+# Collatio API endpoint (three-way-match + document upload). Empty = the
+# Three-Way Match button uses the local computation; set it to point at the
+# real/mock Collatio server.
+bench --site "$SITE_NAME" set-config collatio_api_url "${COLLATIO_API_URL:-}"
+
 case "$1" in
   start)
     echo "[entrypoint] Starting bench processes..."

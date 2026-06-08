@@ -17,6 +17,27 @@ from ai_procurement.ai_procurement.doctype.collatio_validation.collatio_validati
 
 @frappe.whitelist()
 def get_report(purchase_invoice):
+	"""Three-way-match report for the Purchase Invoice.
+
+	Prefers the external Collatio reconcile API (when `collatio_api_url` is set
+	in site_config); falls back to the built-in local link-traversal computation
+	if it is unset or the call fails.
+	"""
+	from ai_procurement.ai_procurement.collatio_gateway import reconcile_three_way
+
+	try:
+		data = reconcile_three_way(purchase_invoice)
+		if data:
+			return data
+	except Exception:
+		frappe.log_error(
+			frappe.get_traceback(),
+			"Collatio reconcile API failed — using local fallback",
+		)
+	return _local_report(purchase_invoice)
+
+
+def _local_report(purchase_invoice):
 	pi = frappe.get_doc("Purchase Invoice", purchase_invoice)
 	cfg = load_mock_data().get("three_way_match", {})
 	price_tol = flt(cfg.get("price_variance_tolerance_percent", 2))
