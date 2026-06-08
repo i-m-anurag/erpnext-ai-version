@@ -97,6 +97,8 @@ bench --site "$SITE_NAME" set-config email_redirect_to "${EMAIL_REDIRECT_TO:-}"
 # Three-Way Match button uses the local computation; set it to point at the
 # real/mock Collatio server.
 bench --site "$SITE_NAME" set-config collatio_api_url "${COLLATIO_API_URL:-}"
+bench --site "$SITE_NAME" set-config collatio_client_name "${COLLATIO_CLIENT_NAME:-}"
+bench --site "$SITE_NAME" set-config collatio_app_name "${COLLATIO_APP_NAME:-}"
 
 case "$1" in
   start)

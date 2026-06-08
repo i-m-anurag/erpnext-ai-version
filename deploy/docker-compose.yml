@@ -27,6 +27,11 @@ services:
       # Optional email routing (leave unset for normal delivery):
       EMAIL_COPY_TO: ${EMAIL_COPY_TO:-}        # approver + this address both get every email
       EMAIL_REDIRECT_TO: ${EMAIL_REDIRECT_TO:-}  # ONLY this address gets email (testing)
+      # Collatio API (3-way-match + document upload). Unset => Three-Way Match
+      # button falls back to the local computation.
+      COLLATIO_API_URL: ${COLLATIO_API_URL:-}
+      COLLATIO_CLIENT_NAME: ${COLLATIO_CLIENT_NAME:-}
+      COLLATIO_APP_NAME: ${COLLATIO_APP_NAME:-}
     volumes:
       - sites:/home/frappe/frappe-bench/sites
     ports:
