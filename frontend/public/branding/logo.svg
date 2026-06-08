@@ -1,6 +1,7 @@
-<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Logo">
-  <rect width="40" height="40" rx="10" fill="#2F6FED"/>
-  <path d="M20 9.5l9 4.8-9 4.8-9-4.8 9-4.8z" fill="#FFFFFF"/>
-  <path d="M11 20l9 4.8 9-4.8" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M11 25.2l9 4.8 9-4.8" stroke="#BFD3FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="IQ-SMART">
+  <rect width="40" height="40" rx="10" fill="#5F79EB"/>
+  <path d="M13.5 11.5h3v17h-3z" fill="#FFFFFF"/>
+  <path d="M26 11a7 7 0 100 14 7 7 0 000-14zm0 3a4 4 0 110 8 4 4 0 010-8z" fill="#FFFFFF"/>
+  <path d="M28.6 23.4l4.1 4.1-2.1 2.1-4.1-4.1z" fill="#FFFFFF"/>
+  <path d="M30.5 9.2l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z" fill="#C9B8FB"/>
 </svg>

@@ -34,8 +34,15 @@ export class MasterService {
   private readonly data = new BaseRepository(MasterData);
 
   // ── Registry ────────────────────────────────────────────────────────────
-  list(): Promise<MasterRegistry[]> {
-    return this.registry.find({ order: { slug: 'ASC' } });
+  /** Registry list, each entry annotated with its active row count. */
+  async list(): Promise<Array<MasterRegistry & { rowCount: number }>> {
+    const regs = await this.registry.find({ order: { slug: 'ASC' } });
+    return Promise.all(
+      regs.map(async (r) => ({
+        ...r,
+        rowCount: await this.data.count({ masterSlug: r.slug, status: 'active' }),
+      })),
+    );
   }
 
   async getRegistry(slug: string): Promise<MasterRegistry> {

@@ -75,6 +75,8 @@ export interface MasterRegistry {
   labelField: string;
   cacheTtlSeconds: number;
   status: string;
+  /** count of active rows (registry list endpoint only). */
+  rowCount?: number;
 }
 
 export interface MasterRow {

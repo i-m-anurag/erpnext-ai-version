@@ -14,7 +14,7 @@ import type { Branding, MetaResponse } from '../models/api.models';
 @Injectable({ providedIn: 'root' })
 export class BrandingService {
   private readonly http = inject(HttpClient);
-  private readonly state = signal<Branding>({ productName: 'ERP', logoUrl: '/branding/logo.svg' });
+  private readonly state = signal<Branding>({ productName: 'IQ-SMART ERP', logoUrl: '/branding/logo.svg' });
 
   readonly productName = computed(() => this.state().productName);
   readonly logoUrl = computed(() => this.state().logoUrl);
@@ -27,7 +27,7 @@ export class BrandingService {
     );
     if (!meta) return;
     this.state.set({
-      productName: meta.branding?.productName || meta.name || 'ERP',
+      productName: meta.branding?.productName || meta.name || 'IQ-SMART ERP',
       logoUrl: meta.branding?.logoUrl || '/branding/logo.svg',
     });
   }

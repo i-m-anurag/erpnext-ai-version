@@ -1,11 +1,21 @@
 {
   "slug": "master-item",
-  "version": 1,
+  "version": 2,
   "title": "Item",
   "layout": "two-column",
   "fields": [
     { "key": "sku", "type": "text", "label": "SKU", "required": true, "validators": { "maxLength": 64 } },
     { "key": "name", "type": "text", "label": "Name", "required": true, "validators": { "maxLength": 200 } },
-    { "key": "uom", "type": "master-lookup", "label": "Unit of Measure", "required": true, "optionsSource": { "master": "uom" } }
+    { "key": "category", "type": "select", "label": "Category", "options": [
+      { "value": "raw", "label": "Raw Material" },
+      { "value": "finished", "label": "Finished Good" },
+      { "value": "service", "label": "Service" }
+    ] },
+    { "key": "uom", "type": "master-lookup", "label": "Unit of Measure", "required": true, "optionsSource": { "master": "uom" } },
+    { "key": "reorderLevel", "type": "number", "label": "Reorder level", "validators": { "min": 0 } },
+    { "key": "status", "type": "select", "label": "Status", "options": [
+      { "value": "active", "label": "Active" },
+      { "value": "inactive", "label": "Inactive" }
+    ] }
   ]
 }

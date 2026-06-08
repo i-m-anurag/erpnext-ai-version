@@ -1,34 +1,46 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// DEFAULT THEME — the neutral white-label baseline.
-// Per-client builds replace _active-theme.scss to point at a client palette.
-// Values are exposed both as Sass vars (consumed by the Bootstrap bridge) and as
-// :root CSS custom properties (consumed at runtime by components / ag-grid / ng-select).
+// DEFAULT THEME — IQ-SMART ERP "Deep Tech Enterprise" (LIGHT).
+// Tokens taken from the approved Stitch design (light): Electric Indigo accent,
+// Soft Purple AI accent, warm off-white surfaces, near-black text.
+// Exposed as Sass vars (Bootstrap bridge) and :root CSS custom properties.
 // ─────────────────────────────────────────────────────────────────────────────
 
-$erp-accent: #2f6fed;
-$erp-accent-hover: #2558c8;
+$erp-accent: #5f79eb; // Electric Indigo — primary action / active
+$erp-accent-hover: #4a63d8;
 $erp-accent-contrast: #ffffff;
+$erp-accent-soft: #eef1fe; // light indigo tint (hover/selected backgrounds)
 
-$erp-bg: #f5f7fa;
-$erp-surface: #ffffff;
-$erp-surface-alt: #fbfcfe;
-$erp-text: #1f2733;
-$erp-text-muted: #6b7280;
-$erp-border: #e5e9f0;
+// AI accent (Soft Purple) + tints — used for AI assistant / insight surfaces
+$erp-ai: #9f7af3;
+$erp-ai-soft: #f5f2fb;
+$erp-ai-tint: #f2eff8;
 
-$erp-danger: #d92d20;
-$erp-success: #12b76a;
-$erp-warning: #f79009;
+$erp-bg: #faf9f7; // warm off-white workspace floor
+$erp-surface: #ffffff; // cards
+$erp-surface-alt: #f4f3f1; // subtle containers / rails
+$erp-text: #1a1c1b; // near-black primary text
+$erp-text-muted: #46464d; // secondary text
+$erp-border: #eaeaea; // hairline borders
 
-$erp-sidebar-bg: #111927;
-$erp-sidebar-text: #c7cdd6;
-$erp-sidebar-text-active: #ffffff;
-$erp-sidebar-active-bg: #1f2a3d;
+$erp-danger: #ba1a1a;
+$erp-success: #12834f;
+$erp-warning: #b25e00;
+
+// Sidebar is LIGHT in this theme (slim rail), active = indigo
+$erp-sidebar-bg: #ffffff;
+$erp-sidebar-text: #46464d;
+$erp-sidebar-text-active: #1a1c1b;
+$erp-sidebar-active-bg: #eef1fe;
 
 :root {
+  --erp-font-mono: #{$erp-font-mono};
   --erp-accent: #{$erp-accent};
   --erp-accent-hover: #{$erp-accent-hover};
   --erp-accent-contrast: #{$erp-accent-contrast};
+  --erp-accent-soft: #{$erp-accent-soft};
+  --erp-ai: #{$erp-ai};
+  --erp-ai-soft: #{$erp-ai-soft};
+  --erp-ai-tint: #{$erp-ai-tint};
   --erp-bg: #{$erp-bg};
   --erp-surface: #{$erp-surface};
   --erp-surface-alt: #{$erp-surface-alt};

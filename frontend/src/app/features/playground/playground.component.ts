@@ -18,8 +18,13 @@ import type { FormDefinition } from '../../core/models/api.models';
   selector: 'erp-playground',
   imports: [DynamicFormComponent, JsonPipe, TabsModule, AccordionModule],
   template: `
-    <h4 class="mb-1">Dynamic Form Playground</h4>
-    <p class="text-muted">A reference of what the dynamic-form engine can render. Not part of the ERP.</p>
+    <div class="d-flex align-items-center justify-content-between mb-1">
+      <div>
+        <div class="text-muted small">Administration</div>
+        <h4 class="mb-0">Form Playground <span class="iq-chip iq-chip--info align-middle">Developer tool</span></h4>
+      </div>
+    </div>
+    <p class="text-muted">A reference of what the dynamic-form engine can render — every field type, layouts, multiple form groups, master-lookups and notifications.</p>
 
     <!-- Notifications demo -->
     <div class="erp-card p-3 mb-3">
@@ -33,6 +38,7 @@ import type { FormDefinition } from '../../core/models/api.models';
       </div>
     </div>
 
+    <div class="erp-card p-3">
     <tabset>
       <tab heading="All field types">
         <div class="row mt-3">
@@ -76,6 +82,7 @@ import type { FormDefinition } from '../../core/models/api.models';
         </div>
       </tab>
     </tabset>
+    </div>
   `,
 })
 export class PlaygroundComponent {

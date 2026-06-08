@@ -4,5 +4,13 @@
   "managedBy": "ui",
   "editable": true,
   "formSlug": "master-item",
-  "codeField": "sku"
+  "codeField": "sku",
+  "data": [
+    { "sku": "ITM-1001", "name": "Steel Bolt M8", "category": "raw", "uom": "BOX", "reorderLevel": 50, "status": "active" },
+    { "sku": "ITM-1002", "name": "Aluminium Sheet 2mm", "category": "raw", "uom": "KG", "reorderLevel": 120, "status": "active" },
+    { "sku": "ITM-2001", "name": "Gearbox Assembly", "category": "finished", "uom": "EA", "reorderLevel": 10, "status": "active" },
+    { "sku": "ITM-2002", "name": "Hydraulic Pump", "category": "finished", "uom": "EA", "reorderLevel": 5, "status": "inactive" },
+    { "sku": "ITM-3001", "name": "Installation Service", "category": "service", "uom": "EA", "reorderLevel": 0, "status": "active" },
+    { "sku": "ITM-1003", "name": "Lubricant Oil", "category": "raw", "uom": "L", "reorderLevel": 80, "status": "active" }
+  ]
 }

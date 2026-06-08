@@ -28,21 +28,21 @@ interface GridRow {
   template: `
     <div class="d-flex align-items-center justify-content-between mb-3">
       <div>
-        <a routerLink="/app/masters" class="text-decoration-none small text-muted">← Masters</a>
+        <div class="text-muted small"><a routerLink="/app/m/admin/masters">Masters</a> / {{ master()?.name ?? slug() }}</div>
         <h4 class="mb-0">{{ master()?.name ?? slug() }}</h4>
       </div>
       <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-outline-secondary" (click)="reload()">Refresh</button>
+        <button class="btn btn-sm btn-light" (click)="reload()"><i class="ph ph-arrow-clockwise"></i> Refresh</button>
         @if (editable()) {
-          <button *hasPermission="'master:create'" class="btn btn-sm btn-primary" (click)="openCreate()">+ Add</button>
-          <button *hasPermission="'master:update'" class="btn btn-sm btn-outline-primary" [disabled]="!selected()" (click)="openEdit()">Edit</button>
-          <button *hasPermission="'master:delete'" class="btn btn-sm btn-outline-danger" [disabled]="!selected()" (click)="remove()">Delete</button>
+          <button *hasPermission="'master:update'" class="btn btn-sm btn-light" [disabled]="!selected()" (click)="openEdit()"><i class="ph ph-pencil-simple"></i> Edit</button>
+          <button *hasPermission="'master:delete'" class="btn btn-sm btn-light text-danger" [disabled]="!selected()" (click)="remove()"><i class="ph ph-trash"></i> Delete</button>
+          <button *hasPermission="'master:create'" class="btn btn-sm btn-primary" (click)="openCreate()"><i class="ph ph-plus"></i> New</button>
         }
       </div>
     </div>
 
     @if (!editable()) {
-      <div class="alert alert-secondary py-2 small">This is a seeded master — read-only.</div>
+      <div class="text-muted small mb-3"><i class="ph ph-lock-simple"></i> Seeded master — read-only.</div>
     }
 
     <ag-grid-angular

@@ -56,6 +56,10 @@ export class BaseRepository<T extends ObjectLiteral> {
     return this.repo.exists({ where });
   }
 
+  async count(where?: FindOptionsWhere<T>): Promise<number> {
+    return this.repo.count(where ? { where } : undefined);
+  }
+
   async delete(id: string): Promise<void> {
     await this.repo.delete(id);
   }

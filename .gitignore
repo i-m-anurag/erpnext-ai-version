@@ -42,3 +42,5 @@ docker/data/
 # third-party design reference (ERPNext/Frappe assets — not part of the product).
 # Remove this line if you want the reference assets tracked.
 /ERP Next Theme scss/
+# Local MCP credentials — never commit
+.mcp.json
