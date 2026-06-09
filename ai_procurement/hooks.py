@@ -204,24 +204,17 @@ doc_events = {
 
 # Scheduled Tasks
 # ---------------
-
-# scheduler_events = {
-# 	"all": [
-# 		"ai_procurement.tasks.all"
-# 	],
-# 	"daily": [
-# 		"ai_procurement.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"ai_procurement.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"ai_procurement.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"ai_procurement.tasks.monthly"
-# 	],
-# }
+# Speed up incoming-email retrieval. Frappe's stock schedule pulls IMAP/POP mail
+# only every 10 minutes ("0/10 * * * *"). We add a 1-minute trigger for the same
+# (idempotent) pull so received email lands in ~1 min instead of up to 10.
+# Note: the scheduler tick (~60s) is the practical floor, so don't go sub-minute.
+scheduler_events = {
+	"cron": {
+		"* * * * *": [
+			"frappe.email.doctype.email_account.email_account.pull",
+		],
+	},
+}
 
 # Testing
 # -------
