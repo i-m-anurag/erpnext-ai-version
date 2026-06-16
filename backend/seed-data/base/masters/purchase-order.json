@@ -4,6 +4,7 @@
   "managedBy": "ui",
   "editable": true,
   "formSlug": "purchase-order",
+  "workflowSlug": "purchase-order",
   "codeField": "poNumber",
   "data": [
     {

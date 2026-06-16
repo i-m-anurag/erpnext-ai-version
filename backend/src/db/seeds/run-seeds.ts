@@ -9,6 +9,7 @@ import { rolesSeeder } from './seeders/roles.seeder.js';
 import { mastersSeeder } from './seeders/masters.seeder.js';
 import { formsSeeder } from './seeders/forms.seeder.js';
 import { emailTemplatesSeeder } from './seeders/email-templates.seeder.js';
+import { workflowsSeeder } from './seeders/workflows.seeder.js';
 import { adminBootstrapSeeder } from './seeders/admin-bootstrap.seeder.js';
 
 /**
@@ -24,6 +25,7 @@ const seeders: Seeder[] = [
   mastersSeeder,
   formsSeeder,
   emailTemplatesSeeder,
+  workflowsSeeder,
   adminBootstrapSeeder,
 ];
 

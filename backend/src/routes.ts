@@ -8,6 +8,7 @@ import { buildPermissionRouter, permissionService } from './modules/permission/i
 import { buildFormRouter, buildPublicFormRouter } from './modules/form/index.js';
 import { buildMasterRouter } from './modules/master/index.js';
 import { buildActivityRouter } from './modules/activity/index.js';
+import { buildWorkflowRouter } from './modules/workflow/index.js';
 
 /**
  * Central route registration. As modules land (auth, permission, ...), each
@@ -67,4 +68,7 @@ export function registerRoutes(app: Express): void {
 
   // Activity (timeline + comments) for any record. Gated by auth + activity:* perms.
   app.use('/api/activity', buildActivityRouter());
+
+  // Workflow (state machine) for master records. Gated by auth + workflow:* perms.
+  app.use('/api/workflow', buildWorkflowRouter());
 }

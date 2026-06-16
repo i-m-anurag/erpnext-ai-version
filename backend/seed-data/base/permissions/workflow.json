@@ -1,0 +1,7 @@
+{
+  "module": "workflow",
+  "permissions": [
+    { "action": "view", "description": "View a record's workflow state and available actions" },
+    { "action": "transition", "description": "Perform workflow transitions (role/condition enforced per transition)" }
+  ]
+}

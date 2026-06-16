@@ -16,6 +16,7 @@ export interface MasterRegistryDef {
   cacheTtlSeconds?: number;
   codeField?: string;
   labelField?: string;
+  workflowSlug?: string | null;
 }
 
 export interface MasterOption {
@@ -64,6 +65,7 @@ export class MasterService {
       cacheTtlSeconds: def.cacheTtlSeconds ?? 3600,
       codeField: def.codeField ?? 'code',
       labelField: def.labelField ?? 'name',
+      workflowSlug: def.workflowSlug ?? null,
       status: 'active',
     });
     return repo.save(row);

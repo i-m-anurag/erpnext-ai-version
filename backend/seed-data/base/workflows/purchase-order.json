@@ -1,0 +1,17 @@
+{
+  "slug": "purchase-order",
+  "appliesTo": "purchase-order",
+  "startState": "Draft",
+  "states": [
+    { "name": "Draft", "color": "secondary" },
+    { "name": "Pending Approval", "color": "warning" },
+    { "name": "Approved", "color": "success" },
+    { "name": "Rejected", "color": "danger" }
+  ],
+  "transitions": [
+    { "action": "Submit", "from": "Draft", "to": "Pending Approval", "roles": ["admin"] },
+    { "action": "Approve", "from": "Pending Approval", "to": "Approved", "roles": ["admin"] },
+    { "action": "Reject", "from": "Pending Approval", "to": "Rejected", "roles": ["admin"] },
+    { "action": "Reopen", "from": "Rejected", "to": "Draft", "roles": ["admin"] }
+  ]
+}

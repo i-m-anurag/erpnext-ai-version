@@ -28,6 +28,8 @@ export const masterFileSchema = z.object({
   codeField: z.string().optional(),
   /** which data field is the option label (default "name") */
   labelField: z.string().optional(),
+  /** workflow definition slug governing this master's rows (optional) */
+  workflowSlug: z.string().optional(),
   /** seeded master rows (for managedBy: "seeded" reference data) */
   data: z.array(z.record(z.string(), z.unknown())).optional(),
 });

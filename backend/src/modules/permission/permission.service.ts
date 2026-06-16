@@ -31,6 +31,15 @@ export class PermissionService {
     });
   }
 
+  /** Active role codes assigned to a user (for workflow transition gating). */
+  async rolesForUser(userId: string): Promise<string[]> {
+    const assignments = await this.userRoles.find({ where: { userId } });
+    if (assignments.length === 0) return [];
+    const roleIds = assignments.map((a) => a.roleId);
+    const activeRoles = await this.roles.find({ where: { id: In(roleIds), status: 'active' } });
+    return activeRoles.map((r) => r.code);
+  }
+
   private async buildEffective(userId: string): Promise<string[]> {
     const assignments = await this.userRoles.find({ where: { userId } });
     if (assignments.length === 0) return [];

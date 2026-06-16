@@ -12,9 +12,10 @@ import {
   type TimelineEntry,
   type TimelineKind,
 } from '../../core/api/activity.api.service';
+import { WorkflowApiService, type WorkflowStatus } from '../../core/api/workflow.api.service';
 import { NotificationService } from '../../core/notify/notification.service';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
-import type { ResolvedView, WorkflowStage } from '../../core/config/view-configs';
+import type { ResolvedView } from '../../core/config/view-configs';
 import type { FormFieldDef } from '../../core/models/api.models';
 
 const KIND_ICON: Record<TimelineKind, string> = {
@@ -54,18 +55,29 @@ const KIND_ICON: Record<TimelineKind, string> = {
       </div>
     </div>
 
-    @if (cfg.workflow; as wf) {
-      <div class="iq-stepper mb-3">
-        @for (s of wf.stages; track s.code) {
-          <div class="iq-stepper__step" [class.done]="stageState(s) === 'done'"
-               [class.current]="stageState(s) === 'current'">
-            <span class="iq-stepper__dot">
-              @if (stageState(s) === 'done') { <i class="ph ph-check"></i> } @else { {{ $index + 1 }} }
-            </span>
-            <span class="iq-stepper__label">{{ s.name }}</span>
+    @if (wf(); as w) {
+      @if (w.hasWorkflow) {
+        <div class="iq-stepper mb-3">
+          @for (s of w.states; track s.name; let i = $index) {
+            <div class="iq-stepper__step" [class.done]="stateIndex(w) > i" [class.current]="s.name === w.currentState">
+              <span class="iq-stepper__dot">
+                @if (stateIndex(w) > i) { <i class="ph ph-check"></i> } @else { {{ i + 1 }} }
+              </span>
+              <span class="iq-stepper__label">{{ s.name }}</span>
+            </div>
+          }
+        </div>
+        @if (w.actions.length) {
+          <div class="d-flex gap-2 mb-3 align-items-center">
+            <span class="text-muted small">Actions:</span>
+            @for (a of w.actions; track a.action) {
+              <button class="btn btn-sm btn-primary" [disabled]="transitioning()" (click)="doTransition(a.action)">
+                {{ a.action }}
+              </button>
+            }
           </div>
         }
-      </div>
+      }
     }
 
     <div class="iq-record">
@@ -149,6 +161,7 @@ export class RecordViewComponent {
   private readonly resolver = inject(ViewResolverService);
   private readonly masters = inject(MasterApiService);
   private readonly activity = inject(ActivityApiService);
+  private readonly workflowApi = inject(WorkflowApiService);
   private readonly notify = inject(NotificationService);
   private readonly router = inject(Router);
 
@@ -163,6 +176,9 @@ export class RecordViewComponent {
   protected readonly posting = signal(false);
   protected draft = '';
 
+  protected readonly wf = signal<WorkflowStatus | undefined>(undefined);
+  protected readonly transitioning = signal(false);
+
   constructor() {
     effect(() => {
       const module = this.slug();
@@ -170,15 +186,48 @@ export class RecordViewComponent {
       this.config.set(undefined);
       this.timeline.set([]);
       this.comments.set([]);
+      this.wf.set(undefined);
       this.loading.set(true);
       this.resolver.resolve(module, sub).subscribe({
         next: (cfg) => {
           this.config.set(cfg);
           this.loading.set(false);
           this.loadActivity();
+          this.loadWorkflow();
         },
         error: () => this.loading.set(false),
       });
+    });
+  }
+
+  private loadWorkflow(): void {
+    const entity = this.entityType();
+    if (!entity || !this.canComment()) return;
+    this.workflowApi.status(entity, this.recordId()).subscribe({
+      next: (w) => this.wf.set(w),
+      error: () => this.wf.set(undefined),
+    });
+  }
+
+  protected stateIndex(w: WorkflowStatus): number {
+    return w.states.findIndex((s) => s.name === w.currentState);
+  }
+
+  protected doTransition(action: string): void {
+    const entity = this.entityType();
+    if (!entity || this.transitioning()) return;
+    this.transitioning.set(true);
+    this.workflowApi.transition(entity, this.recordId(), action).subscribe({
+      next: (r) => {
+        this.transitioning.set(false);
+        this.notify.success(`${r.action} → ${r.to}`);
+        this.loadWorkflow();
+        this.activity.timeline(entity, this.recordId()).subscribe((t) => this.timeline.set(t));
+      },
+      error: (e: { error?: { error?: { message?: string } } }) => {
+        this.transitioning.set(false);
+        this.notify.error(e?.error?.error?.message ?? 'Transition failed');
+      },
     });
   }
 
@@ -312,16 +361,6 @@ export class RecordViewComponent {
       }
     }
     return out;
-  }
-
-  protected stageState(stage: WorkflowStage): 'done' | 'current' | 'todo' {
-    const wf = this.config()?.workflow;
-    if (!wf) return 'todo';
-    const order = wf.stages.findIndex((s) => s.code === stage.code);
-    const cur = wf.stages.findIndex((s) => s.code === wf.current);
-    if (order < cur) return 'done';
-    if (order === cur) return 'current';
-    return 'todo';
   }
 
 }
