@@ -6,8 +6,10 @@
   "main": "dist/main.js",
   "scripts": {
     "dev": "tsx watch src/main.ts",
+    "worker": "tsx watch src/worker.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
+    "start:worker": "node dist/worker.js",
     "typeorm": "tsx src/db/typeorm-cli.ts",
     "migration:generate": "npm run typeorm -- migration:generate -d src/db/data-source.ts",
     "migration:create": "npm run typeorm -- migration:create",
@@ -21,6 +23,7 @@
   },
   "dependencies": {
     "argon2": "^0.44.0",
+    "bullmq": "^5.78.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",

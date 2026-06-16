@@ -22,4 +22,8 @@ export class MasterData extends BaseEntity {
 
   @Column({ type: 'varchar', length: 16, default: 'active' })
   status!: 'active' | 'archived';
+
+  /** Workflow state (when the master has a workflow_slug). Null = no workflow. */
+  @Column({ type: 'varchar', length: 48, nullable: true })
+  state!: string | null;
 }

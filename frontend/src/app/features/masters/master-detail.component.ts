@@ -153,7 +153,9 @@ export class MasterDetailComponent {
 
   private buildColumns(form: FormDefinition | null, rows: MasterRow[]): ColDef[] {
     if (form) {
-      return form.fields.map((f) => ({ headerName: f.label, field: f.key, flex: 1, sortable: true, filter: true }));
+      return form.fields
+        .filter((f) => f.type !== 'table')
+        .map((f) => ({ headerName: f.label, field: f.key, flex: 1, sortable: true, filter: true }));
     }
     // No form (seeded master): derive columns from the row data keys.
     const keys = new Set<string>();

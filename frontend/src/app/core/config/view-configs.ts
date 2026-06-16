@@ -149,6 +149,7 @@ export interface ResolvedView extends ViewConfig {
 /** module/sub → backend master slug, for views backed by the generic master system. */
 export const BACKED_VIEWS: Record<string, { masterSlug: string }> = {
   'inventory/items': { masterSlug: 'item' },
+  'procurement/purchase-orders': { masterSlug: 'purchase-order' },
 };
 
 /** Does a List/Record view exist for this sub-module (backend-backed or mock)? */

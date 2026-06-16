@@ -8,7 +8,7 @@ import { passwordService } from './password.service.js';
 import { sessionService } from './session.service.js';
 import { resetTokenService } from './reset-token.service.js';
 import { resolvePermissions } from './permission-provider.js';
-import { emailService } from '../communication/index.js';
+import { enqueueEmail } from '../../queue/queues.js';
 import type { LoginInput, SetPasswordInput } from './auth.schemas.js';
 import type { PublicUser, SessionData } from './auth.types.js';
 
@@ -102,7 +102,7 @@ export class AuthService {
       return;
     }
     const raw = await resetTokenService.issue(user.id, 'reset');
-    await emailService.send('password-reset', user.email, this.passwordEmailVars(user, raw));
+    await enqueueEmail({ slug: 'password-reset', to: user.email, vars: this.passwordEmailVars(user, raw) });
   }
 
   /** Consume a welcome/reset token and set the password; revoke existing sessions. */
@@ -134,7 +134,7 @@ export class AuthService {
     const user = await this.users.findById(userId);
     if (!user) throw new NotFoundError('User not found');
     const raw = await resetTokenService.issue(user.id, 'welcome');
-    await emailService.send('welcome', user.email, this.passwordEmailVars(user, raw));
+    await enqueueEmail({ slug: 'welcome', to: user.email, vars: this.passwordEmailVars(user, raw) });
   }
 
   /** Variables shared by the welcome and password-reset templates. */

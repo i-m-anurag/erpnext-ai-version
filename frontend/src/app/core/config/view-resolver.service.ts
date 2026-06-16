@@ -50,7 +50,8 @@ export class ViewResolverService {
       singular: meta?.singular ?? reg.name,
       idKey,
       form,
-      columns: form.fields.map((f) => this.toColumn(f, idKey)),
+      // table (line-item) fields aren't list columns — show only scalar fields
+      columns: form.fields.filter((f) => f.type !== 'table').map((f) => this.toColumn(f, idKey)),
       rows: rows.map((r) => ({ ...r.data })),
       panels: meta?.panels ?? { timeline: true, comments: true },
       workflow: meta?.workflow,

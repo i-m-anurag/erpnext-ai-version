@@ -7,6 +7,7 @@ import { setPermissionResolver } from './modules/auth/permission-provider.js';
 import { buildPermissionRouter, permissionService } from './modules/permission/index.js';
 import { buildFormRouter, buildPublicFormRouter } from './modules/form/index.js';
 import { buildMasterRouter } from './modules/master/index.js';
+import { buildActivityRouter } from './modules/activity/index.js';
 
 /**
  * Central route registration. As modules land (auth, permission, ...), each
@@ -63,4 +64,7 @@ export function registerRoutes(app: Express): void {
   if (isModuleEnabled('master')) {
     app.use('/api/masters', buildMasterRouter());
   }
+
+  // Activity (timeline + comments) for any record. Gated by auth + activity:* perms.
+  app.use('/api/activity', buildActivityRouter());
 }

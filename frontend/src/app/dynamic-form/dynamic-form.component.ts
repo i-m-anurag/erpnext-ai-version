@@ -1,6 +1,7 @@
 import { Component, computed, inject, input, output } from '@angular/core';
 import { type FormControl, type FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { DynamicFieldDirective } from './dynamic-field.directive';
+import './fields/table-field.register'; // registers the `table` field type (side-effect)
 import { CssMapService } from './css-map.service';
 import type { FormDefinition, FormFieldDef } from '../core/models/api.models';
 
@@ -17,7 +18,7 @@ import type { FormDefinition, FormFieldDef } from '../core/models/api.models';
     <form [formGroup]="group()" [class]="formClass()" (ngSubmit)="submitted.emit()">
       @for (field of fields(); track field.key) {
         @if (isVisible(field)) {
-          <div [class]="fieldClass(field.key)">
+          <div [class]="field.type === 'table' ? fieldClass(field.key) + ' erp-field--full' : fieldClass(field.key)">
             @if (field.type !== 'checkbox') {
               <label [class]="labelClass(field.key)" [attr.for]="field.key">
                 {{ field.label }}@if (field.required) { <span class="text-danger"> *</span> }
@@ -79,6 +80,7 @@ export class DynamicFormComponent {
   protected errorText(key: string): string {
     const errors = this.group().get(key)?.errors;
     if (!errors) return '';
+    if (errors['minRows']) return `Add at least ${errors['minRows'].required} row(s)`;
     if (errors['required'] || errors['requiredTrue']) return 'This field is required';
     if (errors['minlength']) return `Minimum ${errors['minlength'].requiredLength} characters`;
     if (errors['maxlength']) return `Maximum ${errors['maxlength'].requiredLength} characters`;

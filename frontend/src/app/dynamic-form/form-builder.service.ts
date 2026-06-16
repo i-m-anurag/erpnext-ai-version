@@ -1,23 +1,55 @@
 import { Injectable } from '@angular/core';
-import { FormControl, FormGroup, type ValidatorFn, Validators } from '@angular/forms';
+import { type AbstractControl, FormArray, FormControl, FormGroup, type ValidatorFn, Validators } from '@angular/forms';
 import type { FormDefinition, FormFieldDef } from '../core/models/api.models';
 
 /**
- * Builds a reactive FormGroup from a form definition — controls keyed by field
- * `key`, with validators derived from each field's rules. The use-case component
- * calls this, then hands the config + group to <erp-dynamic-form>.
+ * Builds a reactive form from a form definition — controls keyed by field `key`,
+ * with validators derived from each field's rules. A `table` field becomes a
+ * FormArray of row FormGroups (one control per column). `initial` pre-populates
+ * values, sizing table rows to the incoming data, so the use-case component can
+ * build + patch in one call (FormArray rows can't be added by patchValue alone).
  */
 @Injectable({ providedIn: 'root' })
 export class FormBuilderService {
-  build(config: FormDefinition): FormGroup {
-    const controls: Record<string, FormControl> = {};
+  build(config: FormDefinition, initial?: Record<string, unknown>): FormGroup {
+    const controls: Record<string, AbstractControl> = {};
     for (const field of config.fields) {
-      controls[field.key] = new FormControl(this.defaultValue(field), {
-        validators: this.validatorsFor(field),
-        nonNullable: field.type === 'checkbox',
-      });
+      controls[field.key] = this.buildControl(field, initial?.[field.key]);
     }
     return new FormGroup(controls);
+  }
+
+  /** A single row FormGroup for a table field (one control per column). */
+  buildRowGroup(columns: FormFieldDef[], row?: Record<string, unknown>): FormGroup {
+    const controls: Record<string, AbstractControl> = {};
+    for (const col of columns) {
+      controls[col.key] = this.buildControl(col, row?.[col.key]);
+    }
+    return new FormGroup(controls);
+  }
+
+  private buildControl(field: FormFieldDef, value: unknown): AbstractControl {
+    if (field.type === 'table') {
+      return this.buildTable(field, value as Record<string, unknown>[] | undefined);
+    }
+    return new FormControl(value ?? this.defaultValue(field), {
+      validators: this.validatorsFor(field),
+      nonNullable: field.type === 'checkbox',
+    });
+  }
+
+  private buildTable(field: FormFieldDef, rows?: Record<string, unknown>[]): FormArray {
+    const columns = field.columns ?? [];
+    const initial = rows ?? [];
+    const count = Math.max(initial.length, field.minRows ?? 0);
+    const groups: FormGroup[] = [];
+    for (let i = 0; i < count; i++) groups.push(this.buildRowGroup(columns, initial[i]));
+    const validators: ValidatorFn[] = [];
+    if (field.required || field.minRows) {
+      const min = field.minRows ?? 1;
+      validators.push((c) => ((c as FormArray).length >= min ? null : { minRows: { required: min } }));
+    }
+    return new FormArray<FormGroup>(groups, validators);
   }
 
   private defaultValue(field: FormFieldDef): unknown {

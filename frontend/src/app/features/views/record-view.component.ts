@@ -1,24 +1,30 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import type { FormGroup } from '@angular/forms';
 import { DynamicFormComponent } from '../../dynamic-form/dynamic-form.component';
 import { FormBuilderService } from '../../dynamic-form/form-builder.service';
 import { MasterApiService } from '../../core/api/master.api.service';
+import {
+  ActivityApiService,
+  type RecordComment,
+  type TimelineEntry,
+  type TimelineKind,
+} from '../../core/api/activity.api.service';
 import { NotificationService } from '../../core/notify/notification.service';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
 import type { ResolvedView, WorkflowStage } from '../../core/config/view-configs';
+import type { FormFieldDef } from '../../core/models/api.models';
 
-interface TimelineEvent {
-  icon: string;
-  title: string;
-  meta: string;
-}
-interface Comment {
-  author: string;
-  initials: string;
-  when: string;
-  text: string;
-}
+const KIND_ICON: Record<TimelineKind, string> = {
+  created: 'ph-plus-circle',
+  updated: 'ph-pencil-simple',
+  state_changed: 'ph-arrows-clockwise',
+  assigned: 'ph-user-circle',
+  commented: 'ph-chat-circle',
+  email_sent: 'ph-envelope',
+};
 
 /**
  * Generic Record/Form view resolved from a ViewConfig: dynamic form (left) +
@@ -28,7 +34,7 @@ interface Comment {
  */
 @Component({
   selector: 'erp-record-view',
-  imports: [RouterLink, DynamicFormComponent],
+  imports: [RouterLink, DynamicFormComponent, DatePipe, FormsModule],
   template: `
     @if (config(); as cfg) {
     <div class="d-flex align-items-center justify-content-between mb-3">
@@ -80,14 +86,16 @@ interface Comment {
           <div class="erp-card p-3">
             <div class="fw-semibold mb-3">Activity</div>
             <div class="iq-timeline">
-              @for (e of timeline; track e.title) {
+              @for (e of timeline(); track e.id) {
                 <div class="iq-timeline__item">
-                  <span class="iq-timeline__dot"><i class="ph" [class]="e.icon"></i></span>
+                  <span class="iq-timeline__dot"><i class="ph" [class]="icon(e.kind)"></i></span>
                   <div>
-                    <div class="iq-timeline__title">{{ e.title }}</div>
-                    <div class="iq-timeline__meta">{{ e.meta }}</div>
+                    <div class="iq-timeline__title">{{ e.summary }}</div>
+                    <div class="iq-timeline__meta">{{ e.actor?.name ?? 'System' }} · {{ e.createdAt | date: 'medium' }}</div>
                   </div>
                 </div>
+              } @empty {
+                <div class="text-muted small">No activity yet.</div>
               }
             </div>
           </div>
@@ -97,20 +105,29 @@ interface Comment {
           <div class="erp-card p-3">
             <div class="fw-semibold mb-3">Comments &amp; queries</div>
             <div class="iq-comments">
-              @for (c of comments; track c.when) {
+              @for (c of comments(); track c.id) {
                 <div class="iq-comment">
-                  <span class="iq-comment__avatar">{{ c.initials }}</span>
+                  <span class="iq-comment__avatar">{{ initials(c.author.name) }}</span>
                   <div class="iq-comment__body">
-                    <div class="iq-comment__head"><b>{{ c.author }}</b> <span class="text-muted small">{{ c.when }}</span></div>
-                    <div>{{ c.text }}</div>
+                    <div class="iq-comment__head"><b>{{ c.author.name }}</b> <span class="text-muted small">{{ c.createdAt | date: 'short' }}</span></div>
+                    <div>{{ c.body }}</div>
                   </div>
                 </div>
+              } @empty {
+                <div class="text-muted small">No comments yet.</div>
               }
             </div>
-            <div class="iq-comment-box mt-3">
-              <input class="form-control form-control-sm" placeholder="Add a comment or raise a query…" />
-              <button class="btn btn-sm btn-primary"><i class="ph ph-paper-plane-tilt"></i></button>
-            </div>
+            @if (canComment()) {
+              <div class="iq-comment-box mt-3">
+                <input class="form-control form-control-sm" placeholder="Add a comment or raise a query…"
+                       [(ngModel)]="draft" (keyup.enter)="postComment()" [disabled]="posting()" />
+                <button class="btn btn-sm btn-primary" (click)="postComment()" [disabled]="posting() || !draft.trim()">
+                  <i class="ph ph-paper-plane-tilt"></i>
+                </button>
+              </div>
+            } @else {
+              <div class="text-muted small mt-2">Save the record to add comments.</div>
+            }
           </div>
         }
       </div>
@@ -131,6 +148,7 @@ export class RecordViewComponent {
   private readonly fb = inject(FormBuilderService);
   private readonly resolver = inject(ViewResolverService);
   private readonly masters = inject(MasterApiService);
+  private readonly activity = inject(ActivityApiService);
   private readonly notify = inject(NotificationService);
   private readonly router = inject(Router);
 
@@ -140,31 +158,81 @@ export class RecordViewComponent {
   protected readonly recordId = computed(() => this.id());
   protected readonly isNew = computed(() => this.id() === 'new');
 
+  protected readonly timeline = signal<TimelineEntry[]>([]);
+  protected readonly comments = signal<RecordComment[]>([]);
+  protected readonly posting = signal(false);
+  protected draft = '';
+
   constructor() {
     effect(() => {
       const module = this.slug();
       const sub = this.sub();
       this.config.set(undefined);
+      this.timeline.set([]);
+      this.comments.set([]);
       this.loading.set(true);
       this.resolver.resolve(module, sub).subscribe({
         next: (cfg) => {
           this.config.set(cfg);
           this.loading.set(false);
+          this.loadActivity();
         },
         error: () => this.loading.set(false),
       });
     });
   }
 
+  /** entity key for the activity API: the backing master slug. */
+  private entityType(): string | undefined {
+    return this.config()?.masterSlug;
+  }
+  protected canComment(): boolean {
+    return !!this.config()?.backed && !this.isNew();
+  }
+
+  private loadActivity(): void {
+    const entity = this.entityType();
+    if (!entity || !this.canComment()) return;
+    const rid = this.recordId();
+    this.activity.timeline(entity, rid).subscribe((t) => this.timeline.set(t));
+    this.activity.comments(entity, rid).subscribe((c) => this.comments.set(c));
+  }
+
+  protected postComment(): void {
+    const entity = this.entityType();
+    const body = this.draft.trim();
+    if (!entity || !body || this.posting()) return;
+    this.posting.set(true);
+    this.activity.addComment(entity, this.recordId(), body).subscribe({
+      next: (c) => {
+        this.comments.update((list) => [...list, c]);
+        this.draft = '';
+        this.posting.set(false);
+        this.activity.timeline(entity, this.recordId()).subscribe((t) => this.timeline.set(t));
+      },
+      error: () => {
+        this.posting.set(false);
+        this.notify.error('Could not post comment');
+      },
+    });
+  }
+
+  protected icon(kind: TimelineKind): string {
+    return KIND_ICON[kind] ?? 'ph-circle';
+  }
+  protected initials(name: string): string {
+    return name.split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase();
+  }
+
   protected readonly group = computed<FormGroup | undefined>(() => {
     const cfg = this.config();
     if (!cfg) return undefined;
-    const g = this.fb.build(cfg.form);
+    let initial: Record<string, unknown> | undefined;
     if (!this.isNew()) {
       const row = cfg.rows.find((r) => String(r[cfg.idKey]) === this.recordId());
-      if (row) g.patchValue(this.coerce(cfg, row));
+      if (row) initial = this.coerce(cfg, row);
     }
-    return g;
+    return this.fb.build(cfg.form, initial);
   });
 
   protected save(): void {
@@ -200,23 +268,48 @@ export class RecordViewComponent {
     });
   }
 
-  /** Coerce form values to the types the backend validator expects (number/date). */
+  /** Coerce form values to the types the backend validator expects (number/date),
+   *  including nested rows of `table` fields. */
   private toApiData(cfg: ResolvedView, value: Record<string, unknown>): Record<string, unknown> {
     const out: Record<string, unknown> = { ...value };
     for (const f of cfg.form.fields) {
       const v = out[f.key];
-      if (f.type === 'number' && typeof v === 'string' && v.trim() !== '') out[f.key] = Number(v);
-      else if (f.type === 'date' && v instanceof Date) out[f.key] = v.toISOString();
+      if (f.type === 'table' && Array.isArray(v)) {
+        out[f.key] = v.map((r) => this.coerceRowOut(f.columns ?? [], r as Record<string, unknown>));
+      } else if (f.type === 'number' && typeof v === 'string' && v.trim() !== '') {
+        out[f.key] = Number(v);
+      } else if (f.type === 'date' && v instanceof Date) {
+        out[f.key] = v.toISOString();
+      }
     }
     return out;
   }
 
-  /** coerce raw row values to control-friendly types (date strings → Date). */
-  private coerce(cfg: ResolvedView, row: Record<string, unknown>): Record<string, unknown> {
-    const dateKeys = new Set(cfg.form.fields.filter((f) => f.type === 'date').map((f) => f.key));
+  private coerceRowOut(columns: FormFieldDef[], row: Record<string, unknown>): Record<string, unknown> {
     const out: Record<string, unknown> = { ...row };
-    for (const k of dateKeys) {
-      if (typeof out[k] === 'string') out[k] = new Date(out[k] as string);
+    for (const c of columns) {
+      const v = out[c.key];
+      if (c.type === 'number' && typeof v === 'string' && v.trim() !== '') out[c.key] = Number(v);
+      else if (c.type === 'date' && v instanceof Date) out[c.key] = v.toISOString();
+    }
+    return out;
+  }
+
+  /** coerce raw row values to control-friendly types (date strings → Date),
+   *  including nested rows of `table` fields. */
+  private coerce(cfg: ResolvedView, row: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = { ...row };
+    for (const f of cfg.form.fields) {
+      if (f.type === 'date' && typeof out[f.key] === 'string') {
+        out[f.key] = new Date(out[f.key] as string);
+      } else if (f.type === 'table' && Array.isArray(out[f.key])) {
+        const dateCols = (f.columns ?? []).filter((c) => c.type === 'date').map((c) => c.key);
+        out[f.key] = (out[f.key] as Record<string, unknown>[]).map((r) => {
+          const rr = { ...r };
+          for (const dc of dateCols) if (typeof rr[dc] === 'string') rr[dc] = new Date(rr[dc] as string);
+          return rr;
+        });
+      }
     }
     return out;
   }
@@ -231,13 +324,4 @@ export class RecordViewComponent {
     return 'todo';
   }
 
-  protected readonly timeline: TimelineEvent[] = [
-    { icon: 'ph-plus-circle', title: 'Record created', meta: 'by Admin · 2026-06-07 09:12' },
-    { icon: 'ph-pencil-simple', title: 'Vendor updated', meta: 'by Admin · 2026-06-07 09:20' },
-    { icon: 'ph-paper-plane-tilt', title: 'Submitted for approval', meta: 'by Admin · 2026-06-07 09:25' },
-  ];
-  protected readonly comments: Comment[] = [
-    { author: 'Priya S.', initials: 'PS', when: '2h ago', text: 'Can we confirm the delivery date with the vendor?' },
-    { author: 'Admin', initials: 'AD', when: '1h ago', text: 'Vendor confirmed — delivery on the 12th.' },
-  ];
 }

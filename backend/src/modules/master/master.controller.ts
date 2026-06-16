@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
 import { masterService } from './master.service.js';
+import { activityService } from '../activity/index.js';
+import { publish } from '../../queue/events.js';
 
 function param(req: Request, name: string): string {
   return String(req.params[name]);
@@ -24,11 +26,17 @@ export const masterController = {
     res.json({ rows: await masterService.listData(param(req, 'slug'), limit, offset) });
   },
   async createData(req: Request, res: Response): Promise<void> {
-    const row = await masterService.createData(param(req, 'slug'), body(req));
+    const slug = param(req, 'slug');
+    const row = await masterService.createData(slug, body(req));
+    await activityService.addTimeline(slug, row.code, 'created', 'Record created', req.auth?.userId ?? null);
+    await publish({ type: 'master.created', entityType: slug, recordId: row.code, actorUserId: req.auth?.userId ?? null });
     res.status(201).json({ row });
   },
   async updateData(req: Request, res: Response): Promise<void> {
-    const row = await masterService.updateData(param(req, 'slug'), param(req, 'id'), body(req));
+    const slug = param(req, 'slug');
+    const row = await masterService.updateData(slug, param(req, 'id'), body(req));
+    await activityService.addTimeline(slug, row.code, 'updated', 'Record updated', req.auth?.userId ?? null);
+    await publish({ type: 'master.updated', entityType: slug, recordId: row.code, actorUserId: req.auth?.userId ?? null });
     res.json({ row });
   },
   async deleteData(req: Request, res: Response): Promise<void> {

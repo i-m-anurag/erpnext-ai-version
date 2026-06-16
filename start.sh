@@ -141,13 +141,15 @@ else
 fi
 
 # ── 7. Run backend + frontend ────────────────────────────────────────────────
-BACK_PID=""; FRONT_PID=""
+BACK_PID=""; FRONT_PID=""; WORKER_PID=""
 cleanup() {
   echo
   step "Shutting down dev servers"
   [[ -n "$BACK_PID" ]] && kill "$BACK_PID" 2>/dev/null || true
+  [[ -n "$WORKER_PID" ]] && kill "$WORKER_PID" 2>/dev/null || true
   [[ -n "$FRONT_PID" ]] && kill "$FRONT_PID" 2>/dev/null || true
   pkill -f "tsx watch src/main.ts" 2>/dev/null || true
+  pkill -f "tsx watch src/worker.ts" 2>/dev/null || true
   pkill -f "@angular/build:dev-server" 2>/dev/null || true
   ok "stopped (docker infra left running — use './start.sh --down' to stop it)"
 }
@@ -156,12 +158,14 @@ trap cleanup EXIT INT TERM
 echo
 ok "Setup complete. Starting servers…"
 echo "    Backend  : http://localhost:${BACKEND_PORT}      (API, Swagger at /docs)"
+echo "    Worker   : BullMQ queues (email, events)"
 echo "    Frontend : http://localhost:${FRONTEND_PORT}      (proxies /api → backend)"
 echo "    Mailhog  : http://localhost:8025"
-echo "    Press Ctrl+C to stop both servers."
+echo "    Press Ctrl+C to stop all servers."
 echo
 
 ( cd backend && npm run dev ) & BACK_PID=$!
+( cd backend && npm run worker ) & WORKER_PID=$!
 ( cd frontend && npm start -- --port "$FRONTEND_PORT" ) & FRONT_PID=$!
 
 # Keep the script alive while both servers run. `wait` (no -n) is bash-3.2 safe

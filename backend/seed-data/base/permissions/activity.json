@@ -1,0 +1,7 @@
+{
+  "module": "activity",
+  "permissions": [
+    { "action": "view", "description": "View a record's activity timeline and comments" },
+    { "action": "comment", "description": "Post comments / queries on a record" }
+  ]
+}

@@ -229,6 +229,39 @@ body {
 .erp-field__label { display: block; margin-bottom: $erp-space-1; font-weight: 500; }
 .erp-field__error { color: var(--erp-danger); font-size: 0.8125rem; margin-top: $erp-space-1; }
 .erp-form__actions { display: flex; gap: $erp-space-2; margin-top: $erp-space-2; }
+/** A field that spans the full width of a two-column form (e.g. a table). */
+.erp-field--full { grid-column: 1 / -1; width: 100%; }
+
+/* ── Tabular (line-items) form field ────────────────────────── */
+.iq-tablefield {
+  .iq-tablefield__table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--erp-border);
+    border-radius: $erp-radius-md;
+    overflow: hidden;
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--erp-border);
+      vertical-align: top;
+    }
+    thead th {
+      background: var(--erp-surface-alt);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--erp-text-muted);
+      text-align: left;
+      white-space: nowrap;
+    }
+    tbody tr:last-child td { border-bottom: 0; }
+    /* compact controls inside cells */
+    .form-control, .ng-select, input { font-size: 0.85rem; }
+    .erp-field__error { display: none; } /* cell errors shown via is-invalid border */
+  }
+  .iq-tablefield__rowaction { width: 36px; text-align: center; }
+}
 
 // ── "Ask IQ" command bar (topbar) ────────────────────────────────────────────
 .iq-cmd {

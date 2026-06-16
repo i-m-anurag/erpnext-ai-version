@@ -62,9 +62,8 @@ export class MasterFormModalComponent implements OnInit {
   ngOnInit(): void {
     this.formApi.getForm(this.formSlug).subscribe((def) => {
       this.config.set(def);
-      const group = this.fb.build(def);
-      if (this.initialData) group.patchValue(this.initialData);
-      this.group.set(group);
+      // build(def, initial) sizes table FormArrays to the data (patchValue alone can't add rows)
+      this.group.set(this.fb.build(def, this.initialData));
     });
   }
 

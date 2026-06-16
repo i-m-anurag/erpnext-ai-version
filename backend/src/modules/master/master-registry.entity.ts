@@ -42,6 +42,10 @@ export class MasterRegistry extends BaseEntity {
   @Column({ name: 'cache_ttl_seconds', type: 'int', default: 3600 })
   cacheTtlSeconds!: number;
 
+  /** Workflow definition slug governing this master's rows (null = no workflow). */
+  @Column({ name: 'workflow_slug', type: 'varchar', length: 128, nullable: true })
+  workflowSlug!: string | null;
+
   @Column({ type: 'varchar', length: 16, default: 'active' })
   status!: 'active' | 'archived';
 }

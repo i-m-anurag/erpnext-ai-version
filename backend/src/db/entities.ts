@@ -7,6 +7,8 @@ import { RolePermission } from '../modules/permission/role-permission.entity.js'
 import { UserRole } from '../modules/permission/user-role.entity.js';
 import { MasterRegistry } from '../modules/master/master-registry.entity.js';
 import { MasterData } from '../modules/master/master-data.entity.js';
+import { TimelineEntry } from '../modules/activity/timeline-entry.entity.js';
+import { Comment } from '../modules/activity/comment.entity.js';
 
 /**
  * Explicit entity registry. Listed by import (not a filesystem glob) so the
@@ -23,4 +25,6 @@ export const entities = [
   UserRole,
   MasterRegistry,
   MasterData,
+  TimelineEntry,
+  Comment,
 ];

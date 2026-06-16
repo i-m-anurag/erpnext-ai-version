@@ -1,0 +1,35 @@
+{
+  "slug": "purchase-order",
+  "version": 1,
+  "title": "Purchase Order",
+  "layout": "two-column",
+  "fields": [
+    { "key": "poNumber", "type": "text", "label": "PO Number", "required": true, "validators": { "maxLength": 32 } },
+    { "key": "vendor", "type": "select", "label": "Vendor", "required": true, "options": [
+      { "value": "Acme Supplies", "label": "Acme Supplies" },
+      { "value": "Globex Corp", "label": "Globex Corp" },
+      { "value": "Initech", "label": "Initech" }
+    ] },
+    { "key": "poDate", "type": "date", "label": "PO Date", "required": true },
+    { "key": "status", "type": "select", "label": "Status", "options": [
+      { "value": "draft", "label": "Draft" },
+      { "value": "approved", "label": "Approved" },
+      { "value": "completed", "label": "Completed" }
+    ] },
+    {
+      "key": "lines",
+      "type": "table",
+      "label": "Line Items",
+      "required": true,
+      "minRows": 1,
+      "maxRows": 50,
+      "columns": [
+        { "key": "item", "type": "master-lookup", "label": "Item", "required": true, "optionsSource": { "master": "item" } },
+        { "key": "qty", "type": "number", "label": "Qty", "required": true, "validators": { "min": 0.01 } },
+        { "key": "rate", "type": "number", "label": "Rate", "required": true, "validators": { "min": 0 } },
+        { "key": "remarks", "type": "text", "label": "Remarks" }
+      ]
+    },
+    { "key": "notes", "type": "textarea", "label": "Notes" }
+  ]
+}

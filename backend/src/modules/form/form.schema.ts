@@ -16,31 +16,63 @@ export const fieldTypeSchema = z.enum([
   'checkbox',
   'file',
   'master-lookup',
+  'table',
 ]);
 
-export const formFieldSchema = z.object({
-  key: z.string().min(1),
-  type: fieldTypeSchema,
-  label: z.string().min(1),
-  required: z.boolean().optional(),
-  placeholder: z.string().optional(),
-  /** Validation rules applied on both ends (generated into server-side checks later). */
-  validators: z
-    .object({
-      minLength: z.number().int().optional(),
-      maxLength: z.number().int().optional(),
-      min: z.number().optional(),
-      max: z.number().optional(),
-      pattern: z.string().optional(),
-    })
-    .optional(),
-  /** Conditional visibility: show when another field equals a value. */
-  visibleWhen: z.object({ field: z.string(), equals: z.unknown() }).optional(),
-  /** Options sourced from a master (resolved server-side) … */
-  optionsSource: z.object({ master: z.string() }).optional(),
-  /** … or inline static options. */
-  options: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
-});
+/**
+ * A single form field. `type: 'table'` makes it a tabular sub-form whose rows are
+ * validated against `columns` (themselves FormFields) — so the type is recursive.
+ */
+export interface FormField {
+  key: string;
+  type: z.infer<typeof fieldTypeSchema>;
+  label: string;
+  required?: boolean;
+  placeholder?: string;
+  validators?: {
+    minLength?: number;
+    maxLength?: number;
+    min?: number;
+    max?: number;
+    pattern?: string;
+  };
+  visibleWhen?: { field: string; equals: unknown };
+  optionsSource?: { master: string };
+  options?: { value: string; label: string }[];
+  columns?: FormField[];
+  minRows?: number;
+  maxRows?: number;
+}
+
+export const formFieldSchema: z.ZodType<FormField> = z.lazy(() =>
+  z.object({
+    key: z.string().min(1),
+    type: fieldTypeSchema,
+    label: z.string().min(1),
+    required: z.boolean().optional(),
+    placeholder: z.string().optional(),
+    /** Validation rules applied on both ends (generated into server-side checks later). */
+    validators: z
+      .object({
+        minLength: z.number().int().optional(),
+        maxLength: z.number().int().optional(),
+        min: z.number().optional(),
+        max: z.number().optional(),
+        pattern: z.string().optional(),
+      })
+      .optional(),
+    /** Conditional visibility: show when another field equals a value. */
+    visibleWhen: z.object({ field: z.string(), equals: z.unknown() }).optional(),
+    /** Options sourced from a master (resolved server-side) … */
+    optionsSource: z.object({ master: z.string() }).optional(),
+    /** … or inline static options. */
+    options: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
+    /** type: 'table' — per-row column fields (a nested form definition). */
+    columns: z.array(formFieldSchema).optional(),
+    minRows: z.number().int().nonnegative().optional(),
+    maxRows: z.number().int().positive().optional(),
+  }),
+);
 
 export const formDefinitionSchema = z.object({
   slug: z.string().min(1),
