@@ -10,3 +10,5 @@ export {
   EMAIL_TEMPLATE_RESOURCE_TYPE,
 } from './email-template.resource.js';
 export { emailTemplateSchema, type EmailTemplate } from './email-template.schema.js';
+export { templateService } from './template.service.js';
+export { buildTemplateRouter } from './template.routes.js';

@@ -11,6 +11,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { ModalModule } from 'ngx-bootstrap/modal';
 import { provideToastr } from 'ngx-toastr';
+import { provideQuillConfig } from 'ngx-quill';
 
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
@@ -32,6 +33,7 @@ export const appConfig: ApplicationConfig = {
     importProvidersFrom(ModalModule.forRoot()),
     provideAnimations(), // ngx-bootstrap (datepicker, etc.) + toastr need animations
     provideToastr({ positionClass: 'toast-top-right', timeOut: 4000, progressBar: true, newestOnTop: true }),
+    provideQuillConfig({ theme: 'snow' }),
     // Load the css.json class map (dynamic-form theming) before first render.
     provideAppInitializer(() => inject(CssMapService).load()),
     // Load white-label branding (logo + product name) from the public /api/meta.

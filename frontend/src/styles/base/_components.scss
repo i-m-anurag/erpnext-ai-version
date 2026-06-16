@@ -617,6 +617,24 @@ body {
   input { flex: 1; }
 }
 
+/* ── Email-template editor (edit | live preview) ────────────── */
+.iq-tpl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: $erp-space-4;
+  align-items: start;
+  @media (max-width: 1100px) { grid-template-columns: 1fr; }
+  .iq-tpl__frame {
+    min-height: 240px;
+    background: var(--erp-surface);
+    font-size: 0.9rem;
+  }
+  /* keep Quill on-brand */
+  .ql-toolbar.ql-snow, .ql-container.ql-snow { border-color: var(--erp-border); }
+  .ql-container.ql-snow { border-bottom-left-radius: $erp-radius-md; border-bottom-right-radius: $erp-radius-md; }
+  .ql-toolbar.ql-snow { border-top-left-radius: $erp-radius-md; border-top-right-radius: $erp-radius-md; }
+}
+
 /* ── ngx-bootstrap: tabs (tabset) themed to IQ ──────────────── */
 .nav-tabs {
   border-bottom: 1px solid var(--erp-border);

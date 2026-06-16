@@ -51,6 +51,20 @@ export const routes: Routes = [
               import('./features/playground/playground.component').then((m) => m.PlaygroundComponent),
           },
           {
+            path: 'communication',
+            canActivate: [permissionGuard],
+            data: { permission: 'communication:template.read', title: 'Email Templates' },
+            loadComponent: () =>
+              import('./features/communication/templates-list.component').then((m) => m.TemplatesListComponent),
+          },
+          {
+            path: 'communication/:slug',
+            canActivate: [permissionGuard],
+            data: { permission: 'communication:template.read', title: 'Email Template' },
+            loadComponent: () =>
+              import('./features/communication/template-editor.component').then((m) => m.TemplateEditorComponent),
+          },
+          {
             // dashboard / any other admin sub → generic module workspace
             path: ':sub',
             data: { slug: 'admin' },

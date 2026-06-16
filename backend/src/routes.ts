@@ -9,6 +9,7 @@ import { buildFormRouter, buildPublicFormRouter } from './modules/form/index.js'
 import { buildMasterRouter } from './modules/master/index.js';
 import { buildActivityRouter } from './modules/activity/index.js';
 import { buildWorkflowRouter } from './modules/workflow/index.js';
+import { buildTemplateRouter } from './modules/communication/index.js';
 
 /**
  * Central route registration. As modules land (auth, permission, ...), each
@@ -71,4 +72,7 @@ export function registerRoutes(app: Express): void {
 
   // Workflow (state machine) for master records. Gated by auth + workflow:* perms.
   app.use('/api/workflow', buildWorkflowRouter());
+
+  // Communication — email-template management. Gated by auth + communication:* perms.
+  app.use('/api/templates', buildTemplateRouter());
 }
