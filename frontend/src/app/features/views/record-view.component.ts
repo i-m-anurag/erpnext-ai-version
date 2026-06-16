@@ -60,7 +60,10 @@ const KIND_ICON: Record<TimelineKind, string> = {
         <div class="iq-stepper mb-3">
           @for (s of w.states; track s.name; let i = $index) {
             <div class="iq-stepper__step" [class.done]="stateIndex(w) > i" [class.current]="s.name === w.currentState">
-              <span class="iq-stepper__dot">
+              <span class="iq-stepper__dot"
+                    [style.background-color]="s.name === w.currentState && s.color ? s.color : null"
+                    [style.border-color]="s.name === w.currentState && s.color ? s.color : null"
+                    [style.color]="s.name === w.currentState && s.color ? '#fff' : null">
                 @if (stateIndex(w) > i) { <i class="ph ph-check"></i> } @else { {{ i + 1 }} }
               </span>
               <span class="iq-stepper__label">{{ s.name }}</span>

@@ -1,9 +1,11 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
+import { NgSelectModule } from '@ng-select/ng-select';
 import { MasterApiService } from '../../core/api/master.api.service';
 import { FormApiService } from '../../core/api/form.api.service';
-import { TemplateApiService } from '../../core/api/template.api.service';
+import { TemplateApiService, type TemplateSummary } from '../../core/api/template.api.service';
+import { RolesApiService, type RoleOption } from '../../core/api/roles.api.service';
 import {
   WorkflowDefApiService,
   type Condition,
@@ -16,16 +18,18 @@ import { NotificationService } from '../../core/notify/notification.service';
 
 const OPS: Condition['op'][] = ['==', '!=', '<', '<=', '>', '>='];
 const ACTION_TYPES: RuleAction['type'][] = ['set_state', 'set_field', 'email', 'assign'];
+const SWATCHES = ['#6b7280', '#5f79eb', '#9f7af3', '#f59e0b', '#22c55e', '#ef4444', '#06b6d4'];
 
 /**
- * Rule-engine configurator: states + rules with if/else-if/else branches, where
- * each branch runs an action list (set_state / set_field / assign / email).
- * Condition + set_field field pickers come from the target entity's FORM fields,
- * so authors choose real fields instead of typing them.
+ * Rule-engine configurator: states + rules with if/else-if/else branches, each
+ * running an action list (set_state / set_field / assign / email). Condition and
+ * set_field field pickers come from the entity's FORM fields; roles come from the
+ * roles list; email actions only offer templates whose variables this entity can
+ * supply (appName, recordId, state + the entity's scalar fields).
  */
 @Component({
   selector: 'erp-workflow-editor',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, NgSelectModule],
   template: `
     <div class="d-flex align-items-center justify-content-between mb-3">
       <div>
@@ -57,42 +61,47 @@ const ACTION_TYPES: RuleAction['type'][] = ['set_state', 'set_field', 'email', '
       <div class="erp-card p-3 mb-3">
         <div class="fw-semibold mb-2">States</div>
         <table class="iq-rules__states">
+          <thead><tr><th>State name</th><th style="width:120px">Colour</th><th style="width:36px"></th></tr></thead>
           @for (s of d.states; track $index; let i = $index) {
             <tr>
               <td><input class="form-control form-control-sm" [(ngModel)]="s.name" placeholder="State name" /></td>
-              <td style="width:140px">
-                <select class="form-select form-select-sm" [(ngModel)]="s.color">
-                  <option value="secondary">Grey</option><option value="info">Blue</option>
-                  <option value="warning">Amber</option><option value="success">Green</option><option value="danger">Red</option>
-                </select>
+              <td>
+                <div class="d-flex align-items-center gap-1">
+                  <input type="color" class="form-control form-control-sm form-control-color" [(ngModel)]="s.color" list="swatches" />
+                </div>
               </td>
-              <td style="width:36px"><button class="btn-icon" (click)="d.states.splice(i,1)"><i class="ph ph-trash"></i></button></td>
+              <td><button class="btn-icon" (click)="d.states.splice(i,1)"><i class="ph ph-trash"></i></button></td>
             </tr>
           }
         </table>
-        <button class="btn btn-sm btn-light mt-2" (click)="d.states.push({ name: '', color: 'secondary' })"><i class="ph ph-plus"></i> Add state</button>
+        <datalist id="swatches">@for (c of swatches; track c) { <option [value]="c"></option> }</datalist>
+        <button class="btn btn-sm btn-light mt-2" (click)="d.states.push({ name: '', color: '#6b7280' })"><i class="ph ph-plus"></i> Add state</button>
       </div>
 
       <!-- Rules -->
       <div class="fw-semibold mb-2">Rules</div>
       @for (r of d.rules; track $index; let ri = $index) {
         <div class="erp-card p-3 mb-3 iq-rule">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <input class="form-control form-control-sm fw-semibold" style="max-width:280px" [(ngModel)]="r.name" placeholder="Rule name" />
+          <div class="d-flex align-items-end justify-content-between mb-2">
+            <div style="max-width:320px;flex:1">
+              <label class="erp-field__label form-label">Rule name</label>
+              <input class="form-control form-control-sm fw-semibold" [(ngModel)]="r.name" placeholder="e.g. Submit for approval" />
+            </div>
             <button class="btn-icon text-danger" (click)="d.rules.splice(ri,1)"><i class="ph ph-trash"></i></button>
           </div>
 
           <!-- Trigger -->
           <div class="iq-rule__trigger d-flex flex-wrap gap-2 align-items-center mb-3">
             <span class="text-muted small">WHEN user clicks</span>
-            <input class="form-control form-control-sm" style="max-width:160px" [(ngModel)]="r.trigger.action" placeholder="Action (e.g. Submit)" />
+            <input class="form-control form-control-sm" style="max-width:150px" [(ngModel)]="r.trigger.action" placeholder="Action (e.g. Submit)" />
             <span class="text-muted small">from</span>
-            <select class="form-select form-select-sm" style="max-width:170px" [ngModel]="r.trigger.fromState ?? ''" (ngModelChange)="r.trigger.fromState = $event || null">
+            <select class="form-select form-select-sm" style="max-width:160px" [ngModel]="r.trigger.fromState ?? ''" (ngModelChange)="r.trigger.fromState = $event || null">
               <option value="">Any state</option>
               @for (s of d.states; track s.name) { <option [value]="s.name">{{ s.name }}</option> }
             </select>
             <span class="text-muted small">· roles</span>
-            <input class="form-control form-control-sm" style="max-width:160px" [ngModel]="r.trigger.roles.join(', ')" (ngModelChange)="r.trigger.roles = splitCsv($event)" placeholder="admin (comma-sep)" />
+            <ng-select class="iq-roles-select" [items]="roles()" bindValue="code" bindLabel="name" [multiple]="true"
+                       [(ngModel)]="r.trigger.roles" placeholder="Any role" style="min-width:220px" />
           </div>
 
           <!-- Branches -->
@@ -103,7 +112,6 @@ const ACTION_TYPES: RuleAction['type'][] = ['set_state', 'set_field', 'email', '
                 <button class="btn-icon text-danger" (click)="r.branches.splice(bi,1)"><i class="ph ph-x"></i></button>
               </div>
 
-              <!-- Conditions -->
               @for (c of b.conditions; track $index; let ci = $index) {
                 <div class="d-flex gap-2 align-items-center mb-1">
                   <select class="form-select form-select-sm" style="max-width:200px" [(ngModel)]="c.field">
@@ -118,7 +126,6 @@ const ACTION_TYPES: RuleAction['type'][] = ['set_state', 'set_field', 'email', '
               }
               <button class="btn btn-sm btn-link p-0 mb-2" (click)="b.conditions.push({ field: firstField(), op: '==', value: '' })">+ condition</button>
 
-              <!-- Actions -->
               <div class="iq-branch__then text-muted small">THEN</div>
               @for (a of b.actions; track $index; let ai = $index) {
                 <div class="d-flex gap-2 align-items-center mb-1 flex-wrap">
@@ -141,15 +148,18 @@ const ACTION_TYPES: RuleAction['type'][] = ['set_state', 'set_field', 'email', '
                     }
                     @case ('email') {
                       <span class="text-muted small">template</span>
-                      <select class="form-select form-select-sm" style="max-width:170px" [(ngModel)]="$any(a).template">
-                        @for (t of templates(); track t) { <option [value]="t">{{ t }}</option> }
+                      <select class="form-select form-select-sm" style="max-width:180px" [(ngModel)]="$any(a).template">
+                        @for (t of compatibleTemplates(); track t.slug) { <option [value]="t.slug">{{ t.slug }}</option> }
                       </select>
                       <input class="form-control form-control-sm" style="max-width:220px" [ngModel]="$any(a).to.join(', ')" (ngModelChange)="$any(a).to = splitCsv($event)" placeholder="role:admin, {{ '{{' }}doc.email{{ '}}' }}" />
                     }
                     @case ('assign') {
                       <span class="text-muted small">role</span>
-                      <input class="form-control form-control-sm" style="max-width:160px" [(ngModel)]="$any(a).role" placeholder="role code" />
-                      <select class="form-select form-select-sm" style="max-width:150px" [(ngModel)]="$any(a).strategy">
+                      <select class="form-select form-select-sm" style="max-width:160px" [(ngModel)]="$any(a).role">
+                        <option value="">— role —</option>
+                        @for (ro of roles(); track ro.code) { <option [value]="ro.code">{{ ro.name }}</option> }
+                      </select>
+                      <select class="form-select form-select-sm" style="max-width:140px" [(ngModel)]="$any(a).strategy">
                         <option value="least_loaded">least loaded</option><option value="round_robin">round robin</option>
                       </select>
                     }
@@ -164,6 +174,10 @@ const ACTION_TYPES: RuleAction['type'][] = ['set_state', 'set_field', 'email', '
         </div>
       }
       <button class="btn btn-sm btn-primary" (click)="addRule()"><i class="ph ph-plus"></i> Add rule</button>
+      <div class="text-muted small mt-2">
+        <i class="ph ph-info"></i> Email merge fields available here: <code>{{ availableVars().join(', ') }}</code>.
+        Only templates using these fields are offered.
+      </div>
     } @else {
       <div class="erp-card p-4 text-muted"><i class="ph ph-circle-notch"></i> Loading…</div>
     }
@@ -176,25 +190,36 @@ export class WorkflowEditorComponent {
   private readonly masters = inject(MasterApiService);
   private readonly formApi = inject(FormApiService);
   private readonly templateApi = inject(TemplateApiService);
+  private readonly rolesApi = inject(RolesApiService);
   private readonly notify = inject(NotificationService);
   private readonly router = inject(Router);
 
   protected readonly def = signal<WorkflowDef | undefined>(undefined);
   protected readonly fields = signal<{ key: string; label: string }[]>([]);
-  protected readonly templates = signal<string[]>([]);
+  protected readonly templatesAll = signal<TemplateSummary[]>([]);
+  protected readonly roles = signal<RoleOption[]>([]);
   protected readonly saving = signal(false);
   protected readonly ops = OPS;
   protected readonly actionTypes = ACTION_TYPES;
+  protected readonly swatches = SWATCHES;
+
+  /** Variables a rule email action can supply for THIS entity. */
+  protected readonly availableVars = computed(() => ['appName', 'recordId', 'state', ...this.fields().map((f) => f.key)]);
+  /** Only templates whose declared variables are all satisfiable here. */
+  protected readonly compatibleTemplates = computed(() => {
+    const avail = new Set(this.availableVars());
+    return this.templatesAll().filter((t) => t.variables.every((v) => avail.has(v)));
+  });
 
   constructor() {
     queueMicrotask(() => this.load());
   }
 
   private load(): void {
-    this.templateApi.list().subscribe((t) => this.templates.set(t.map((x) => x.slug)));
+    this.templateApi.list().subscribe((t) => this.templatesAll.set(t));
+    this.rolesApi.list().subscribe((r) => this.roles.set(r));
     this.api.get(this.slug()).subscribe((wf) => {
       this.def.set(wf);
-      // field suggestions come from the target master's form
       this.masters.getMaster(wf.appliesTo).subscribe((m) => {
         if (!m.formSlug) return;
         this.formApi.getForm(m.formSlug).subscribe((form) =>
@@ -222,7 +247,7 @@ export class WorkflowEditorComponent {
     const fresh: Record<RuleAction['type'], RuleAction> = {
       set_state: { type: 'set_state', to: states[0]?.name ?? '' },
       set_field: { type: 'set_field', field: this.firstField(), value: '' },
-      email: { type: 'email', template: this.templates()[0] ?? '', to: [] },
+      email: { type: 'email', template: this.compatibleTemplates()[0]?.slug ?? '', to: [] },
       assign: { type: 'assign', role: '', strategy: 'least_loaded' },
     };
     branch.actions[i] = fresh[type];
