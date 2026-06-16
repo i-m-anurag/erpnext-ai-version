@@ -65,6 +65,20 @@ export const routes: Routes = [
               import('./features/communication/template-editor.component').then((m) => m.TemplateEditorComponent),
           },
           {
+            path: 'workflows',
+            canActivate: [permissionGuard],
+            data: { permission: 'workflow:view', title: 'Workflows' },
+            loadComponent: () =>
+              import('./features/workflow/workflows-list.component').then((m) => m.WorkflowsListComponent),
+          },
+          {
+            path: 'workflows/:slug',
+            canActivate: [permissionGuard],
+            data: { permission: 'workflow:view', title: 'Workflow' },
+            loadComponent: () =>
+              import('./features/workflow/workflow-editor.component').then((m) => m.WorkflowEditorComponent),
+          },
+          {
             // dashboard / any other admin sub → generic module workspace
             path: ':sub',
             data: { slug: 'admin' },

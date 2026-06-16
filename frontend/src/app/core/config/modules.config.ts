@@ -161,6 +161,7 @@ export const MODULES: ErpModule[] = [
     subModules: [
       { slug: 'dashboard', name: 'Overview', icon: 'ph-gauge' },
       { slug: 'masters', name: 'Masters', icon: 'ph-database' },
+      { slug: 'workflows', name: 'Workflows', icon: 'ph-flow-arrow' },
       { slug: 'communication', name: 'Email Templates', icon: 'ph-envelope' },
       { slug: 'roles', name: 'Roles & Permissions', icon: 'ph-shield-check' },
       { slug: 'playground', name: 'Form Playground', icon: 'ph-flask' },
