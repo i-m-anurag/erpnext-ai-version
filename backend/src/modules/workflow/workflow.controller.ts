@@ -19,23 +19,21 @@ export const workflowController = {
     const slug = p(req, 'masterSlug');
     const code = p(req, 'recordId');
     const userId = req.auth!.userId;
-    const result = await workflowService.transition(slug, code, action, userId);
-    // Side-effect record: sync timeline (actor sees it immediately) + async event.
-    await activityService.addTimeline(
-      slug,
-      code,
-      'state_changed',
-      `${result.action}: ${result.from} → ${result.to}`,
-      userId,
-    );
-    await publish({
-      type: 'master.state_changed',
-      entityType: slug,
-      recordId: code,
-      actorUserId: userId,
-      fromState: result.from,
-      toState: result.to,
-    });
+    const result = await workflowService.runAction(slug, code, action, userId);
+
+    if (result.stateChanged) {
+      await activityService.addTimeline(slug, code, 'state_changed', `${result.action}: ${result.from} → ${result.to}`, userId);
+      await publish({
+        type: 'master.state_changed',
+        entityType: slug,
+        recordId: code,
+        actorUserId: userId,
+        fromState: result.from,
+        toState: result.to,
+      });
+    } else {
+      await activityService.addTimeline(slug, code, 'updated', `Action: ${result.action}`, userId);
+    }
     res.json(result);
   },
 };

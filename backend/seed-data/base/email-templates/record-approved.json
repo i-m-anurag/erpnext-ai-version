@@ -1,0 +1,7 @@
+{
+  "slug": "record-approved",
+  "subject": "{{appName}} — {{recordId}} approved",
+  "variables": ["appName", "recordId"],
+  "html": "<p>Good news — <b>{{recordId}}</b> has been approved in {{appName}}.</p>",
+  "text": "{{recordId}} has been approved in {{appName}}."
+}

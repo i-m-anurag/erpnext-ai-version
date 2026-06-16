@@ -1,33 +1,22 @@
+import type { Condition } from './workflow.schema.js';
+
 /**
- * Tiny SAFE condition evaluator for workflow transition guards. NO eval —
- * supports `doc.<field> <op> <literal>` comparisons joined by `&&`. Unknown
- * grammar fails closed (returns false). v1 intentionally minimal; expand later.
+ * Evaluate a branch's conditions (ANDed) against a record's data. Structured
+ * (field/op/value), so the UI builds them from the entity's form fields — no
+ * free-text expressions. An empty list = the else branch (always true).
  */
-export function evaluateCondition(expr: string | null, doc: Record<string, unknown>): boolean {
-  if (!expr || !expr.trim()) return true;
-  try {
-    return expr.split('&&').every((clause) => evalComparison(clause.trim(), doc));
-  } catch {
-    return false;
-  }
+export function evaluateConditions(conditions: Condition[], data: Record<string, unknown>): boolean {
+  return conditions.every((c) => evalOne(c, data));
 }
 
-const CLAUSE = /^doc\.([a-zA-Z0-9_]+)\s*(==|!=|<=|>=|<|>)\s*(.+)$/;
-
-function evalComparison(clause: string, doc: Record<string, unknown>): boolean {
-  const m = clause.match(CLAUSE);
-  if (!m) throw new Error(`bad condition clause: ${clause}`);
-  const field = m[1];
-  const op = m[2];
-  const rhsRaw = m[3];
-  if (field === undefined || op === undefined || rhsRaw === undefined) throw new Error('bad clause');
-  const lhs = doc[field];
-  const rhs = parseLiteral(rhsRaw.trim());
-  switch (op) {
+function evalOne(c: Condition, data: Record<string, unknown>): boolean {
+  const lhs = data[c.field];
+  const rhs = c.value;
+  switch (c.op) {
     case '==':
-      return lhs == rhs;
+      return looseEq(lhs, rhs);
     case '!=':
-      return lhs != rhs;
+      return !looseEq(lhs, rhs);
     case '<':
       return Number(lhs) < Number(rhs);
     case '<=':
@@ -37,13 +26,14 @@ function evalComparison(clause: string, doc: Record<string, unknown>): boolean {
     case '>=':
       return Number(lhs) >= Number(rhs);
     default:
-      throw new Error(`bad operator: ${op}`);
+      return false;
   }
 }
 
-function parseLiteral(s: string): unknown {
-  if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
-  if (s === 'true') return true;
-  if (s === 'false') return false;
-  return s.replace(/^['"]|['"]$/g, '');
+function looseEq(a: unknown, b: unknown): boolean {
+  if (a === null || a === undefined) return b === null || b === undefined;
+  // numbers vs numeric strings compare by value; everything else by string
+  if (typeof b === 'number' || typeof a === 'number') return Number(a) === Number(b);
+  if (typeof b === 'boolean' || typeof a === 'boolean') return Boolean(a) === Boolean(b);
+  return String(a) === String(b);
 }

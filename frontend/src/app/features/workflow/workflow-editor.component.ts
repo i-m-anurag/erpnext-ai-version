@@ -1,22 +1,31 @@
 import { Component, inject, input, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
-import type { FormGroup } from '@angular/forms';
-import { DynamicFormComponent } from '../../dynamic-form/dynamic-form.component';
-import { FormBuilderService } from '../../dynamic-form/form-builder.service';
 import { MasterApiService } from '../../core/api/master.api.service';
-import { WorkflowDefApiService, type WorkflowDef } from '../../core/api/workflow-def.api.service';
+import { FormApiService } from '../../core/api/form.api.service';
+import { TemplateApiService } from '../../core/api/template.api.service';
+import {
+  WorkflowDefApiService,
+  type Condition,
+  type Rule,
+  type RuleAction,
+  type RuleBranch,
+  type WorkflowDef,
+} from '../../core/api/workflow-def.api.service';
 import { NotificationService } from '../../core/notify/notification.service';
-import type { FormDefinition } from '../../core/models/api.models';
+
+const OPS: Condition['op'][] = ['==', '!=', '<', '<=', '>', '>='];
+const ACTION_TYPES: RuleAction['type'][] = ['set_state', 'set_field', 'email', 'assign'];
 
 /**
- * Workflow configurator — edits a workflow definition (states + transitions)
- * with the SAME dynamic-form engine + tabular field used everywhere else: a
- * header (applies-to + start state) plus a States table and a Transitions table
- * with add/remove rows. Saves to the custom scope.
+ * Rule-engine configurator: states + rules with if/else-if/else branches, where
+ * each branch runs an action list (set_state / set_field / assign / email).
+ * Condition + set_field field pickers come from the target entity's FORM fields,
+ * so authors choose real fields instead of typing them.
  */
 @Component({
   selector: 'erp-workflow-editor',
-  imports: [RouterLink, DynamicFormComponent],
+  imports: [FormsModule, RouterLink],
   template: `
     <div class="d-flex align-items-center justify-content-between mb-3">
       <div>
@@ -24,19 +33,137 @@ import type { FormDefinition } from '../../core/models/api.models';
         <h4 class="mb-0">{{ slug() }}</h4>
       </div>
       <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-light text-danger" [disabled]="saving()" (click)="reset()"><i class="ph ph-arrow-counter-clockwise"></i> Reset to default</button>
+        <button class="btn btn-sm btn-light text-danger" [disabled]="saving()" (click)="reset()"><i class="ph ph-arrow-counter-clockwise"></i> Reset</button>
         <button class="btn btn-sm btn-primary" [disabled]="saving()" (click)="save()"><i class="ph ph-check"></i> {{ saving() ? 'Saving…' : 'Save' }}</button>
       </div>
     </div>
 
-    @if (config() && group(); as _) {
-      <div class="erp-card p-4">
-        <erp-dynamic-form [config]="config()!" [group]="group()!" />
+    @if (def(); as d) {
+      <!-- Header -->
+      <div class="erp-card p-3 mb-3 d-flex gap-4 flex-wrap align-items-end">
+        <div>
+          <label class="erp-field__label form-label">Applies to</label>
+          <div><span class="iq-chip iq-chip--info">{{ d.appliesTo }}</span></div>
+        </div>
+        <div>
+          <label class="erp-field__label form-label">Start state</label>
+          <select class="form-select form-select-sm" [(ngModel)]="d.startState">
+            @for (s of d.states; track s.name) { <option [value]="s.name">{{ s.name }}</option> }
+          </select>
+        </div>
       </div>
-      <div class="text-muted small mt-2">
-        <i class="ph ph-info"></i> <b>From</b>/<b>To</b>/<b>Start state</b> must match a state name above.
-        <b>Roles</b> = comma-separated role codes (empty = any). <b>Condition</b> e.g. <code>doc.total &lt;= 100000</code> (empty = always).
+
+      <!-- States -->
+      <div class="erp-card p-3 mb-3">
+        <div class="fw-semibold mb-2">States</div>
+        <table class="iq-rules__states">
+          @for (s of d.states; track $index; let i = $index) {
+            <tr>
+              <td><input class="form-control form-control-sm" [(ngModel)]="s.name" placeholder="State name" /></td>
+              <td style="width:140px">
+                <select class="form-select form-select-sm" [(ngModel)]="s.color">
+                  <option value="secondary">Grey</option><option value="info">Blue</option>
+                  <option value="warning">Amber</option><option value="success">Green</option><option value="danger">Red</option>
+                </select>
+              </td>
+              <td style="width:36px"><button class="btn-icon" (click)="d.states.splice(i,1)"><i class="ph ph-trash"></i></button></td>
+            </tr>
+          }
+        </table>
+        <button class="btn btn-sm btn-light mt-2" (click)="d.states.push({ name: '', color: 'secondary' })"><i class="ph ph-plus"></i> Add state</button>
       </div>
+
+      <!-- Rules -->
+      <div class="fw-semibold mb-2">Rules</div>
+      @for (r of d.rules; track $index; let ri = $index) {
+        <div class="erp-card p-3 mb-3 iq-rule">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <input class="form-control form-control-sm fw-semibold" style="max-width:280px" [(ngModel)]="r.name" placeholder="Rule name" />
+            <button class="btn-icon text-danger" (click)="d.rules.splice(ri,1)"><i class="ph ph-trash"></i></button>
+          </div>
+
+          <!-- Trigger -->
+          <div class="iq-rule__trigger d-flex flex-wrap gap-2 align-items-center mb-3">
+            <span class="text-muted small">WHEN user clicks</span>
+            <input class="form-control form-control-sm" style="max-width:160px" [(ngModel)]="r.trigger.action" placeholder="Action (e.g. Submit)" />
+            <span class="text-muted small">from</span>
+            <select class="form-select form-select-sm" style="max-width:170px" [ngModel]="r.trigger.fromState ?? ''" (ngModelChange)="r.trigger.fromState = $event || null">
+              <option value="">Any state</option>
+              @for (s of d.states; track s.name) { <option [value]="s.name">{{ s.name }}</option> }
+            </select>
+            <span class="text-muted small">· roles</span>
+            <input class="form-control form-control-sm" style="max-width:160px" [ngModel]="r.trigger.roles.join(', ')" (ngModelChange)="r.trigger.roles = splitCsv($event)" placeholder="admin (comma-sep)" />
+          </div>
+
+          <!-- Branches -->
+          @for (b of r.branches; track $index; let bi = $index) {
+            <div class="iq-branch mb-2">
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="iq-branch__label">{{ b.conditions.length ? (bi === 0 ? 'IF' : 'ELSE IF') : 'ELSE' }}</span>
+                <button class="btn-icon text-danger" (click)="r.branches.splice(bi,1)"><i class="ph ph-x"></i></button>
+              </div>
+
+              <!-- Conditions -->
+              @for (c of b.conditions; track $index; let ci = $index) {
+                <div class="d-flex gap-2 align-items-center mb-1">
+                  <select class="form-select form-select-sm" style="max-width:200px" [(ngModel)]="c.field">
+                    @for (f of fields(); track f.key) { <option [value]="f.key">{{ f.label }}</option> }
+                  </select>
+                  <select class="form-select form-select-sm" style="max-width:90px" [(ngModel)]="c.op">
+                    @for (o of ops; track o) { <option [value]="o">{{ o }}</option> }
+                  </select>
+                  <input class="form-control form-control-sm" style="max-width:200px" [ngModel]="c.value" (ngModelChange)="c.value = $event" placeholder="value" />
+                  <button class="btn-icon" (click)="b.conditions.splice(ci,1)"><i class="ph ph-x"></i></button>
+                </div>
+              }
+              <button class="btn btn-sm btn-link p-0 mb-2" (click)="b.conditions.push({ field: firstField(), op: '==', value: '' })">+ condition</button>
+
+              <!-- Actions -->
+              <div class="iq-branch__then text-muted small">THEN</div>
+              @for (a of b.actions; track $index; let ai = $index) {
+                <div class="d-flex gap-2 align-items-center mb-1 flex-wrap">
+                  <select class="form-select form-select-sm" style="max-width:130px" [ngModel]="a.type" (ngModelChange)="setActionType(b, ai, $event)">
+                    @for (t of actionTypes; track t) { <option [value]="t">{{ t }}</option> }
+                  </select>
+                  @switch (a.type) {
+                    @case ('set_state') {
+                      <span class="text-muted small">→</span>
+                      <select class="form-select form-select-sm" style="max-width:170px" [(ngModel)]="$any(a).to">
+                        @for (s of d.states; track s.name) { <option [value]="s.name">{{ s.name }}</option> }
+                      </select>
+                    }
+                    @case ('set_field') {
+                      <select class="form-select form-select-sm" style="max-width:160px" [(ngModel)]="$any(a).field">
+                        @for (f of fields(); track f.key) { <option [value]="f.key">{{ f.label }}</option> }
+                      </select>
+                      <span class="text-muted small">=</span>
+                      <input class="form-control form-control-sm" style="max-width:140px" [(ngModel)]="$any(a).value" placeholder="value" />
+                    }
+                    @case ('email') {
+                      <span class="text-muted small">template</span>
+                      <select class="form-select form-select-sm" style="max-width:170px" [(ngModel)]="$any(a).template">
+                        @for (t of templates(); track t) { <option [value]="t">{{ t }}</option> }
+                      </select>
+                      <input class="form-control form-control-sm" style="max-width:220px" [ngModel]="$any(a).to.join(', ')" (ngModelChange)="$any(a).to = splitCsv($event)" placeholder="role:admin, {{ '{{' }}doc.email{{ '}}' }}" />
+                    }
+                    @case ('assign') {
+                      <span class="text-muted small">role</span>
+                      <input class="form-control form-control-sm" style="max-width:160px" [(ngModel)]="$any(a).role" placeholder="role code" />
+                      <select class="form-select form-select-sm" style="max-width:150px" [(ngModel)]="$any(a).strategy">
+                        <option value="least_loaded">least loaded</option><option value="round_robin">round robin</option>
+                      </select>
+                    }
+                  }
+                  <button class="btn-icon" (click)="b.actions.splice(ai,1)"><i class="ph ph-x"></i></button>
+                </div>
+              }
+              <button class="btn btn-sm btn-link p-0" (click)="b.actions.push({ type: 'set_state', to: d.states[0]?.name ?? '' })">+ action</button>
+            </div>
+          }
+          <button class="btn btn-sm btn-light" (click)="r.branches.push({ conditions: [], actions: [] })"><i class="ph ph-git-branch"></i> Add branch (if/else)</button>
+        </div>
+      }
+      <button class="btn btn-sm btn-primary" (click)="addRule()"><i class="ph ph-plus"></i> Add rule</button>
     } @else {
       <div class="erp-card p-4 text-muted"><i class="ph ph-circle-notch"></i> Loading…</div>
     }
@@ -47,107 +174,65 @@ export class WorkflowEditorComponent {
 
   private readonly api = inject(WorkflowDefApiService);
   private readonly masters = inject(MasterApiService);
-  private readonly fb = inject(FormBuilderService);
+  private readonly formApi = inject(FormApiService);
+  private readonly templateApi = inject(TemplateApiService);
   private readonly notify = inject(NotificationService);
   private readonly router = inject(Router);
 
-  protected readonly config = signal<FormDefinition | undefined>(undefined);
-  protected readonly group = signal<FormGroup | undefined>(undefined);
+  protected readonly def = signal<WorkflowDef | undefined>(undefined);
+  protected readonly fields = signal<{ key: string; label: string }[]>([]);
+  protected readonly templates = signal<string[]>([]);
   protected readonly saving = signal(false);
+  protected readonly ops = OPS;
+  protected readonly actionTypes = ACTION_TYPES;
 
   constructor() {
     queueMicrotask(() => this.load());
   }
 
   private load(): void {
-    this.masters.listMasters().subscribe((masters) => {
-      const masterOptions = masters.map((m) => ({ value: m.slug, label: m.name }));
-      this.api.get(this.slug()).subscribe((wf) => {
-        this.config.set(this.buildDef(masterOptions));
-        const initial = {
-          appliesTo: wf.appliesTo,
-          startState: wf.startState,
-          states: wf.states,
-          transitions: wf.transitions.map((t) => ({ ...t, roles: (t.roles ?? []).join(', ') })),
-        };
-        this.group.set(this.fb.build(this.config()!, initial));
+    this.templateApi.list().subscribe((t) => this.templates.set(t.map((x) => x.slug)));
+    this.api.get(this.slug()).subscribe((wf) => {
+      this.def.set(wf);
+      // field suggestions come from the target master's form
+      this.masters.getMaster(wf.appliesTo).subscribe((m) => {
+        if (!m.formSlug) return;
+        this.formApi.getForm(m.formSlug).subscribe((form) =>
+          this.fields.set(form.fields.filter((f) => f.type !== 'table').map((f) => ({ key: f.key, label: f.label }))),
+        );
       });
     });
   }
 
-  /** The form definition for the workflow editor (header + 2 tables). */
-  private buildDef(masterOptions: { value: string; label: string }[]): FormDefinition {
-    return {
-      slug: 'workflow',
-      title: 'Workflow',
-      layout: 'two-column',
-      fields: [
-        { key: 'appliesTo', type: 'select', label: 'Applies to (master)', required: true, options: masterOptions },
-        { key: 'startState', type: 'text', label: 'Start state', required: true },
-        {
-          key: 'states',
-          type: 'table',
-          label: 'States',
-          required: true,
-          minRows: 1,
-          columns: [
-            { key: 'name', type: 'text', label: 'State', required: true },
-            { key: 'color', type: 'select', label: 'Color', options: [
-              { value: 'secondary', label: 'Grey' },
-              { value: 'info', label: 'Blue' },
-              { value: 'warning', label: 'Amber' },
-              { value: 'success', label: 'Green' },
-              { value: 'danger', label: 'Red' },
-            ] },
-          ],
-        },
-        {
-          key: 'transitions',
-          type: 'table',
-          label: 'Transitions',
-          required: true,
-          minRows: 1,
-          columns: [
-            { key: 'action', type: 'text', label: 'Action', required: true },
-            { key: 'from', type: 'text', label: 'From', required: true },
-            { key: 'to', type: 'text', label: 'To', required: true },
-            { key: 'roles', type: 'text', label: 'Roles (comma-sep)' },
-            { key: 'condition', type: 'text', label: 'Condition' },
-          ],
-        },
-      ],
+  protected splitCsv(s: string): string[] {
+    return s.split(',').map((x) => x.trim()).filter(Boolean);
+  }
+  protected firstField(): string {
+    return this.fields()[0]?.key ?? '';
+  }
+  protected addRule(): void {
+    this.def()?.rules.push({
+      name: 'New rule',
+      trigger: { on: 'action', action: '', fromState: null, roles: [] },
+      branches: [{ conditions: [], actions: [] }],
+    } as Rule);
+  }
+  protected setActionType(branch: RuleBranch, i: number, type: RuleAction['type']): void {
+    const states = this.def()?.states ?? [];
+    const fresh: Record<RuleAction['type'], RuleAction> = {
+      set_state: { type: 'set_state', to: states[0]?.name ?? '' },
+      set_field: { type: 'set_field', field: this.firstField(), value: '' },
+      email: { type: 'email', template: this.templates()[0] ?? '', to: [] },
+      assign: { type: 'assign', role: '', strategy: 'least_loaded' },
     };
+    branch.actions[i] = fresh[type];
   }
 
   protected save(): void {
-    const g = this.group();
-    if (!g) return;
-    if (g.invalid) {
-      g.markAllAsTouched();
-      this.notify.error('Please fix the highlighted fields');
-      return;
-    }
-    const v = g.getRawValue() as {
-      appliesTo: string;
-      startState: string;
-      states: { name: string; color?: string }[];
-      transitions: { action: string; from: string; to: string; roles?: string; condition?: string }[];
-    };
-    const def: WorkflowDef = {
-      slug: this.slug(),
-      appliesTo: v.appliesTo,
-      startState: v.startState,
-      states: v.states,
-      transitions: v.transitions.map((t) => ({
-        action: t.action,
-        from: t.from,
-        to: t.to,
-        roles: (t.roles ?? '').split(',').map((r) => r.trim()).filter(Boolean),
-        condition: (t.condition ?? '').trim() || null,
-      })),
-    };
+    const d = this.def();
+    if (!d) return;
     this.saving.set(true);
-    this.api.save(this.slug(), def).subscribe({
+    this.api.save(this.slug(), d).subscribe({
       next: () => {
         this.saving.set(false);
         this.notify.success('Workflow saved');
@@ -158,7 +243,6 @@ export class WorkflowEditorComponent {
       },
     });
   }
-
   protected reset(): void {
     if (!confirm('Reset this workflow to the shipped default? Customisations will be removed.')) return;
     this.saving.set(true);

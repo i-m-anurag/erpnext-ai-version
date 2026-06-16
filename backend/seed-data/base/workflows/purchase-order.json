@@ -8,10 +8,46 @@
     { "name": "Approved", "color": "success" },
     { "name": "Rejected", "color": "danger" }
   ],
-  "transitions": [
-    { "action": "Submit", "from": "Draft", "to": "Pending Approval", "roles": ["admin"] },
-    { "action": "Approve", "from": "Pending Approval", "to": "Approved", "roles": ["admin"] },
-    { "action": "Reject", "from": "Pending Approval", "to": "Rejected", "roles": ["admin"] },
-    { "action": "Reopen", "from": "Rejected", "to": "Draft", "roles": ["admin"] }
+  "rules": [
+    {
+      "name": "Submit",
+      "trigger": { "on": "action", "action": "Submit", "fromState": "Draft", "roles": ["admin"] },
+      "branches": [
+        {
+          "conditions": [{ "field": "vendor", "op": "==", "value": "Acme Supplies" }],
+          "actions": [
+            { "type": "set_state", "to": "Pending Approval" },
+            { "type": "assign", "role": "admin", "strategy": "least_loaded" }
+          ]
+        },
+        {
+          "conditions": [],
+          "actions": [{ "type": "set_state", "to": "Pending Approval" }]
+        }
+      ]
+    },
+    {
+      "name": "Approve",
+      "trigger": { "on": "action", "action": "Approve", "fromState": "Pending Approval", "roles": ["admin"] },
+      "branches": [
+        {
+          "conditions": [],
+          "actions": [
+            { "type": "set_state", "to": "Approved" },
+            { "type": "email", "template": "record-approved", "to": ["role:admin"] }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reject",
+      "trigger": { "on": "action", "action": "Reject", "fromState": "Pending Approval", "roles": ["admin"] },
+      "branches": [{ "conditions": [], "actions": [{ "type": "set_state", "to": "Rejected" }] }]
+    },
+    {
+      "name": "Reopen",
+      "trigger": { "on": "action", "action": "Reopen", "fromState": "Rejected", "roles": ["admin"] },
+      "branches": [{ "conditions": [], "actions": [{ "type": "set_state", "to": "Draft" }] }]
+    }
   ]
 }

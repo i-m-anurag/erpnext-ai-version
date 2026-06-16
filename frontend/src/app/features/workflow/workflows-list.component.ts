@@ -17,7 +17,7 @@ import { WorkflowDefApiService, type WorkflowSummary } from '../../core/api/work
     <div class="erp-card p-0">
       <table class="table table-hover mb-0 align-middle iq-table">
         <thead>
-          <tr><th>Workflow</th><th>Applies to</th><th class="text-end">States</th><th class="text-end">Transitions</th><th>Source</th><th></th></tr>
+          <tr><th>Workflow</th><th>Applies to</th><th class="text-end">States</th><th class="text-end">Rules</th><th>Source</th><th></th></tr>
         </thead>
         <tbody>
           @for (w of workflows(); track w.slug) {
@@ -25,7 +25,7 @@ import { WorkflowDefApiService, type WorkflowSummary } from '../../core/api/work
               <td class="fw-medium"><i class="ph ph-flow-arrow text-muted me-2"></i>{{ w.slug }}</td>
               <td><span class="iq-mono text-muted">{{ w.appliesTo }}</span></td>
               <td class="text-end iq-mono text-muted">{{ w.states }}</td>
-              <td class="text-end iq-mono text-muted">{{ w.transitions }}</td>
+              <td class="text-end iq-mono text-muted">{{ w.rules }}</td>
               <td>
                 <span class="iq-chip" [class]="w.resolvedFrom === 'merged' ? 'iq-chip--ok' : 'iq-chip--warn'">
                   {{ w.resolvedFrom === 'merged' ? 'Customised' : 'Default' }}

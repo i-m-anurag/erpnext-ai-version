@@ -6,30 +6,42 @@ export interface WorkflowStateDef {
   name: string;
   color?: string;
 }
-export interface WorkflowTransitionDef {
-  action: string;
-  from: string;
-  to: string;
-  roles?: string[];
-  condition?: string | null;
+export interface Condition {
+  field: string;
+  op: '==' | '!=' | '<' | '<=' | '>' | '>=';
+  value: string | number | boolean | null;
+}
+export type RuleAction =
+  | { type: 'set_state'; to: string }
+  | { type: 'set_field'; field: string; value: string | number | boolean | null }
+  | { type: 'email'; template: string; to: string[] }
+  | { type: 'assign'; role?: string; users?: string[]; strategy?: 'least_loaded' | 'round_robin' };
+export interface RuleBranch {
+  conditions: Condition[];
+  actions: RuleAction[];
+}
+export interface Rule {
+  name: string;
+  trigger: { on: 'action'; action: string; fromState?: string | null; roles: string[] };
+  branches: RuleBranch[];
 }
 export interface WorkflowDef {
   slug: string;
   appliesTo: string;
   startState: string;
   states: WorkflowStateDef[];
-  transitions: WorkflowTransitionDef[];
+  rules: Rule[];
   resolvedFrom?: string;
 }
 export interface WorkflowSummary {
   slug: string;
   appliesTo: string;
   states: number;
-  transitions: number;
+  rules: number;
   resolvedFrom: string;
 }
 
-/** CRUD over workflow definitions (the configurator). Writes the custom scope. */
+/** CRUD over workflow definitions (the rule-engine configurator). Writes custom scope. */
 @Injectable({ providedIn: 'root' })
 export class WorkflowDefApiService {
   private readonly http = inject(HttpClient);

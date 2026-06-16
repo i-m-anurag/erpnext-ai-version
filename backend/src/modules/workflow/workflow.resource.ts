@@ -7,7 +7,9 @@ export const WORKFLOW_RESOURCE_TYPE = 'workflow';
 export function registerWorkflowResourceType(): void {
   registerResourceType(WORKFLOW_RESOURCE_TYPE, {
     schema: workflowDefinitionSchema,
-    arrayMergeKeys: { states: 'name', transitions: 'action' },
+    // No merge keys → a custom override REPLACES states/rules wholesale (the UI
+    // edits the whole definition), rather than element-merging by id.
+    arrayMergeKeys: {},
     ttlSeconds: 3600,
   });
 }

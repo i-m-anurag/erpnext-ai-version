@@ -9,7 +9,7 @@ export interface WorkflowSummary {
   slug: string;
   appliesTo: string;
   states: number;
-  transitions: number;
+  rules: number;
   resolvedFrom: string;
 }
 
@@ -31,7 +31,7 @@ export class WorkflowAdminService {
         slug,
         appliesTo: eff.definition.appliesTo,
         states: eff.definition.states.length,
-        transitions: eff.definition.transitions.length,
+        rules: eff.definition.rules.length,
         resolvedFrom: eff.resolvedFrom,
       });
     }

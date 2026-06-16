@@ -617,6 +617,18 @@ body {
   input { flex: 1; }
 }
 
+/* ── Workflow rule builder ──────────────────────────────────── */
+.iq-rules__states { width: 100%; td { padding: 2px 4px 2px 0; } }
+.iq-rule { border-left: 3px solid var(--erp-accent); }
+.iq-rule__trigger { background: var(--erp-surface-alt); border-radius: $erp-radius-sm; padding: 6px 8px; }
+.iq-branch {
+  border: 1px dashed var(--erp-border);
+  border-radius: $erp-radius-md;
+  padding: 8px 10px;
+  .iq-branch__label { font-weight: 700; font-size: 0.72rem; letter-spacing: 0.04em; color: var(--erp-accent); }
+  .iq-branch__then { font-weight: 700; letter-spacing: 0.04em; margin: 4px 0; }
+}
+
 /* ── Email-template editor (edit | live preview) ────────────── */
 .iq-tpl {
   display: grid;

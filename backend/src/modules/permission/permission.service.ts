@@ -31,6 +31,14 @@ export class PermissionService {
     });
   }
 
+  /** User ids holding a given role code (for assignment candidate selection). */
+  async userIdsWithRoleCode(code: string): Promise<string[]> {
+    const role = await this.roles.findOne({ code, status: 'active' });
+    if (!role) return [];
+    const assignments = await this.userRoles.find({ where: { roleId: role.id } });
+    return [...new Set(assignments.map((a) => a.userId))];
+  }
+
   /** Active role codes assigned to a user (for workflow transition gating). */
   async rolesForUser(userId: string): Promise<string[]> {
     const assignments = await this.userRoles.find({ where: { userId } });

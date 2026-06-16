@@ -10,12 +10,13 @@ export interface WorkflowStatus {
   hasWorkflow: boolean;
   currentState: string | null;
   states: WorkflowStateDef[];
-  actions: { action: string; to: string }[];
+  actions: { action: string }[];
 }
 export interface TransitionResult {
   from: string;
   to: string;
   action: string;
+  stateChanged: boolean;
 }
 
 /** Workflow state + transitions for a record (keyed by master slug + natural code). */

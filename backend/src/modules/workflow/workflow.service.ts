@@ -3,29 +3,32 @@ import { BaseRepository } from '../../shared/base.repository.js';
 import { MasterRegistry } from '../master/master-registry.entity.js';
 import { MasterData } from '../master/master-data.entity.js';
 import { permissionService } from '../permission/index.js';
-import { BadRequestError, ForbiddenError, NotFoundError } from '../../shared/errors.js';
+import { BadRequestError, NotFoundError } from '../../shared/errors.js';
 import { WORKFLOW_RESOURCE_TYPE } from './workflow.resource.js';
-import type { WorkflowDefinition, WorkflowState } from './workflow.schema.js';
-import { evaluateCondition } from './condition.js';
+import type { Rule, WorkflowDefinition, WorkflowState } from './workflow.schema.js';
+import { evaluateConditions } from './condition.js';
+import { executeAction, type ActionContext } from './workflow.actions.js';
 
 export interface WorkflowStatus {
   hasWorkflow: boolean;
   currentState: string | null;
   states: WorkflowState[];
-  /** transitions available to THIS user from the current state */
-  actions: { action: string; to: string }[];
+  /** action names this user may trigger from the current state */
+  actions: { action: string }[];
 }
 
-export interface TransitionResult {
+export interface ActionResult {
+  action: string;
   from: string;
   to: string;
-  action: string;
+  stateChanged: boolean;
 }
 
 /**
- * Resolves a master's workflow (config resource), computes the current state of a
- * row (null state = the workflow's start state), the actions available to a user
- * (role + condition gated), and applies a transition by writing `master_data.state`.
+ * Rule engine over a master's `state`. A user-triggered action runs every rule
+ * that matches (action name + current state + the user's roles); each rule
+ * evaluates its branches (first matching `if`, else the `else`) and runs that
+ * branch's actions — set_state / set_field / assign / email.
  */
 export class WorkflowService {
   private readonly registry = new BaseRepository(MasterRegistry);
@@ -42,6 +45,16 @@ export class WorkflowService {
     return row.state ?? wf.startState;
   }
 
+  /** Rules of `wf` triggered by `action`, available from `state` to a user with `roles`. */
+  private matchingRules(wf: WorkflowDefinition, action: string, state: string, roles: string[]): Rule[] {
+    return wf.rules.filter(
+      (r) =>
+        r.trigger.action === action &&
+        (r.trigger.fromState == null || r.trigger.fromState === state) &&
+        (r.trigger.roles.length === 0 || r.trigger.roles.some((role) => roles.includes(role))),
+    );
+  }
+
   async status(masterSlug: string, code: string, userId: string): Promise<WorkflowStatus> {
     const wf = await this.getForMaster(masterSlug);
     if (!wf) return { hasWorkflow: false, currentState: null, states: [], actions: [] };
@@ -49,32 +62,42 @@ export class WorkflowService {
     if (!row) throw new NotFoundError('record not found');
     const cur = this.current(wf, row);
     const roles = await permissionService.rolesForUser(userId);
-    const actions = wf.transitions
-      .filter((t) => t.from === cur)
-      .filter((t) => t.roles.length === 0 || t.roles.some((r) => roles.includes(r)))
-      .filter((t) => evaluateCondition(t.condition ?? null, row.data))
-      .map((t) => ({ action: t.action, to: t.to }));
-    return { hasWorkflow: true, currentState: cur, states: wf.states, actions };
+    const names = new Set<string>();
+    for (const r of wf.rules) {
+      if (
+        (r.trigger.fromState == null || r.trigger.fromState === cur) &&
+        (r.trigger.roles.length === 0 || r.trigger.roles.some((role) => roles.includes(role)))
+      ) {
+        names.add(r.trigger.action);
+      }
+    }
+    return { hasWorkflow: true, currentState: cur, states: wf.states, actions: [...names].map((action) => ({ action })) };
   }
 
-  async transition(masterSlug: string, code: string, action: string, userId: string): Promise<TransitionResult> {
+  async runAction(masterSlug: string, code: string, action: string, userId: string): Promise<ActionResult> {
     const wf = await this.getForMaster(masterSlug);
     if (!wf) throw new BadRequestError('this master has no workflow');
     const row = await this.data.findOne({ masterSlug, code });
     if (!row) throw new NotFoundError('record not found');
-    const cur = this.current(wf, row);
-    const t = wf.transitions.find((x) => x.action === action && x.from === cur);
-    if (!t) throw new BadRequestError(`action "${action}" is not available from "${cur}"`);
+    const from = this.current(wf, row);
     const roles = await permissionService.rolesForUser(userId);
-    if (t.roles.length > 0 && !t.roles.some((r) => roles.includes(r))) {
-      throw new ForbiddenError(`your role cannot perform "${action}"`);
+    const rules = this.matchingRules(wf, action, from, roles);
+    if (rules.length === 0) throw new BadRequestError(`action "${action}" is not available`);
+
+    let mutated = false;
+    for (const rule of rules) {
+      const branch = rule.branches.find((b) => evaluateConditions(b.conditions, row.data));
+      if (!branch) continue;
+      const ctx: ActionContext = { entityType: masterSlug, recordId: code, row, actorUserId: userId, ruleName: rule.name };
+      for (const act of branch.actions) {
+        const res = await executeAction(act, ctx);
+        mutated = mutated || res.mutated;
+      }
     }
-    if (!evaluateCondition(t.condition ?? null, row.data)) {
-      throw new BadRequestError(`condition not met for "${action}"`);
-    }
-    row.state = t.to;
-    await this.data.save(row);
-    return { from: cur, to: t.to, action };
+
+    if (mutated) await this.data.save(row);
+    const to = this.current(wf, row);
+    return { action, from, to, stateChanged: from !== to };
   }
 }
 
