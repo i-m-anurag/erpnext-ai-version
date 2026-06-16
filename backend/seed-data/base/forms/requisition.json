@@ -1,0 +1,18 @@
+{
+  "slug": "requisition",
+  "version": 1,
+  "title": "Requisition",
+  "layout": "two-column",
+  "fields": [
+    { "key": "reqNumber", "type": "text", "label": "Requisition No.", "required": true, "validators": { "maxLength": 32 } },
+    { "key": "vendor", "type": "select", "label": "Preferred Vendor", "options": [
+      { "value": "Acme Supplies", "label": "Acme Supplies" },
+      { "value": "Globex Corp", "label": "Globex Corp" },
+      { "value": "Initech", "label": "Initech" }
+    ] },
+    { "key": "department", "type": "select", "label": "Department", "options": [
+      { "value": "hq", "label": "HQ" }, { "value": "plant1", "label": "Plant 1" }, { "value": "plant2", "label": "Plant 2" }
+    ] },
+    { "key": "notes", "type": "textarea", "label": "Notes" }
+  ]
+}

@@ -10,6 +10,7 @@ import { buildMasterRouter } from './modules/master/index.js';
 import { buildActivityRouter } from './modules/activity/index.js';
 import { buildWorkflowRouter, buildWorkflowAdminRouter } from './modules/workflow/index.js';
 import { buildTemplateRouter } from './modules/communication/index.js';
+import { buildDocumentRouter } from './modules/document/index.js';
 
 /**
  * Central route registration. As modules land (auth, permission, ...), each
@@ -77,4 +78,7 @@ export function registerRoutes(app: Express): void {
 
   // Communication — email-template management. Gated by auth + communication:* perms.
   app.use('/api/templates', buildTemplateRouter());
+
+  // Document chaining (lineage + create-next). Gated by auth + master:* perms.
+  app.use('/api/documents', buildDocumentRouter());
 }

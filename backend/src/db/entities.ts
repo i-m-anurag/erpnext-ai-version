@@ -10,6 +10,7 @@ import { MasterData } from '../modules/master/master-data.entity.js';
 import { TimelineEntry } from '../modules/activity/timeline-entry.entity.js';
 import { Comment } from '../modules/activity/comment.entity.js';
 import { Assignment } from '../modules/workflow/assignment.entity.js';
+import { DocumentLink } from '../modules/document/document-link.entity.js';
 
 /**
  * Explicit entity registry. Listed by import (not a filesystem glob) so the
@@ -29,4 +30,5 @@ export const entities = [
   TimelineEntry,
   Comment,
   Assignment,
+  DocumentLink,
 ];

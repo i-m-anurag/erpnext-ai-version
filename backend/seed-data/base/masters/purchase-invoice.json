@@ -1,0 +1,8 @@
+{
+  "slug": "purchase-invoice",
+  "name": "Purchase Invoice",
+  "managedBy": "ui",
+  "editable": true,
+  "formSlug": "purchase-invoice",
+  "codeField": "piNumber"
+}

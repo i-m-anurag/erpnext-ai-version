@@ -617,6 +617,19 @@ body {
   input { flex: 1; }
 }
 
+/* ── Related documents (lineage) ────────────────────────────── */
+.iq-related {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--erp-border);
+  cursor: pointer;
+  i { color: var(--erp-accent); }
+  &:last-child { border-bottom: 0; }
+  &:hover { background: var(--erp-surface-alt); }
+}
+
 /* ── Workflow rule builder ──────────────────────────────────── */
 .iq-rules__states { width: 100%; td { padding: 2px 4px 2px 0; } }
 .iq-rule { border-left: 3px solid var(--erp-accent); }

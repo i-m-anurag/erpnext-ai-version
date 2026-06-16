@@ -5,6 +5,7 @@ import {
   EMAIL_TEMPLATE_RESOURCE_TYPE,
 } from '../../modules/communication/index.js';
 import { registerWorkflowResourceType, WORKFLOW_RESOURCE_TYPE } from '../../modules/workflow/index.js';
+import { registerPipelineResourceType, DOCUMENT_PIPELINE_RESOURCE_TYPE } from '../../modules/document/index.js';
 
 /**
  * Register every configurable resource type with the config resolver. Called at
@@ -15,4 +16,5 @@ export function registerAllResourceTypes(): void {
   if (!isResourceTypeRegistered(FORM_RESOURCE_TYPE)) registerFormResourceType();
   if (!isResourceTypeRegistered(EMAIL_TEMPLATE_RESOURCE_TYPE)) registerEmailTemplateResourceType();
   if (!isResourceTypeRegistered(WORKFLOW_RESOURCE_TYPE)) registerWorkflowResourceType();
+  if (!isResourceTypeRegistered(DOCUMENT_PIPELINE_RESOURCE_TYPE)) registerPipelineResourceType();
 }

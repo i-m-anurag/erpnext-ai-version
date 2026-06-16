@@ -1,0 +1,21 @@
+{
+  "slug": "default",
+  "steps": [
+    {
+      "from": "requisition",
+      "to": "purchase-order",
+      "label": "Create Purchase Order",
+      "relation": "po_from_requisition",
+      "codePrefix": "PO-2026-",
+      "map": { "vendor": "vendor", "notes": "notes" }
+    },
+    {
+      "from": "purchase-order",
+      "to": "purchase-invoice",
+      "label": "Create Purchase Invoice",
+      "relation": "pi_against_po",
+      "codePrefix": "PINV-2026-",
+      "map": { "vendor": "vendor", "poNumber": "poRef", "lines": "lines", "notes": "notes" }
+    }
+  ]
+}

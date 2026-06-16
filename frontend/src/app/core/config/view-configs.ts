@@ -149,8 +149,18 @@ export interface ResolvedView extends ViewConfig {
 /** module/sub → backend master slug, for views backed by the generic master system. */
 export const BACKED_VIEWS: Record<string, { masterSlug: string }> = {
   'inventory/items': { masterSlug: 'item' },
+  'procurement/requisitions': { masterSlug: 'requisition' },
   'procurement/purchase-orders': { masterSlug: 'purchase-order' },
+  'procurement/invoices': { masterSlug: 'purchase-invoice' },
 };
+
+/** Reverse lookup: the [module, sub] route for a backend master slug (for linking). */
+export function routeForMaster(masterSlug: string): [string, string] | undefined {
+  const entry = Object.entries(BACKED_VIEWS).find(([, v]) => v.masterSlug === masterSlug);
+  if (!entry) return undefined;
+  const parts = entry[0].split('/');
+  return [parts[0]!, parts[1]!];
+}
 
 /** Does a List/Record view exist for this sub-module (backend-backed or mock)? */
 export function hasView(module: string, sub: string): boolean {

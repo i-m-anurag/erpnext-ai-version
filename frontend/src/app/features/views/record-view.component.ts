@@ -13,9 +13,10 @@ import {
   type TimelineKind,
 } from '../../core/api/activity.api.service';
 import { WorkflowApiService, type WorkflowStatus } from '../../core/api/workflow.api.service';
+import { DocumentApiService, type CreateOption, type RelatedDoc } from '../../core/api/document.api.service';
 import { NotificationService } from '../../core/notify/notification.service';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
-import type { ResolvedView } from '../../core/config/view-configs';
+import { routeForMaster, type ResolvedView } from '../../core/config/view-configs';
 import type { FormFieldDef } from '../../core/models/api.models';
 
 const KIND_ICON: Record<TimelineKind, string> = {
@@ -48,6 +49,9 @@ const KIND_ICON: Record<TimelineKind, string> = {
       </div>
       <div class="d-flex gap-2">
         <button class="btn btn-sm btn-light" [routerLink]="['/app/m', cfg.module, cfg.sub]">Cancel</button>
+        @for (opt of createOptions(); track opt.to) {
+          <button class="btn btn-sm btn-light" (click)="createNextDoc(opt)"><i class="ph ph-arrow-bend-up-right"></i> {{ opt.label }}</button>
+        }
         <button class="btn btn-sm btn-ai"><i class="ph ph-sparkle"></i> Ask IQ</button>
         <button class="btn btn-sm btn-primary" [disabled]="saving()" (click)="save()">
           <i class="ph ph-check"></i> {{ saving() ? 'Saving…' : 'Save' }}
@@ -91,6 +95,21 @@ const KIND_ICON: Record<TimelineKind, string> = {
       </div>
 
       <div class="iq-record__side">
+        @if (related().length) {
+          <div class="erp-card p-3">
+            <div class="fw-semibold mb-2">Related documents</div>
+            @for (r of related(); track r.master + r.code) {
+              <div class="iq-related" (click)="openRelated(r)">
+                <i class="ph" [class.ph-arrow-up-left]="r.direction === 'up'" [class.ph-arrow-down-right]="r.direction === 'down'"></i>
+                <div>
+                  <div class="iq-mono">{{ r.code }}</div>
+                  <div class="text-muted small">{{ relationLabel(r.relation) }}</div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
         <div class="erp-card p-3 iq-ai-panel">
           <div class="iq-ai-panel__head"><i class="ph ph-sparkle"></i> IQ Assist</div>
           <div class="iq-ai-panel__item"><i class="ph ph-lightbulb"></i><span>Vendor "Acme" has 2 overdue invoices — review before approval.</span></div>
@@ -165,6 +184,7 @@ export class RecordViewComponent {
   private readonly masters = inject(MasterApiService);
   private readonly activity = inject(ActivityApiService);
   private readonly workflowApi = inject(WorkflowApiService);
+  private readonly documents = inject(DocumentApiService);
   private readonly notify = inject(NotificationService);
   private readonly router = inject(Router);
 
@@ -182,6 +202,9 @@ export class RecordViewComponent {
   protected readonly wf = signal<WorkflowStatus | undefined>(undefined);
   protected readonly transitioning = signal(false);
 
+  protected readonly related = signal<RelatedDoc[]>([]);
+  protected readonly createOptions = signal<CreateOption[]>([]);
+
   constructor() {
     effect(() => {
       const module = this.slug();
@@ -190,6 +213,8 @@ export class RecordViewComponent {
       this.timeline.set([]);
       this.comments.set([]);
       this.wf.set(undefined);
+      this.related.set([]);
+      this.createOptions.set([]);
       this.loading.set(true);
       this.resolver.resolve(module, sub).subscribe({
         next: (cfg) => {
@@ -197,10 +222,42 @@ export class RecordViewComponent {
           this.loading.set(false);
           this.loadActivity();
           this.loadWorkflow();
+          this.loadDocLinks();
         },
         error: () => this.loading.set(false),
       });
     });
+  }
+
+  private loadDocLinks(): void {
+    const entity = this.entityType();
+    if (!entity || !this.canComment()) return;
+    this.documents.links(entity, this.recordId()).subscribe((r) => {
+      this.related.set(r.related);
+      this.createOptions.set(r.createOptions);
+    });
+  }
+
+  protected createNextDoc(opt: CreateOption): void {
+    const entity = this.entityType();
+    if (!entity) return;
+    this.documents.createNext(entity, this.recordId(), opt.to).subscribe({
+      next: (created) => {
+        this.notify.success(`${opt.label.replace('Create ', '')} ${created.code} created`);
+        const route = routeForMaster(created.master);
+        if (route) void this.router.navigate(['/app/m', route[0], route[1], created.code]);
+      },
+      error: (e: { error?: { error?: { message?: string } } }) =>
+        this.notify.error(e?.error?.error?.message ?? 'Could not create document'),
+    });
+  }
+
+  protected openRelated(r: RelatedDoc): void {
+    const route = routeForMaster(r.master);
+    if (route) void this.router.navigate(['/app/m', route[0], route[1], r.code]);
+  }
+  protected relationLabel(rel: string): string {
+    return rel.replace(/_/g, ' ');
   }
 
   private loadWorkflow(): void {
