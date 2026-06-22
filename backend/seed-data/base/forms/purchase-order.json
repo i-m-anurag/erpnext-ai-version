@@ -4,7 +4,7 @@
   "title": "Purchase Order",
   "layout": "two-column",
   "fields": [
-    { "key": "poNumber", "type": "text", "label": "PO Number", "required": true, "validators": { "maxLength": 32 } },
+    { "key": "poNumber", "type": "text", "label": "PO Number", "auto": true, "placeholder": "Auto-generated on save" },
     { "key": "vendor", "type": "select", "label": "Vendor", "required": true, "options": [
       { "value": "Acme Supplies", "label": "Acme Supplies" },
       { "value": "Globex Corp", "label": "Globex Corp" },

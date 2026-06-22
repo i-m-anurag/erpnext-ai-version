@@ -42,6 +42,7 @@ export interface FormField {
   columns?: FormField[];
   minRows?: number;
   maxRows?: number;
+  auto?: boolean;
 }
 
 export const formFieldSchema: z.ZodType<FormField> = z.lazy(() =>
@@ -71,6 +72,8 @@ export const formFieldSchema: z.ZodType<FormField> = z.lazy(() =>
     columns: z.array(formFieldSchema).optional(),
     minRows: z.number().int().nonnegative().optional(),
     maxRows: z.number().int().positive().optional(),
+    /** server-filled (naming series) — read-only in the UI */
+    auto: z.boolean().optional(),
   }),
 );
 

@@ -4,7 +4,7 @@
   "title": "Purchase Invoice",
   "layout": "two-column",
   "fields": [
-    { "key": "piNumber", "type": "text", "label": "Invoice No.", "required": true, "validators": { "maxLength": 32 } },
+    { "key": "piNumber", "type": "text", "label": "Invoice No.", "auto": true, "placeholder": "Auto-generated on save" },
     { "key": "vendor", "type": "select", "label": "Vendor", "required": true, "options": [
       { "value": "Acme Supplies", "label": "Acme Supplies" },
       { "value": "Globex Corp", "label": "Globex Corp" },

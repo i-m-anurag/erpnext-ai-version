@@ -4,7 +4,7 @@
   "title": "Requisition",
   "layout": "two-column",
   "fields": [
-    { "key": "reqNumber", "type": "text", "label": "Requisition No.", "required": true, "validators": { "maxLength": 32 } },
+    { "key": "reqNumber", "type": "text", "label": "Requisition No.", "auto": true, "placeholder": "Auto-generated on save" },
     { "key": "vendor", "type": "select", "label": "Preferred Vendor", "options": [
       { "value": "Acme Supplies", "label": "Acme Supplies" },
       { "value": "Globex Corp", "label": "Globex Corp" },

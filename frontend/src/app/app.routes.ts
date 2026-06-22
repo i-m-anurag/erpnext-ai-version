@@ -79,6 +79,20 @@ export const routes: Routes = [
               import('./features/workflow/workflow-editor.component').then((m) => m.WorkflowEditorComponent),
           },
           {
+            path: 'numbering',
+            canActivate: [permissionGuard],
+            data: { permission: 'config:config.read', title: 'Numbering' },
+            loadComponent: () =>
+              import('./features/naming/numbering-list.component').then((m) => m.NumberingListComponent),
+          },
+          {
+            path: 'numbering/:slug',
+            canActivate: [permissionGuard],
+            data: { permission: 'config:config.read', title: 'Numbering' },
+            loadComponent: () =>
+              import('./features/naming/numbering-editor.component').then((m) => m.NumberingEditorComponent),
+          },
+          {
             // dashboard / any other admin sub → generic module workspace
             path: ':sub',
             data: { slug: 'admin' },

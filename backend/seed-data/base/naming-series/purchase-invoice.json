@@ -1,0 +1,1 @@
+{ "slug": "purchase-invoice", "pattern": "PINV-{YYYY}-{#####}", "reset": "yearly" }

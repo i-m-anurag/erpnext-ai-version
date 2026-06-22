@@ -11,6 +11,7 @@ import { buildActivityRouter } from './modules/activity/index.js';
 import { buildWorkflowRouter, buildWorkflowAdminRouter } from './modules/workflow/index.js';
 import { buildTemplateRouter } from './modules/communication/index.js';
 import { buildDocumentRouter } from './modules/document/index.js';
+import { buildNamingRouter } from './modules/naming/index.js';
 
 /**
  * Central route registration. As modules land (auth, permission, ...), each
@@ -81,4 +82,7 @@ export function registerRoutes(app: Express): void {
 
   // Document chaining (lineage + create-next). Gated by auth + master:* perms.
   app.use('/api/documents', buildDocumentRouter());
+
+  // Naming-series (auto-id) management. Gated by auth + config:* perms.
+  app.use('/api/naming-series', buildNamingRouter());
 }

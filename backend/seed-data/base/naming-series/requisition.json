@@ -1,0 +1,1 @@
+{ "slug": "requisition", "pattern": "REQ-{YYYY}-{#####}", "reset": "yearly" }

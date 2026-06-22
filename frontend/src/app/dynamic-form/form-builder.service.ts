@@ -32,10 +32,13 @@ export class FormBuilderService {
     if (field.type === 'table') {
       return this.buildTable(field, value as Record<string, unknown>[] | undefined);
     }
-    return new FormControl(value ?? this.defaultValue(field), {
-      validators: this.validatorsFor(field),
-      nonNullable: field.type === 'checkbox',
-    });
+    return new FormControl(
+      { value: value ?? this.defaultValue(field), disabled: field.auto === true },
+      {
+        validators: this.validatorsFor(field),
+        nonNullable: field.type === 'checkbox',
+      },
+    );
   }
 
   private buildTable(field: FormFieldDef, rows?: Record<string, unknown>[]): FormArray {

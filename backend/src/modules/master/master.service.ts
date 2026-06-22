@@ -4,6 +4,7 @@ import { cache } from '../../shared/cache/cache.service.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../shared/errors.js';
 import { configResolver } from '../config/index.js';
 import { validateFormData, FORM_RESOURCE_TYPE, type FormDefinition } from '../form/index.js';
+import { namingSeriesService } from '../naming/index.js';
 import { MasterRegistry, type MasterManagedBy } from './master-registry.entity.js';
 import { MasterData } from './master-data.entity.js';
 
@@ -99,6 +100,13 @@ export class MasterService {
   }
 
   async createData(slug: string, input: Record<string, unknown>): Promise<MasterData> {
+    // Auto-generate the code from the naming series (if configured) — overrides any
+    // user-supplied value so the id format is enforced.
+    const auto = await namingSeriesService.next(slug);
+    if (auto) {
+      const reg0 = await this.getRegistry(slug);
+      input = { ...input, [reg0.codeField]: auto };
+    }
     const { reg, clean, code } = await this.prepareWrite(slug, input);
     if (await this.data.exists({ masterSlug: slug, code })) {
       throw new ConflictError(`${reg.name} with ${reg.codeField}="${code}" already exists`);

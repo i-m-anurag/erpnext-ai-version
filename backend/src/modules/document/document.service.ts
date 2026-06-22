@@ -4,6 +4,7 @@ import { configResolver } from '../config/index.js';
 import { MasterRegistry } from '../master/master-registry.entity.js';
 import { MasterData } from '../master/master-data.entity.js';
 import { activityService } from '../activity/index.js';
+import { namingSeriesService } from '../naming/index.js';
 import { DocumentLink } from './document-link.entity.js';
 import { DOCUMENT_PIPELINE_RESOURCE_TYPE, type Pipeline, type PipelineStep } from './document-pipeline.schema.js';
 
@@ -66,7 +67,7 @@ export class DocumentService {
     const targetReg = await this.registry.findOne({ slug: toMaster });
     if (!targetReg) throw new NotFoundError(`master not found: ${toMaster}`);
 
-    const code = await this.nextCode(toMaster, step);
+    const code = (await namingSeriesService.next(toMaster)) ?? (await this.nextCode(toMaster, step));
     const data = this.mapFields(step, source.data);
     data[targetReg.codeField] = code;
 

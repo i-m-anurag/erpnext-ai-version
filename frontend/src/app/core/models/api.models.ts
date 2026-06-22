@@ -57,6 +57,8 @@ export interface FormFieldDef {
   options?: { value: string; label: string }[];
   /** Optional css.json variant slug for this field's wrapper (e.g. "col2"). */
   cssSlug?: string;
+  /** Auto-filled by the server (e.g. a naming-series id) → rendered read-only. */
+  auto?: boolean;
   /** For type === 'table': the per-row column field definitions (a nested form). */
   columns?: FormFieldDef[];
   /** For type === 'table': min/max number of rows (min enforced, max caps "Add row"). */
