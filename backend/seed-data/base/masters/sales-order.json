@@ -1,0 +1,9 @@
+{
+  "slug": "sales-order",
+  "name": "Sales Order",
+  "kind": "document",
+  "managedBy": "ui",
+  "editable": true,
+  "formSlug": "sales-order",
+  "codeField": "soNumber"
+}

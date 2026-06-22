@@ -5,6 +5,8 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '.
 import { configResolver } from '../config/index.js';
 import { validateFormData, FORM_RESOURCE_TYPE, type FormDefinition } from '../form/index.js';
 import { namingSeriesService } from '../naming/index.js';
+import { tableNameForSlug } from '../document/table-name.js';
+import { documentDataService } from '../document/document-data.service.js';
 import { MasterRegistry, type MasterManagedBy } from './master-registry.entity.js';
 import { MasterData } from './master-data.entity.js';
 
@@ -18,6 +20,7 @@ export interface MasterRegistryDef {
   codeField?: string;
   labelField?: string;
   workflowSlug?: string | null;
+  kind?: 'master' | 'document';
 }
 
 export interface MasterOption {
@@ -67,6 +70,8 @@ export class MasterService {
       codeField: def.codeField ?? 'code',
       labelField: def.labelField ?? 'name',
       workflowSlug: def.workflowSlug ?? null,
+      kind: def.kind ?? 'master',
+      tableName: def.kind === 'document' ? tableNameForSlug(def.slug) : null,
       status: 'active',
     });
     return repo.save(row);
@@ -74,7 +79,10 @@ export class MasterService {
 
   // ── Data ────────────────────────────────────────────────────────────────
   async listData(slug: string, limit = 100, offset = 0): Promise<MasterData[]> {
-    await this.getRegistry(slug);
+    const reg = await this.getRegistry(slug);
+    if (reg.kind === 'document') {
+      return documentDataService.list(slug, limit, offset) as unknown as Promise<MasterData[]>;
+    }
     return this.data.find({
       where: { masterSlug: slug, status: 'active' },
       order: { code: 'ASC' },
@@ -89,6 +97,7 @@ export class MasterService {
     return cache.getOrBuild<MasterOption[]>(
       optionsKey(slug),
       async () => {
+        if (reg.kind === 'document') return documentDataService.options(slug);
         const rows = await this.data.find({ where: { masterSlug: slug, status: 'active' }, order: { code: 'ASC' } });
         return rows.map((r) => ({
           value: r.code,
@@ -100,14 +109,17 @@ export class MasterService {
   }
 
   async createData(slug: string, input: Record<string, unknown>): Promise<MasterData> {
+    const reg = await this.getRegistry(slug);
+    if (reg.kind === 'document') {
+      const row = await documentDataService.create(slug, input);
+      await cache.invalidate(optionsKey(slug));
+      return row as unknown as MasterData;
+    }
     // Auto-generate the code from the naming series (if configured) — overrides any
     // user-supplied value so the id format is enforced.
     const auto = await namingSeriesService.next(slug);
-    if (auto) {
-      const reg0 = await this.getRegistry(slug);
-      input = { ...input, [reg0.codeField]: auto };
-    }
-    const { reg, clean, code } = await this.prepareWrite(slug, input);
+    if (auto) input = { ...input, [reg.codeField]: auto };
+    const { clean, code } = await this.prepareWrite(slug, input);
     if (await this.data.exists({ masterSlug: slug, code })) {
       throw new ConflictError(`${reg.name} with ${reg.codeField}="${code}" already exists`);
     }
@@ -117,6 +129,12 @@ export class MasterService {
   }
 
   async updateData(slug: string, id: string, input: Record<string, unknown>): Promise<MasterData> {
+    const reg = await this.getRegistry(slug);
+    if (reg.kind === 'document') {
+      const row = await documentDataService.update(slug, id, input);
+      await cache.invalidate(optionsKey(slug));
+      return row as unknown as MasterData;
+    }
     const existing = await this.data.findOne({ id, masterSlug: slug });
     if (!existing) throw new NotFoundError('master row not found');
     const { clean, code } = await this.prepareWrite(slug, input);
@@ -133,6 +151,11 @@ export class MasterService {
   async deleteData(slug: string, id: string): Promise<void> {
     const reg = await this.getRegistry(slug);
     this.assertWritable(reg);
+    if (reg.kind === 'document') {
+      await documentDataService.remove(slug, id);
+      await cache.invalidate(optionsKey(slug));
+      return;
+    }
     const existing = await this.data.findOne({ id, masterSlug: slug });
     if (!existing) throw new NotFoundError('master row not found');
     await this.data.softDelete(id);

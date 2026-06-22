@@ -30,6 +30,8 @@ export const masterFileSchema = z.object({
   labelField: z.string().optional(),
   /** workflow definition slug governing this master's rows (optional) */
   workflowSlug: z.string().optional(),
+  /** 'master' (JSONB store, default) or 'document' (dedicated table) */
+  kind: z.enum(['master', 'document']).optional(),
   /** seeded master rows (for managedBy: "seeded" reference data) */
   data: z.array(z.record(z.string(), z.unknown())).optional(),
 });

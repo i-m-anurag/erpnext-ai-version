@@ -26,6 +26,7 @@ export const mastersSeeder: Seeder = {
         codeField: m.codeField,
         labelField: m.labelField,
         workflowSlug: m.workflowSlug ?? null,
+        kind: m.kind ?? 'master',
       });
       if (m.data?.length) {
         rowsChanged += await masterService.seedData(m.slug, m.data);

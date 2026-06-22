@@ -46,6 +46,14 @@ export class MasterRegistry extends BaseEntity {
   @Column({ name: 'workflow_slug', type: 'varchar', length: 128, nullable: true })
   workflowSlug!: string | null;
 
+  /** 'master' = generic JSONB store; 'document' = its own dedicated table. */
+  @Column({ type: 'varchar', length: 16, default: 'master' })
+  kind!: 'master' | 'document';
+
+  /** Dedicated table name for kind='document' (e.g. doc_purchase_order). */
+  @Column({ name: 'table_name', type: 'varchar', length: 128, nullable: true })
+  tableName!: string | null;
+
   @Column({ type: 'varchar', length: 16, default: 'active' })
   status!: 'active' | 'archived';
 }

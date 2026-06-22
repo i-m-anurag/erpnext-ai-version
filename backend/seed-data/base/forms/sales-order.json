@@ -1,0 +1,24 @@
+{
+  "slug": "sales-order",
+  "version": 1,
+  "title": "Sales Order",
+  "layout": "two-column",
+  "fields": [
+    { "key": "soNumber", "type": "text", "label": "SO Number", "auto": true, "placeholder": "Auto-generated on save" },
+    { "key": "customer", "type": "select", "label": "Customer", "required": true, "options": [
+      { "value": "Northwind", "label": "Northwind" },
+      { "value": "Contoso", "label": "Contoso" },
+      { "value": "Fabrikam", "label": "Fabrikam" }
+    ] },
+    { "key": "orderDate", "type": "date", "label": "Order Date", "required": true },
+    {
+      "key": "lines", "type": "table", "label": "Line Items", "minRows": 1,
+      "columns": [
+        { "key": "item", "type": "master-lookup", "label": "Item", "required": true, "optionsSource": { "master": "item" } },
+        { "key": "qty", "type": "number", "label": "Qty", "required": true, "validators": { "min": 0.01 } },
+        { "key": "rate", "type": "number", "label": "Rate", "required": true, "validators": { "min": 0 } }
+      ]
+    },
+    { "key": "notes", "type": "textarea", "label": "Notes" }
+  ]
+}

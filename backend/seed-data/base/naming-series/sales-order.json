@@ -1,0 +1,1 @@
+{ "slug": "sales-order", "pattern": "SO-{YYYY}-{#####}", "reset": "yearly" }
