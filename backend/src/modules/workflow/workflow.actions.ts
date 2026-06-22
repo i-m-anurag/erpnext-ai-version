@@ -5,18 +5,24 @@ import { enqueueEmail } from '../../queue/queues.js';
 import { activityService } from '../activity/index.js';
 import { permissionService } from '../permission/index.js';
 import { User } from '../auth/user.entity.js';
-import { MasterData } from '../master/master-data.entity.js';
 import { Assignment } from './assignment.entity.js';
 import type { RuleAction } from './workflow.schema.js';
 
 const assignments = new BaseRepository(Assignment);
 const users = new BaseRepository(User);
 
+/** Store-agnostic record the rule engine mutates (satisfied by master rows and documents). */
+export interface WorkflowRecord {
+  id: string;
+  state: string | null;
+  data: Record<string, unknown>;
+}
+
 export interface ActionContext {
   entityType: string;
   recordId: string;
   /** mutable — set_state / set_field change this; the caller saves once */
-  row: MasterData;
+  row: WorkflowRecord;
   actorUserId: string;
   ruleName: string;
 }

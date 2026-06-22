@@ -1,11 +1,9 @@
 {
   "slug": "requisition",
   "name": "Requisition",
+  "kind": "document",
   "managedBy": "ui",
   "editable": true,
   "formSlug": "requisition",
-  "codeField": "reqNumber",
-  "data": [
-    { "reqNumber": "REQ-2026-0001", "vendor": "Acme Supplies", "department": "plant1", "notes": "Bolts + sheets for Q3 line" }
-  ]
+  "codeField": "reqNumber"
 }

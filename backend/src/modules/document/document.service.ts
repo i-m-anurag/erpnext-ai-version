@@ -5,6 +5,7 @@ import { MasterRegistry } from '../master/master-registry.entity.js';
 import { MasterData } from '../master/master-data.entity.js';
 import { activityService } from '../activity/index.js';
 import { namingSeriesService } from '../naming/index.js';
+import { documentDataService } from './document-data.service.js';
 import { DocumentLink } from './document-link.entity.js';
 import { DOCUMENT_PIPELINE_RESOURCE_TYPE, type Pipeline, type PipelineStep } from './document-pipeline.schema.js';
 
@@ -62,16 +63,30 @@ export class DocumentService {
     const step = pl.steps.find((s) => s.from === fromMaster && s.to === toMaster);
     if (!step) throw new BadRequestError(`no pipeline step ${fromMaster} → ${toMaster}`);
 
-    const source = await this.data.findOne({ masterSlug: fromMaster, code: fromCode });
-    if (!source) throw new NotFoundError('source document not found');
+    const fromReg = await this.registry.findOne({ slug: fromMaster });
     const targetReg = await this.registry.findOne({ slug: toMaster });
     if (!targetReg) throw new NotFoundError(`master not found: ${toMaster}`);
 
-    const code = (await namingSeriesService.next(toMaster)) ?? (await this.nextCode(toMaster, step));
-    const data = this.mapFields(step, source.data);
-    data[targetReg.codeField] = code;
+    // Source data — from the document table or master_data depending on kind.
+    let sourceData: Record<string, unknown>;
+    if (fromReg?.kind === 'document') {
+      sourceData = (await documentDataService.getByCode(fromMaster, fromCode)).data;
+    } else {
+      const source = await this.data.findOne({ masterSlug: fromMaster, code: fromCode });
+      if (!source) throw new NotFoundError('source document not found');
+      sourceData = source.data;
+    }
 
-    await this.data.save(this.data.create({ masterSlug: toMaster, code, data, status: 'active', state: null }));
+    const mapped = this.mapFields(step, sourceData);
+    // Create the target draft in the right store.
+    let code: string;
+    if (targetReg.kind === 'document') {
+      code = (await documentDataService.createDraft(toMaster, mapped)).code;
+    } else {
+      code = (await namingSeriesService.next(toMaster)) ?? (await this.nextCode(toMaster, step));
+      mapped[targetReg.codeField] = code;
+      await this.data.save(this.data.create({ masterSlug: toMaster, code, data: mapped, status: 'active', state: null }));
+    }
     await this.linkRepo.save(
       this.linkRepo.create({ fromMaster, fromCode, toMaster, toCode: code, relation: step.relation }),
     );

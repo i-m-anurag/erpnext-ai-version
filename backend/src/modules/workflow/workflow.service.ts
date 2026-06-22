@@ -7,7 +7,8 @@ import { BadRequestError, NotFoundError } from '../../shared/errors.js';
 import { WORKFLOW_RESOURCE_TYPE } from './workflow.resource.js';
 import type { Rule, WorkflowDefinition, WorkflowState } from './workflow.schema.js';
 import { evaluateConditions } from './condition.js';
-import { executeAction, type ActionContext } from './workflow.actions.js';
+import { executeAction, type ActionContext, type WorkflowRecord } from './workflow.actions.js';
+import { documentDataService } from '../document/index.js';
 
 export interface WorkflowStatus {
   hasWorkflow: boolean;
@@ -41,10 +42,6 @@ export class WorkflowService {
     return eff.definition;
   }
 
-  private current(wf: WorkflowDefinition, row: MasterData): string {
-    return row.state ?? wf.startState;
-  }
-
   /** Rules of `wf` triggered by `action`, available from `state` to a user with `roles`. */
   private matchingRules(wf: WorkflowDefinition, action: string, state: string, roles: string[]): Rule[] {
     return wf.rules.filter(
@@ -55,12 +52,36 @@ export class WorkflowService {
     );
   }
 
+  /** Load a record's {id, state, data} from the right store (master_data or document table). */
+  private async loadRecord(masterSlug: string, code: string): Promise<WorkflowRecord> {
+    const reg = await this.registry.findOne({ slug: masterSlug });
+    if (reg?.kind === 'document') {
+      const doc = await documentDataService.getByCode(masterSlug, code);
+      return { id: doc.id, state: doc.state, data: doc.data };
+    }
+    const row = await this.data.findOne({ masterSlug, code });
+    if (!row) throw new NotFoundError('record not found');
+    return { id: row.id, state: row.state, data: row.data };
+  }
+
+  private async persistRecord(masterSlug: string, rec: WorkflowRecord): Promise<void> {
+    const reg = await this.registry.findOne({ slug: masterSlug });
+    if (reg?.kind === 'document') {
+      await documentDataService.persistWorkflow(masterSlug, rec.id, rec.state, rec.data);
+      return;
+    }
+    const row = await this.data.findOne({ id: rec.id, masterSlug });
+    if (!row) return;
+    row.state = rec.state;
+    row.data = rec.data;
+    await this.data.save(row);
+  }
+
   async status(masterSlug: string, code: string, userId: string): Promise<WorkflowStatus> {
     const wf = await this.getForMaster(masterSlug);
     if (!wf) return { hasWorkflow: false, currentState: null, states: [], actions: [] };
-    const row = await this.data.findOne({ masterSlug, code });
-    if (!row) throw new NotFoundError('record not found');
-    const cur = this.current(wf, row);
+    const rec = await this.loadRecord(masterSlug, code);
+    const cur = rec.state ?? wf.startState;
     const roles = await permissionService.rolesForUser(userId);
     const names = new Set<string>();
     for (const r of wf.rules) {
@@ -77,26 +98,25 @@ export class WorkflowService {
   async runAction(masterSlug: string, code: string, action: string, userId: string): Promise<ActionResult> {
     const wf = await this.getForMaster(masterSlug);
     if (!wf) throw new BadRequestError('this master has no workflow');
-    const row = await this.data.findOne({ masterSlug, code });
-    if (!row) throw new NotFoundError('record not found');
-    const from = this.current(wf, row);
+    const rec = await this.loadRecord(masterSlug, code);
+    const from = rec.state ?? wf.startState;
     const roles = await permissionService.rolesForUser(userId);
     const rules = this.matchingRules(wf, action, from, roles);
     if (rules.length === 0) throw new BadRequestError(`action "${action}" is not available`);
 
     let mutated = false;
     for (const rule of rules) {
-      const branch = rule.branches.find((b) => evaluateConditions(b.conditions, row.data));
+      const branch = rule.branches.find((b) => evaluateConditions(b.conditions, rec.data));
       if (!branch) continue;
-      const ctx: ActionContext = { entityType: masterSlug, recordId: code, row, actorUserId: userId, ruleName: rule.name };
+      const ctx: ActionContext = { entityType: masterSlug, recordId: code, row: rec, actorUserId: userId, ruleName: rule.name };
       for (const act of branch.actions) {
         const res = await executeAction(act, ctx);
         mutated = mutated || res.mutated;
       }
     }
 
-    if (mutated) await this.data.save(row);
-    const to = this.current(wf, row);
+    if (mutated) await this.persistRecord(masterSlug, rec);
+    const to = rec.state ?? wf.startState;
     return { action, from, to, stateChanged: from !== to };
   }
 }

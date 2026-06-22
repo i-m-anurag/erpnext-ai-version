@@ -1,32 +1,10 @@
 {
   "slug": "purchase-order",
   "name": "Purchase Order",
+  "kind": "document",
   "managedBy": "ui",
   "editable": true,
   "formSlug": "purchase-order",
   "workflowSlug": "purchase-order",
-  "codeField": "poNumber",
-  "data": [
-    {
-      "poNumber": "PO-2026-0042",
-      "vendor": "Acme Supplies",
-      "poDate": "2026-06-07",
-      "status": "draft",
-      "notes": "Urgent — needed for the Q3 line.",
-      "lines": [
-        { "item": "ITM-1001", "qty": 100, "rate": 12.5, "remarks": "Galvanised" },
-        { "item": "ITM-1002", "qty": 40, "rate": 220, "remarks": "" }
-      ]
-    },
-    {
-      "poNumber": "PO-2026-0041",
-      "vendor": "Globex Corp",
-      "poDate": "2026-06-05",
-      "status": "approved",
-      "notes": "",
-      "lines": [
-        { "item": "ITM-2001", "qty": 5, "rate": 18000, "remarks": "With warranty" }
-      ]
-    }
-  ]
+  "codeField": "poNumber"
 }

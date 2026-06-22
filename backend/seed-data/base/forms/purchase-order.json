@@ -11,11 +11,6 @@
       { "value": "Initech", "label": "Initech" }
     ] },
     { "key": "poDate", "type": "date", "label": "PO Date", "required": true },
-    { "key": "status", "type": "select", "label": "Status", "options": [
-      { "value": "draft", "label": "Draft" },
-      { "value": "approved", "label": "Approved" },
-      { "value": "completed", "label": "Completed" }
-    ] },
     {
       "key": "lines",
       "type": "table",

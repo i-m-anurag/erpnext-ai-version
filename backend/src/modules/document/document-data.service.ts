@@ -79,10 +79,40 @@ export class DocumentDataService {
     return this.assemble(c, rows[0]!);
   }
 
-  async create(slug: string, input: Record<string, unknown>): Promise<DocumentRow> {
+  async getByCode(slug: string, code: string): Promise<DocumentRow> {
+    const c = await this.ctx(slug);
+    const rows = (await AppDataSource.query(
+      `SELECT * FROM ${ident(c.table)} WHERE "code"=$1 AND "deletedAt" IS NULL`,
+      [code],
+    )) as Sql[];
+    if (rows.length === 0) throw new NotFoundError('document not found');
+    return this.assemble(c, rows[0]!);
+  }
+
+  /** Persist a workflow result: state + any set_field changes (no children, no validation). */
+  async persistWorkflow(slug: string, id: string, state: string | null, data: Record<string, unknown>): Promise<void> {
+    const c = await this.ctx(slug);
+    const { cols, vals, extra } = this.split(c, data);
+    const sets = ['"state"=$1', '"extra"=$2::jsonb', '"updatedAt"=now()', ...cols.map((cn, i) => `${ident(cn)}=$${i + 3}`)];
+    const params = [state, JSON.stringify(extra), ...vals, id];
+    await AppDataSource.query(`UPDATE ${ident(c.table)} SET ${sets.join(', ')} WHERE "id"=$${params.length}`, params);
+  }
+
+  /** Validated create (user save). */
+  create(slug: string, input: Record<string, unknown>): Promise<DocumentRow> {
+    return this.insert(slug, input, true);
+  }
+
+  /** Draft create (e.g. create-next from another document) — skips form validation. */
+  createDraft(slug: string, input: Record<string, unknown>): Promise<DocumentRow> {
+    return this.insert(slug, input, false);
+  }
+
+  private async insert(slug: string, input: Record<string, unknown>, validate: boolean): Promise<DocumentRow> {
     const c = await this.ctx(slug);
     const auto = await namingSeriesService.next(slug);
-    const clean = validateFormData(c.form, auto ? { ...input, [c.codeField]: auto } : input);
+    const merged = auto ? { ...input, [c.codeField]: auto } : input;
+    const clean = validate ? validateFormData(c.form, merged) : merged;
     const code = String(clean[c.codeField] ?? '');
     if (!code) throw new BadRequestError(`missing ${c.codeField}`);
 

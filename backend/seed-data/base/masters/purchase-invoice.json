@@ -1,6 +1,7 @@
 {
   "slug": "purchase-invoice",
   "name": "Purchase Invoice",
+  "kind": "document",
   "managedBy": "ui",
   "editable": true,
   "formSlug": "purchase-invoice",
