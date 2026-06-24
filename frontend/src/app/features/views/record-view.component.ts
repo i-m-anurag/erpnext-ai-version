@@ -17,7 +17,7 @@ import { DocumentApiService, type CreateOption, type RelatedDoc } from '../../co
 import { NotificationService } from '../../core/notify/notification.service';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
 import { routeForMaster, type ResolvedView } from '../../core/config/view-configs';
-import type { FormFieldDef } from '../../core/models/api.models';
+import { flattenDataFields, type FormFieldDef } from '../../core/models/api.models';
 
 const KIND_ICON: Record<TimelineKind, string> = {
   created: 'ph-plus-circle',
@@ -381,10 +381,15 @@ export class RecordViewComponent {
    *  including nested rows of `table` fields. */
   private toApiData(cfg: ResolvedView, value: Record<string, unknown>): Record<string, unknown> {
     const out: Record<string, unknown> = { ...value };
-    for (const f of cfg.form.fields) {
+    // Flatten display groups → their children are top-level keys; data groups
+    // (nested:true) stay a single `group` field holding one sub-object.
+    for (const f of flattenDataFields(cfg.form.fields)) {
       const v = out[f.key];
       if (f.type === 'table' && Array.isArray(v)) {
         out[f.key] = v.map((r) => this.coerceRowOut(f.columns ?? [], r as Record<string, unknown>));
+      } else if (f.type === 'group' && v && typeof v === 'object') {
+        // a data group is a single object — coerce its sub-fields like a table row
+        out[f.key] = this.coerceRowOut(f.fields ?? [], v as Record<string, unknown>);
       } else if (f.type === 'number' && typeof v === 'string' && v.trim() !== '') {
         out[f.key] = Number(v);
       } else if (f.type === 'date' && v instanceof Date) {
@@ -408,7 +413,7 @@ export class RecordViewComponent {
    *  including nested rows of `table` fields. */
   private coerce(cfg: ResolvedView, row: Record<string, unknown>): Record<string, unknown> {
     const out: Record<string, unknown> = { ...row };
-    for (const f of cfg.form.fields) {
+    for (const f of flattenDataFields(cfg.form.fields)) {
       if (f.type === 'date' && typeof out[f.key] === 'string') {
         out[f.key] = new Date(out[f.key] as string);
       } else if (f.type === 'table' && Array.isArray(out[f.key])) {
@@ -418,6 +423,11 @@ export class RecordViewComponent {
           for (const dc of dateCols) if (typeof rr[dc] === 'string') rr[dc] = new Date(rr[dc] as string);
           return rr;
         });
+      } else if (f.type === 'group' && out[f.key] && typeof out[f.key] === 'object') {
+        const dateKeys = (f.fields ?? []).filter((s) => s.type === 'date').map((s) => s.key);
+        const g = { ...(out[f.key] as Record<string, unknown>) };
+        for (const dk of dateKeys) if (typeof g[dk] === 'string') g[dk] = new Date(g[dk] as string);
+        out[f.key] = g;
       }
     }
     return out;

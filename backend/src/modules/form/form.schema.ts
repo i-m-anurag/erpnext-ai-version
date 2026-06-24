@@ -17,6 +17,7 @@ export const fieldTypeSchema = z.enum([
   'file',
   'master-lookup',
   'table',
+  'group',
 ]);
 
 /**
@@ -43,6 +44,24 @@ export interface FormField {
   minRows?: number;
   maxRows?: number;
   auto?: boolean;
+  /** type: 'group' — the nested sub-fields. */
+  fields?: FormField[];
+  /**
+   * type: 'group' only. Two flavours of group share this type:
+   *  • nested:true  → a DATA group: children live under a sub-object and persist
+   *    as one jsonb column (own FormGroup, validated as a unit).
+   *  • nested:false/omitted → a DISPLAY group: a collapsible accordion section;
+   *    children are flattened back to the parent (normal top-level fields/columns).
+   */
+  nested?: boolean;
+  /** display group: show the collapse toggle (default true). */
+  collapsible?: boolean;
+  /** display group: start collapsed. */
+  defaultCollapsed?: boolean;
+  /** group body layout override (defaults to the form layout). */
+  layout?: 'single-column' | 'two-column';
+  /** checkbox: fields whose visibility this control drives when (un)checked. */
+  effects?: { checked?: { showFields?: string[] }; unchecked?: { showFields?: string[] } };
   /** Controls visibility as a column in the record list view (see resolver). */
   inList?: boolean;
 }
@@ -74,12 +93,46 @@ export const formFieldSchema: z.ZodType<FormField> = z.lazy(() =>
     columns: z.array(formFieldSchema).optional(),
     minRows: z.number().int().nonnegative().optional(),
     maxRows: z.number().int().positive().optional(),
+    /** type: 'group' — the nested sub-fields. */
+    fields: z.array(formFieldSchema).optional(),
+    /** group: data group (jsonb sub-object) when true, else display/accordion group. */
+    nested: z.boolean().optional(),
+    /** display group: show the collapse toggle (default true). */
+    collapsible: z.boolean().optional(),
+    /** display group: start collapsed. */
+    defaultCollapsed: z.boolean().optional(),
+    /** group body layout override. */
+    layout: z.enum(['single-column', 'two-column']).optional(),
+    /** checkbox: drives visibility of other fields when (un)checked. */
+    effects: z
+      .object({
+        checked: z.object({ showFields: z.array(z.string()).optional() }).optional(),
+        unchecked: z.object({ showFields: z.array(z.string()).optional() }).optional(),
+      })
+      .optional(),
     /** server-filled (naming series) — read-only in the UI */
     auto: z.boolean().optional(),
     /** list-view column visibility (opt-out default / opt-in if any field sets true) */
     inList: z.boolean().optional(),
   }),
 );
+
+/**
+ * Flatten a field tree to its EFFECTIVE data fields: display groups
+ * (`type:'group'` without `nested:true`) are transparent — their children are
+ * pulled up to the parent level. Data groups (`nested:true`) are kept as a single
+ * `group` field (they persist as one jsonb column). Tables are kept as-is.
+ * Used by schema-sync, document-data, and the resolver so all of them agree on
+ * what a record's columns actually are.
+ */
+export function flattenDataFields(fields: FormField[]): FormField[] {
+  const out: FormField[] = [];
+  for (const f of fields) {
+    if (f.type === 'group' && f.nested !== true) out.push(...flattenDataFields(f.fields ?? []));
+    else out.push(f);
+  }
+  return out;
+}
 
 export const formDefinitionSchema = z.object({
   slug: z.string().min(1),

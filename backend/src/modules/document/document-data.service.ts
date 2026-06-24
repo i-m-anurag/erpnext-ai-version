@@ -2,7 +2,7 @@ import { AppDataSource } from '../../db/data-source.js';
 import { BaseRepository } from '../../shared/base.repository.js';
 import { BadRequestError, NotFoundError } from '../../shared/errors.js';
 import { configResolver } from '../config/index.js';
-import { FORM_RESOURCE_TYPE, validateFormData, type FormDefinition } from '../form/index.js';
+import { FORM_RESOURCE_TYPE, flattenDataFields, validateFormData, type FormDefinition } from '../form/index.js';
 import type { FormField } from '../form/form.schema.js';
 import { MasterRegistry } from '../master/master-registry.entity.js';
 import { tableNameForSlug } from './table-name.js';
@@ -50,13 +50,16 @@ export class DocumentDataService {
     if (reg.kind !== 'document') throw new BadRequestError(`${slug} is not a document`);
     if (!reg.formSlug) throw new BadRequestError(`${slug} has no form`);
     const form = (await configResolver.resolve<FormDefinition>(FORM_RESOURCE_TYPE, reg.formSlug)).definition;
+    // Flatten display groups → children are top-level columns; data groups
+    // (nested:true) remain a single field stored as one jsonb column.
+    const effective = flattenDataFields(form.fields);
     return {
       slug,
       form,
       table: reg.tableName ?? tableNameForSlug(slug),
       codeField: reg.codeField,
-      scalar: form.fields.filter((f) => f.type !== 'table' && f.key !== reg.codeField && !RESERVED.has(f.key)),
-      tables: form.fields.filter((f) => f.type === 'table'),
+      scalar: effective.filter((f) => f.type !== 'table' && f.key !== reg.codeField && !RESERVED.has(f.key)),
+      tables: effective.filter((f) => f.type === 'table'),
     };
   }
 

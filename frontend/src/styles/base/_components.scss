@@ -263,6 +263,57 @@ body {
   .iq-tablefield__rowaction { width: 36px; text-align: center; }
 }
 
+/* ── Form group: collapsible accordion section ──────────────────
+   Wraps both group flavours: DISPLAY groups (flat children rendered inline) and
+   DATA groups (a GroupFieldComponent grid). The section supplies the chrome
+   (header + border); the body supplies the layout. */
+.erp-form-group {
+  border: 1px solid var(--erp-border);
+  border-radius: $erp-radius-md;
+  margin-bottom: $erp-space-3;
+  overflow: hidden;
+}
+.erp-form-group__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: $erp-space-2 $erp-space-3;
+  background: var(--erp-surface-alt);
+  border: 0;
+  border-bottom: 1px solid var(--erp-border);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--erp-text);
+  text-align: left;
+  cursor: pointer;
+  &:disabled { cursor: default; }
+  i { color: var(--erp-text-muted); }
+}
+.erp-form-group--collapsed .erp-form-group__header { border-bottom: 0; }
+.erp-form-group__body {
+  padding: $erp-space-3;
+  background: var(--erp-surface);
+  // two-column display-group body
+  &.erp-form--two-column {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: $erp-space-2 $erp-space-3;
+    .erp-field--full { grid-column: 1 / -1; }
+  }
+}
+
+/* ── Data group (nested sub-object) inner grid ──────────────────
+   Rendered by GroupFieldComponent inside .erp-form-group__body, so no border/bg
+   of its own — just the 2-col field grid. */
+.iq-groupfield {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $erp-space-2 $erp-space-3;
+  // full-width sub-fields (table/textarea) break out of the 2-col grid
+  .erp-field--full { grid-column: 1 / -1; }
+}
+
 // ── "Ask IQ" command bar (topbar) ────────────────────────────────────────────
 .iq-cmd {
   display: flex;

@@ -1,7 +1,7 @@
 import { AppDataSource } from '../../db/data-source.js';
 import { BaseRepository } from '../../shared/base.repository.js';
 import { configResolver } from '../config/index.js';
-import { FORM_RESOURCE_TYPE, type FormDefinition } from '../form/index.js';
+import { FORM_RESOURCE_TYPE, flattenDataFields, type FormDefinition } from '../form/index.js';
 import type { FormField } from '../form/form.schema.js';
 import { MasterRegistry } from '../master/master-registry.entity.js';
 import { tableNameForSlug } from './table-name.js';
@@ -42,6 +42,7 @@ export function pgType(field: Pick<FormField, 'type'>): string {
     case 'date':
       return 'timestamptz';
     case 'multiselect':
+    case 'group': // nested sub-object stored whole
       return 'jsonb';
     default:
       return 'text'; // text, select, master-lookup, textarea, password, file
@@ -76,14 +77,18 @@ export class SchemaSyncService {
   async syncEntity(slug: string, codeField: string, parent: string, form: FormDefinition): Promise<SyncResult> {
     const res: SyncResult = { table: parent, changes: [], warnings: [] };
 
+    // Flatten display groups so their children become real columns; data groups
+    // (nested:true) stay a single field → one jsonb column.
+    const effective = flattenDataFields(form.fields);
+
     // Parent: reserved columns + a typed column per scalar field (minus the code field).
-    const scalarCols = form.fields
+    const scalarCols = effective
       .filter((f) => f.type !== 'table' && f.key !== codeField && !RESERVED.has(f.key))
       .map<ColumnSpec>((f) => ({ name: f.key, type: pgType(f) }));
     await this.ensureParent(parent, scalarCols, res);
 
     // Children: one table per `table` (line-item) field.
-    for (const f of form.fields.filter((f) => f.type === 'table')) {
+    for (const f of effective.filter((f) => f.type === 'table')) {
       const child = `${parent}__${f.key.toLowerCase()}`;
       const cols = (f.columns ?? [])
         .filter((c) => !RESERVED.has(c.key))

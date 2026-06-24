@@ -69,9 +69,42 @@ export interface FormFieldDef {
   inList?: boolean;
   /** For type === 'table': the per-row column field definitions (a nested form). */
   columns?: FormFieldDef[];
+  /** For type === 'group': the nested sub-fields. */
+  fields?: FormFieldDef[];
+  /**
+   * For type === 'group'. Two flavours share this type:
+   *  • nested:true  → DATA group: children live under a sub-object, stored as one
+   *    jsonb column (own nested FormGroup, rendered by GroupFieldComponent).
+   *  • nested:false/omitted → DISPLAY group: a collapsible accordion section;
+   *    children are flattened to the parent (normal top-level fields/columns).
+   */
+  nested?: boolean;
+  /** display group: show the collapse toggle (default true). */
+  collapsible?: boolean;
+  /** display group: start collapsed. */
+  defaultCollapsed?: boolean;
+  /** group body layout override (defaults to the form layout). */
+  layout?: 'single-column' | 'two-column';
+  /** checkbox: fields whose visibility this control drives when (un)checked. */
+  effects?: { checked?: { showFields?: string[] }; unchecked?: { showFields?: string[] } };
   /** For type === 'table': min/max number of rows (min enforced, max caps "Add row"). */
   minRows?: number;
   maxRows?: number;
+}
+
+/**
+ * Flatten a field tree to its EFFECTIVE data fields: display groups (`type:'group'`
+ * without `nested:true`) are transparent — their children pull up to the parent.
+ * Data groups (`nested:true`) stay a single `group` field. Mirrors the backend
+ * `flattenDataFields` so list columns and outbound coercion agree on the shape.
+ */
+export function flattenDataFields(fields: FormFieldDef[]): FormFieldDef[] {
+  const out: FormFieldDef[] = [];
+  for (const f of fields) {
+    if (f.type === 'group' && f.nested !== true) out.push(...flattenDataFields(f.fields ?? []));
+    else out.push(f);
+  }
+  return out;
 }
 
 export interface MasterOption {

@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { forkJoin, map, type Observable, of, switchMap } from 'rxjs';
 import { MasterApiService } from '../api/master.api.service';
 import { FormApiService } from '../api/form.api.service';
-import type { FormDefinition, FormFieldDef, MasterRegistry, MasterRow } from '../models/api.models';
+import { flattenDataFields, type FormDefinition, type FormFieldDef, type MasterRegistry, type MasterRow } from '../models/api.models';
 import { BACKED_VIEWS, getView, type ListColumn, type ResolvedView } from './view-configs';
 
 /**
@@ -68,7 +68,9 @@ export class ViewResolverService {
    * The code field is always kept so rows stay identifiable.
    */
   private listColumns(form: FormDefinition, idKey: string): ListColumn[] {
-    const scalar = form.fields.filter((f) => f.type !== 'table');
+    // Flatten display groups (their children are real fields); drop table and
+    // nested (jsonb) group fields — neither makes a sensible list column.
+    const scalar = flattenDataFields(form.fields).filter((f) => f.type !== 'table' && f.type !== 'group');
     const hasOptIn = scalar.some((f) => f.inList === true);
     const chosen = scalar.filter((f) =>
       f.key === idKey ? true : hasOptIn ? f.inList === true : f.inList !== false,

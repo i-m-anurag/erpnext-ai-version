@@ -5,12 +5,33 @@
   "layout": "two-column",
   "fields": [
     { "key": "poNumber", "type": "text", "label": "PO Number", "auto": true, "placeholder": "Auto-generated on save" },
-    { "key": "vendor", "type": "select", "label": "Vendor", "required": true, "options": [
-      { "value": "Acme Supplies", "label": "Acme Supplies" },
-      { "value": "Globex Corp", "label": "Globex Corp" },
-      { "value": "Initech", "label": "Initech" }
-    ] },
-    { "key": "poDate", "type": "date", "label": "PO Date", "required": true },
+    {
+      "key": "orderDetails",
+      "type": "group",
+      "label": "Order Details",
+      "layout": "two-column",
+      "fields": [
+        { "key": "vendor", "type": "select", "label": "Vendor", "required": true, "options": [
+          { "value": "Acme Supplies", "label": "Acme Supplies" },
+          { "value": "Globex Corp", "label": "Globex Corp" },
+          { "value": "Initech", "label": "Initech" }
+        ] },
+        { "key": "poDate", "type": "date", "label": "PO Date", "required": true }
+      ]
+    },
+    {
+      "key": "shipping",
+      "type": "group",
+      "label": "Shipping",
+      "nested": true,
+      "defaultCollapsed": true,
+      "inList": false,
+      "fields": [
+        { "key": "contactName", "type": "text", "label": "Contact Name" },
+        { "key": "contactPhone", "type": "text", "label": "Contact Phone" },
+        { "key": "deliverBy", "type": "date", "label": "Deliver By" }
+      ]
+    },
     {
       "key": "lines",
       "type": "table",

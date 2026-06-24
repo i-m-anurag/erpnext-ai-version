@@ -35,6 +35,16 @@ function validateFields(
   const errors: Record<string, string> = {};
 
   for (const field of fields) {
+    // Display group: a layout-only container — validate its children against the
+    // SAME (top-level) input and merge up. Handled first because the group itself
+    // has no top-level value (its children are flat).
+    if (field.type === 'group' && field.nested !== true) {
+      const { out: subOut, errors: subErrors } = validateFields(field.fields ?? [], input);
+      Object.assign(out, subOut);
+      Object.assign(errors, subErrors);
+      continue;
+    }
+
     const value = input[field.key];
     const missing = value === undefined || value === null || value === '';
 
@@ -47,6 +57,12 @@ function validateFields(
     if (field.type === 'table') {
       const rows = validateTable(field, value, errors);
       out[field.key] = rows;
+      continue;
+    }
+
+    if (field.type === 'group') {
+      // data group (nested:true) — validated as a single sub-object.
+      out[field.key] = validateGroup(field, value, errors);
       continue;
     }
 
@@ -92,6 +108,18 @@ function validateFields(
   }
 
   return { out, errors };
+}
+
+/** Validate a group field: a single object validated against its nested `fields`.
+ *  Nested errors are reported as `field.subKey`. */
+function validateGroup(field: FormField, value: unknown, errors: Record<string, string>): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    errors[field.key] = 'must be an object';
+    return {};
+  }
+  const { out, errors: subErrors } = validateFields(field.fields ?? [], value as Record<string, unknown>);
+  for (const [k, msg] of Object.entries(subErrors)) errors[`${field.key}.${k}`] = msg;
+  return out;
 }
 
 /** Validate a tabular field: an array of row objects against `columns`. */

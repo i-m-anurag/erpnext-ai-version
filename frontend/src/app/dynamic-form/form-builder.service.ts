@@ -13,10 +13,28 @@ import type { FormDefinition, FormFieldDef } from '../core/models/api.models';
 export class FormBuilderService {
   build(config: FormDefinition, initial?: Record<string, unknown>): FormGroup {
     const controls: Record<string, AbstractControl> = {};
-    for (const field of config.fields) {
-      controls[field.key] = this.buildControl(field, initial?.[field.key]);
-    }
+    this.addControls(config.fields, controls, initial);
     return new FormGroup(controls);
+  }
+
+  /**
+   * Add a control per field to `controls`. Display groups (`type:'group'` without
+   * `nested:true`) are transparent — their children are added at the SAME level
+   * (so they stay flat top-level controls). Data groups (`nested:true`) become a
+   * single nested FormGroup via buildControl.
+   */
+  private addControls(
+    fields: FormFieldDef[],
+    controls: Record<string, AbstractControl>,
+    initial?: Record<string, unknown>,
+  ): void {
+    for (const field of fields) {
+      if (field.type === 'group' && field.nested !== true) {
+        this.addControls(field.fields ?? [], controls, initial);
+      } else {
+        controls[field.key] = this.buildControl(field, initial?.[field.key]);
+      }
+    }
   }
 
   /** A single row FormGroup for a table field (one control per column). */
@@ -31,6 +49,9 @@ export class FormBuilderService {
   private buildControl(field: FormFieldDef, value: unknown): AbstractControl {
     if (field.type === 'table') {
       return this.buildTable(field, value as Record<string, unknown>[] | undefined);
+    }
+    if (field.type === 'group') {
+      return this.buildGroup(field, value as Record<string, unknown> | undefined);
     }
     return new FormControl(
       { value: value ?? this.defaultValue(field), disabled: field.auto === true },
@@ -53,6 +74,15 @@ export class FormBuilderService {
       validators.push((c) => ((c as FormArray).length >= min ? null : { minRows: { required: min } }));
     }
     return new FormArray<FormGroup>(groups, validators);
+  }
+
+  /** A nested FormGroup for a `group` field — one control per sub-field. */
+  buildGroup(field: FormFieldDef, value?: Record<string, unknown>): FormGroup {
+    const controls: Record<string, AbstractControl> = {};
+    for (const sub of field.fields ?? []) {
+      controls[sub.key] = this.buildControl(sub, value?.[sub.key]);
+    }
+    return new FormGroup(controls);
   }
 
   private defaultValue(field: FormFieldDef): unknown {
