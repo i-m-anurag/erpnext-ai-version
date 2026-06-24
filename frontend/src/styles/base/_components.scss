@@ -719,3 +719,21 @@ accordion-group .card-body {
   padding: $erp-space-3;
   background: var(--erp-surface);
 }
+
+/* ── ng-select: panel appended to <body> ────────────────────────
+   Fields use appendTo="body" so the option panel escapes any
+   ancestor overflow (cards, the line-item table). The panel is then
+   a direct child of <body>, so it needs a z-index above modals and
+   a width that tracks its host. */
+.ng-dropdown-panel.ng-select-bottom,
+.ng-dropdown-panel.ng-select-top,
+.ng-dropdown-panel {
+  z-index: 1080; // above ngx-bootstrap modal (1050) / backdrop
+  // keep options readable even when the host (e.g. a narrow table cell) is tiny.
+  // ng-select writes an inline min-width matching the host, so !important is needed.
+  min-width: 14rem !important;
+  .ng-dropdown-panel-items { max-height: 280px; }
+  // wrap long option labels instead of truncating them with an ellipsis
+  .ng-option,
+  .ng-option-label { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
+}

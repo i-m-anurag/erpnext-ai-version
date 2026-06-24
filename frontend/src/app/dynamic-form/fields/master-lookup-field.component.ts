@@ -14,6 +14,7 @@ import type { FormFieldDef, MasterOption } from '../../core/models/api.models';
       bindValue="value"
       bindLabel="label"
       [loading]="loading()"
+      appendTo="body"
       [formControl]="control()"
       [placeholder]="config().placeholder ?? 'Select…'"
       [class.is-invalid]="invalid()"

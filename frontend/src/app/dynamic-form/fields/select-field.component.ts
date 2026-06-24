@@ -13,6 +13,7 @@ import type { FormFieldDef } from '../../core/models/api.models';
       bindValue="value"
       bindLabel="label"
       [multiple]="multiple()"
+      appendTo="body"
       [formControl]="control()"
       [placeholder]="config().placeholder ?? 'Select…'"
       [class.is-invalid]="invalid()"

@@ -101,7 +101,7 @@ const SWATCHES = ['#6b7280', '#5f79eb', '#9f7af3', '#f59e0b', '#22c55e', '#ef444
             </select>
             <span class="text-muted small">· roles</span>
             <ng-select class="iq-roles-select" [items]="roles()" bindValue="code" bindLabel="name" [multiple]="true"
-                       [(ngModel)]="r.trigger.roles" placeholder="Any role" style="min-width:220px" />
+                       appendTo="body" [(ngModel)]="r.trigger.roles" placeholder="Any role" style="min-width:220px" />
           </div>
 
           <!-- Branches -->

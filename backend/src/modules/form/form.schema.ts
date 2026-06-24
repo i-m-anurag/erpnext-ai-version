@@ -43,6 +43,8 @@ export interface FormField {
   minRows?: number;
   maxRows?: number;
   auto?: boolean;
+  /** Controls visibility as a column in the record list view (see resolver). */
+  inList?: boolean;
 }
 
 export const formFieldSchema: z.ZodType<FormField> = z.lazy(() =>
@@ -74,6 +76,8 @@ export const formFieldSchema: z.ZodType<FormField> = z.lazy(() =>
     maxRows: z.number().int().positive().optional(),
     /** server-filled (naming series) — read-only in the UI */
     auto: z.boolean().optional(),
+    /** list-view column visibility (opt-out default / opt-in if any field sets true) */
+    inList: z.boolean().optional(),
   }),
 );
 

@@ -59,6 +59,14 @@ export interface FormFieldDef {
   cssSlug?: string;
   /** Auto-filled by the server (e.g. a naming-series id) → rendered read-only. */
   auto?: boolean;
+  /**
+   * Controls whether this field appears as a column in the record list view.
+   * Two modes (decided per-form by the resolver):
+   *  • opt-out (default): all scalar fields show; set `inList: false` to hide one.
+   *  • opt-in: if ANY field sets `inList: true`, ONLY those fields show (curated list).
+   * The code field is always shown regardless.
+   */
+  inList?: boolean;
   /** For type === 'table': the per-row column field definitions (a nested form). */
   columns?: FormFieldDef[];
   /** For type === 'table': min/max number of rows (min enforced, max caps "Add row"). */

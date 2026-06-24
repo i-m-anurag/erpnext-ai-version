@@ -25,6 +25,6 @@
         { "key": "remarks", "type": "text", "label": "Remarks" }
       ]
     },
-    { "key": "notes", "type": "textarea", "label": "Notes" }
+    { "key": "notes", "type": "textarea", "label": "Notes", "inList": false }
   ]
 }

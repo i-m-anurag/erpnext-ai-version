@@ -50,8 +50,7 @@ export class ViewResolverService {
       singular: meta?.singular ?? reg.name,
       idKey,
       form,
-      // table (line-item) fields aren't list columns — show only scalar fields
-      columns: form.fields.filter((f) => f.type !== 'table').map((f) => this.toColumn(f, idKey)),
+      columns: this.listColumns(form, idKey),
       rows: rows.map((r) => ({ ...r.data })),
       panels: meta?.panels ?? { timeline: true, comments: true },
       workflow: meta?.workflow,
@@ -59,6 +58,22 @@ export class ViewResolverService {
       masterSlug: reg.slug,
       ids: Object.fromEntries(rows.map((r) => [r.code, r.id])),
     };
+  }
+
+  /**
+   * Decide which form fields become list-view columns.
+   * Line-item (`table`) fields are never columns. Among scalar fields:
+   *  • opt-in mode — if any field declares `inList: true`, show only those.
+   *  • opt-out mode — otherwise show every scalar field except `inList: false`.
+   * The code field is always kept so rows stay identifiable.
+   */
+  private listColumns(form: FormDefinition, idKey: string): ListColumn[] {
+    const scalar = form.fields.filter((f) => f.type !== 'table');
+    const hasOptIn = scalar.some((f) => f.inList === true);
+    const chosen = scalar.filter((f) =>
+      f.key === idKey ? true : hasOptIn ? f.inList === true : f.inList !== false,
+    );
+    return chosen.map((f) => this.toColumn(f, idKey));
   }
 
   private toColumn(field: FormFieldDef, idKey: string): ListColumn {
