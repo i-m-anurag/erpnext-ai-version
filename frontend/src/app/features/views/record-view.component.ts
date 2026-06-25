@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, viewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -50,11 +50,20 @@ const KIND_ICON: Record<TimelineKind, string> = {
       <div class="d-flex gap-2">
         <button class="btn btn-sm btn-light" [routerLink]="['/app/m', cfg.module, cfg.sub]">Cancel</button>
         @for (opt of createOptions(); track opt.to) {
-          <button class="btn btn-sm btn-light" (click)="createNextDoc(opt)"><i class="ph ph-arrow-bend-up-right"></i> {{ opt.label }}</button>
+          @if (opt.existing; as ex) {
+            <button class="btn btn-sm btn-light" (click)="openExisting(ex)" [title]="ex.code">
+              <i class="ph ph-arrow-square-out"></i> Go to {{ ex.code }}
+            </button>
+          } @else {
+            <button class="btn btn-sm btn-light" (click)="createNextDoc(opt)"><i class="ph ph-arrow-bend-up-right"></i> {{ opt.label }}</button>
+          }
         }
         <button class="btn btn-sm btn-ai"><i class="ph ph-sparkle"></i> Ask IQ</button>
-        <button class="btn btn-sm btn-primary" [disabled]="saving()" (click)="save()">
-          <i class="ph ph-check"></i> {{ saving() ? 'Saving…' : 'Save' }}
+        <button class="btn btn-sm btn-light" [disabled]="saving()" (click)="saveDraft()">
+          <i class="ph ph-floppy-disk"></i> Save as Draft
+        </button>
+        <button class="btn btn-sm btn-primary" [disabled]="saving()" (click)="submit()">
+          <i class="ph ph-check"></i> {{ saving() ? 'Saving…' : 'Submit' }}
         </button>
       </div>
     </div>
@@ -187,6 +196,7 @@ export class RecordViewComponent {
   private readonly documents = inject(DocumentApiService);
   private readonly notify = inject(NotificationService);
   private readonly router = inject(Router);
+  private readonly formCmp = viewChild(DynamicFormComponent);
 
   protected readonly config = signal<ResolvedView | undefined>(undefined);
   protected readonly loading = signal(false);
@@ -255,6 +265,12 @@ export class RecordViewComponent {
   protected openRelated(r: RelatedDoc): void {
     const route = routeForMaster(r.master);
     if (route) void this.router.navigate(['/app/m', route[0], route[1], r.code]);
+  }
+
+  /** Redirect to a document that was already created from this record (#4). */
+  protected openExisting(ex: { master: string; code: string }): void {
+    const route = routeForMaster(ex.master);
+    if (route) void this.router.navigate(['/app/m', route[0], route[1], ex.code]);
   }
   protected relationLabel(rel: string): string {
     return rel.replace(/_/g, ' ');
@@ -344,15 +360,29 @@ export class RecordViewComponent {
     return this.fb.build(cfg.form, initial);
   });
 
-  protected save(): void {
-    const cfg = this.config();
+  /** Submit: full validation. On error, reveal/scroll to the first invalid field
+   *  (opening its accordion if needed) instead of silently failing. */
+  protected submit(): void {
     const g = this.group();
-    if (!cfg || !g) return;
+    if (!g) return;
     if (g.invalid) {
       g.markAllAsTouched();
+      this.formCmp()?.revealFirstInvalid();
       this.notify.error('Please fix the highlighted fields');
       return;
     }
+    this.persist(false);
+  }
+
+  /** Save as draft: persist whatever is filled, no required-field validation. */
+  protected saveDraft(): void {
+    this.persist(true);
+  }
+
+  private persist(draft: boolean): void {
+    const cfg = this.config();
+    const g = this.group();
+    if (!cfg || !g) return;
     if (!cfg.backed || !cfg.masterSlug) {
       this.notify.success('Saved (demo — not persisted)');
       void this.router.navigate(['/app/m', cfg.module, cfg.sub]);
@@ -362,17 +392,17 @@ export class RecordViewComponent {
     this.saving.set(true);
     const dbId = cfg.ids?.[this.recordId()];
     const req$ = this.isNew() || !dbId
-      ? this.masters.createData(cfg.masterSlug, data)
-      : this.masters.updateData(cfg.masterSlug, dbId, data);
+      ? this.masters.createData(cfg.masterSlug, data, draft)
+      : this.masters.updateData(cfg.masterSlug, dbId, data, draft);
     req$.subscribe({
       next: () => {
         this.saving.set(false);
-        this.notify.success(`${cfg.singular} saved`);
+        this.notify.success(draft ? `${cfg.singular} saved as draft` : `${cfg.singular} submitted`);
         void this.router.navigate(['/app/m', cfg.module, cfg.sub]);
       },
-      error: () => {
+      error: (e: { error?: { error?: { message?: string } } }) => {
         this.saving.set(false);
-        this.notify.error('Save failed');
+        this.notify.error(e?.error?.error?.message ?? (draft ? 'Could not save draft' : 'Submit failed'));
       },
     });
   }

@@ -27,15 +27,17 @@ export const masterController = {
   },
   async createData(req: Request, res: Response): Promise<void> {
     const slug = param(req, 'slug');
-    const row = await masterService.createData(slug, body(req));
-    await activityService.addTimeline(slug, row.code, 'created', 'Record created', req.auth?.userId ?? null);
+    const draft = req.query.draft === 'true';
+    const row = await masterService.createData(slug, body(req), draft);
+    await activityService.addTimeline(slug, row.code, 'created', draft ? 'Draft created' : 'Record created', req.auth?.userId ?? null);
     await publish({ type: 'master.created', entityType: slug, recordId: row.code, actorUserId: req.auth?.userId ?? null });
     res.status(201).json({ row });
   },
   async updateData(req: Request, res: Response): Promise<void> {
     const slug = param(req, 'slug');
-    const row = await masterService.updateData(slug, param(req, 'id'), body(req));
-    await activityService.addTimeline(slug, row.code, 'updated', 'Record updated', req.auth?.userId ?? null);
+    const draft = req.query.draft === 'true';
+    const row = await masterService.updateData(slug, param(req, 'id'), body(req), draft);
+    await activityService.addTimeline(slug, row.code, 'updated', draft ? 'Saved as draft' : 'Record updated', req.auth?.userId ?? null);
     await publish({ type: 'master.updated', entityType: slug, recordId: row.code, actorUserId: req.auth?.userId ?? null });
     res.json({ row });
   },

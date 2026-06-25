@@ -24,12 +24,14 @@ export class MasterApiService {
     return this.http.get<{ options: MasterOption[] }>(`/api/masters/${slug}/options`).pipe(map((r) => r.options));
   }
 
-  createData(slug: string, data: Record<string, unknown>): Observable<MasterRow> {
-    return this.http.post<{ row: MasterRow }>(`/api/masters/${slug}/data`, data).pipe(map((r) => r.row));
+  createData(slug: string, data: Record<string, unknown>, draft = false): Observable<MasterRow> {
+    const q = draft ? '?draft=true' : '';
+    return this.http.post<{ row: MasterRow }>(`/api/masters/${slug}/data${q}`, data).pipe(map((r) => r.row));
   }
 
-  updateData(slug: string, id: string, data: Record<string, unknown>): Observable<MasterRow> {
-    return this.http.put<{ row: MasterRow }>(`/api/masters/${slug}/data/${id}`, data).pipe(map((r) => r.row));
+  updateData(slug: string, id: string, data: Record<string, unknown>, draft = false): Observable<MasterRow> {
+    const q = draft ? '?draft=true' : '';
+    return this.http.put<{ row: MasterRow }>(`/api/masters/${slug}/data/${id}${q}`, data).pipe(map((r) => r.row));
   }
 
   deleteData(slug: string, id: string): Observable<void> {

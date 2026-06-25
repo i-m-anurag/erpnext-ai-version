@@ -25,7 +25,7 @@ export function buildDocumentRouter(): Router {
       const code = p(req, 'code');
       res.json({
         related: await documentService.links(master, code),
-        createOptions: await documentService.createOptions(master),
+        createOptions: await documentService.createOptions(master, code),
       });
     }),
   );

@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
 import { type FormControl, type FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { DynamicFieldDirective } from './dynamic-field.directive';
 import './fields/table-field.register'; // registers the `table` field type (side-effect)
@@ -60,7 +60,7 @@ type VisibilityEffect = { source: string; when: boolean };
                 }
               </section>
             } @else {
-              <div [class]="fieldWrapperClass(field)">
+              <div [class]="fieldWrapperClass(field)" [attr.data-field]="field.key">
                 @if (field.type !== 'checkbox') {
                   <label [class]="labelClass(field.key)" [attr.for]="field.key">
                     {{ field.label }}@if (field.required) { <span class="text-danger"> *</span> }
@@ -88,6 +88,7 @@ export class DynamicFormComponent {
   readonly submitted = output<void>();
 
   private readonly css = inject(CssMapService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly collapsedGroups = signal<Record<string, boolean>>({});
   protected readonly slug = computed(() => this.config().slug);
   protected readonly fields = computed(() => this.config().fields);
@@ -181,6 +182,53 @@ export class DynamicFormComponent {
   protected showError(key: string): boolean {
     const c = this.group().get(key);
     return !!c && c.invalid && (c.touched || c.dirty);
+  }
+
+  /**
+   * On a failed submit: find the first invalid field, expand any accordion group(s)
+   * containing it, then scroll it into view and focus it. Returns false if the form
+   * is actually valid. Called by the record view from its Submit handler.
+   */
+  revealFirstInvalid(): boolean {
+    const hit = this.findFirstInvalid(this.fields(), []);
+    if (!hit) return false;
+    if (hit.groups.length) {
+      this.collapsedGroups.update((g) => {
+        const next = { ...g };
+        for (const k of hit.groups) next[k] = false; // open every accordion on the path
+        return next;
+      });
+    }
+    // wait a tick so a just-expanded accordion has rendered, then reveal + focus.
+    setTimeout(() => {
+      const el = this.host.nativeElement.querySelector(`[data-field="${hit.key}"]`) as HTMLElement | null;
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      (el.querySelector('input, select, textarea, [tabindex]') as HTMLElement | null)?.focus();
+    }, 60);
+    return true;
+  }
+
+  /** Depth-first search for the first invalid control, tracking the accordion groups
+   *  (display + data) on the path so the caller can expand them. */
+  private findFirstInvalid(fields: FormFieldDef[], groups: string[]): { key: string; groups: string[] } | null {
+    for (const f of fields) {
+      if (f.type === 'group') {
+        if (f.nested === true) {
+          const grp = this.group().get(f.key);
+          if (grp?.invalid) {
+            const child = (f.fields ?? []).find((s) => grp.get(s.key)?.invalid);
+            return { key: child?.key ?? f.key, groups: [...groups, f.key] };
+          }
+          continue;
+        }
+        const found = this.findFirstInvalid(f.fields ?? [], [...groups, f.key]);
+        if (found) return found;
+        continue;
+      }
+      if (this.group().get(f.key)?.invalid) return { key: f.key, groups };
+    }
+    return null;
   }
 
   protected errorText(key: string): string {

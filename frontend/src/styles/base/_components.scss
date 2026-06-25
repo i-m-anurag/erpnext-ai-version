@@ -234,8 +234,14 @@ body {
 
 /* ── Tabular (line-items) form field ────────────────────────── */
 .iq-tablefield {
+  // when the columns are wider than the available div, scroll horizontally
+  // rather than overflowing/clipping (the option panels use appendTo=body, so
+  // they're unaffected by this scroll container).
+  overflow-x: auto;
   .iq-tablefield__table {
-    width: 100%;
+    // grow to fit the columns, but never shrink below the container width
+    width: max-content;
+    min-width: 100%;
     border-collapse: separate;
     border-spacing: 0;
     border: 1px solid var(--erp-border);
@@ -243,6 +249,7 @@ body {
     overflow: hidden;
     th, td {
       padding: 6px 8px;
+      min-width: 7rem; // keeps cells legible and forces scroll once many columns exist
       border-bottom: 1px solid var(--erp-border);
       vertical-align: top;
     }
@@ -260,7 +267,7 @@ body {
     .form-control, .ng-select, input { font-size: 0.85rem; }
     .erp-field__error { display: none; } /* cell errors shown via is-invalid border */
   }
-  .iq-tablefield__rowaction { width: 36px; text-align: center; }
+  .iq-tablefield__rowaction { width: 36px; min-width: 36px; text-align: center; }
 }
 
 /* ── Form group: collapsible accordion section ──────────────────

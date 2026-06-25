@@ -13,6 +13,9 @@ export interface CreateOption {
   to: string;
   label: string;
   relation: string;
+  /** Set when a document of this type was already created from the source — the UI
+   *  then offers a redirect to it instead of a "Create" action. */
+  existing?: { master: string; code: string };
 }
 export interface RelatedDoc {
   master: string;
@@ -36,10 +39,30 @@ export class DocumentService {
     return eff.definition;
   }
 
-  /** Documents that can be created FROM the given master. */
-  async createOptions(fromMaster: string): Promise<CreateOption[]> {
+  /**
+   * Documents that can be created FROM the given record. For a step whose target
+   * already exists (a down-link of that type), `existing` is filled so the caller
+   * can redirect to it instead of offering another "create".
+   */
+  async createOptions(fromMaster: string, fromCode?: string): Promise<CreateOption[]> {
     const pl = await this.pipeline();
-    return pl.steps.filter((s) => s.from === fromMaster).map((s) => ({ to: s.to, label: s.label, relation: s.relation }));
+    const steps = pl.steps.filter((s) => s.from === fromMaster);
+    if (steps.length === 0) return [];
+
+    // existing down-links from this record, keyed by target master → first code.
+    const down = fromCode ? await this.linkRepo.find({ where: { fromMaster, fromCode } }) : [];
+    const existingByMaster = new Map<string, string>();
+    for (const l of down) if (!existingByMaster.has(l.toMaster)) existingByMaster.set(l.toMaster, l.toCode);
+
+    return steps.map((s) => {
+      const code = existingByMaster.get(s.to);
+      return {
+        to: s.to,
+        label: s.label,
+        relation: s.relation,
+        ...(code ? { existing: { master: s.to, code } } : {}),
+      };
+    });
   }
 
   /** Lineage: documents linked to (entityType, code), both directions. */

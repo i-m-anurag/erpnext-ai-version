@@ -12,6 +12,9 @@ export interface CreateOption {
   to: string;
   label: string;
   relation: string;
+  /** Present when a document of this type already exists for the source — UI shows
+   *  a redirect to it instead of a "Create" action. */
+  existing?: { master: string; code: string };
 }
 
 /** Document chaining: lineage (related docs) + create-next-document. */

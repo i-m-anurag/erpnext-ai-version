@@ -18,7 +18,7 @@ import { CssMapService } from '../css-map.service';
     <div class="iq-groupfield" [formGroup]="control()">
       @for (sub of fields(); track sub.key) {
         @if (isVisible(sub)) {
-          <div [class]="fieldClass(sub.key)">
+          <div [class]="fieldClass(sub.key)" [attr.data-field]="sub.key">
             @if (sub.type !== 'checkbox') {
               <label [class]="labelClass(sub.key)" [attr.for]="sub.key">
                 {{ sub.label }}@if (sub.required) { <span class="text-danger"> *</span> }

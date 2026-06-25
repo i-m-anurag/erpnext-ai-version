@@ -101,17 +101,23 @@ export class DocumentDataService {
     await AppDataSource.query(`UPDATE ${ident(c.table)} SET ${sets.join(', ')} WHERE "id"=$${params.length}`, params);
   }
 
-  /** Validated create (user save). */
+  /** Validated create (user submit) → status 'active'. */
   create(slug: string, input: Record<string, unknown>): Promise<DocumentRow> {
-    return this.insert(slug, input, true);
+    return this.insert(slug, input, true, 'active');
   }
 
-  /** Draft create (e.g. create-next from another document) — skips form validation. */
+  /** Draft create — skips form validation, status 'draft' (e.g. "Save as draft"
+   *  and create-next from another document). */
   createDraft(slug: string, input: Record<string, unknown>): Promise<DocumentRow> {
-    return this.insert(slug, input, false);
+    return this.insert(slug, input, false, 'draft');
   }
 
-  private async insert(slug: string, input: Record<string, unknown>, validate: boolean): Promise<DocumentRow> {
+  private async insert(
+    slug: string,
+    input: Record<string, unknown>,
+    validate: boolean,
+    status: string,
+  ): Promise<DocumentRow> {
     const c = await this.ctx(slug);
     const auto = await namingSeriesService.next(slug);
     const merged = auto ? { ...input, [c.codeField]: auto } : input;
@@ -120,9 +126,9 @@ export class DocumentDataService {
     if (!code) throw new BadRequestError(`missing ${c.codeField}`);
 
     const { cols, vals, extra } = this.split(c, clean);
-    const names = ['"code"', '"extra"', ...cols.map(ident)];
-    const placeholders = ['$1', '$2::jsonb', ...vals.map((_, i) => `$${i + 3}`)];
-    const params = [code, JSON.stringify(extra), ...vals];
+    const names = ['"code"', '"status"', '"extra"', ...cols.map(ident)];
+    const placeholders = ['$1', '$2', '$3::jsonb', ...vals.map((_, i) => `$${i + 4}`)];
+    const params = [code, status, JSON.stringify(extra), ...vals];
     const inserted = (await AppDataSource.query(
       `INSERT INTO ${ident(c.table)} (${names.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING *`,
       params,
@@ -132,16 +138,24 @@ export class DocumentDataService {
     return this.assemble(c, row);
   }
 
-  async update(slug: string, id: string, input: Record<string, unknown>): Promise<DocumentRow> {
+  async update(
+    slug: string,
+    id: string,
+    input: Record<string, unknown>,
+    opts: { draft?: boolean } = {},
+  ): Promise<DocumentRow> {
     const c = await this.ctx(slug);
     const existing = (await AppDataSource.query(`SELECT "code" FROM ${ident(c.table)} WHERE "id"=$1`, [id])) as Sql[];
     if (existing.length === 0) throw new NotFoundError('document not found');
     const code = String(existing[0]!.code);
-    const clean = validateFormData(c.form, { ...input, [c.codeField]: code });
+    const merged = { ...input, [c.codeField]: code };
+    // draft → skip validation + mark 'draft'; submit → validate + mark 'active'.
+    const clean = opts.draft ? merged : validateFormData(c.form, merged);
+    const status = opts.draft ? 'draft' : 'active';
 
     const { cols, vals, extra } = this.split(c, clean);
-    const sets = ['"extra"=$1::jsonb', '"updatedAt"=now()', ...cols.map((cn, i) => `${ident(cn)}=$${i + 2}`)];
-    const params = [JSON.stringify(extra), ...vals, id];
+    const sets = ['"status"=$1', '"extra"=$2::jsonb', '"updatedAt"=now()', ...cols.map((cn, i) => `${ident(cn)}=$${i + 3}`)];
+    const params = [status, JSON.stringify(extra), ...vals, id];
     await AppDataSource.query(`UPDATE ${ident(c.table)} SET ${sets.join(', ')} WHERE "id"=$${params.length}`, params);
 
     for (const tf of c.tables) {

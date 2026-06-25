@@ -108,10 +108,11 @@ export class MasterService {
     );
   }
 
-  async createData(slug: string, input: Record<string, unknown>): Promise<MasterData> {
+  async createData(slug: string, input: Record<string, unknown>, draft = false): Promise<MasterData> {
     const reg = await this.getRegistry(slug);
     if (reg.kind === 'document') {
-      const row = await documentDataService.create(slug, input);
+      // draft → skip validation + status 'draft'; submit → validate + 'active'.
+      const row = draft ? await documentDataService.createDraft(slug, input) : await documentDataService.create(slug, input);
       await cache.invalidate(optionsKey(slug));
       return row as unknown as MasterData;
     }
@@ -119,30 +120,32 @@ export class MasterService {
     // user-supplied value so the id format is enforced.
     const auto = await namingSeriesService.next(slug);
     if (auto) input = { ...input, [reg.codeField]: auto };
-    const { clean, code } = await this.prepareWrite(slug, input);
+    const { clean, code } = await this.prepareWrite(slug, input, { skipValidation: draft });
     if (await this.data.exists({ masterSlug: slug, code })) {
       throw new ConflictError(`${reg.name} with ${reg.codeField}="${code}" already exists`);
     }
-    const saved = await this.data.save(this.data.create({ masterSlug: slug, code, data: clean, status: 'active' }));
+    const status = draft ? 'draft' : 'active';
+    const saved = await this.data.save(this.data.create({ masterSlug: slug, code, data: clean, status }));
     await cache.invalidate(optionsKey(slug));
     return saved;
   }
 
-  async updateData(slug: string, id: string, input: Record<string, unknown>): Promise<MasterData> {
+  async updateData(slug: string, id: string, input: Record<string, unknown>, draft = false): Promise<MasterData> {
     const reg = await this.getRegistry(slug);
     if (reg.kind === 'document') {
-      const row = await documentDataService.update(slug, id, input);
+      const row = await documentDataService.update(slug, id, input, { draft });
       await cache.invalidate(optionsKey(slug));
       return row as unknown as MasterData;
     }
     const existing = await this.data.findOne({ id, masterSlug: slug });
     if (!existing) throw new NotFoundError('master row not found');
-    const { clean, code } = await this.prepareWrite(slug, input);
+    const { clean, code } = await this.prepareWrite(slug, input, { skipValidation: draft });
     if (code !== existing.code && (await this.data.exists({ masterSlug: slug, code }))) {
       throw new ConflictError(`another row already uses that code`);
     }
     existing.code = code;
     existing.data = clean;
+    existing.status = draft ? 'draft' : 'active';
     const saved = await this.data.save(existing);
     await cache.invalidate(optionsKey(slug));
     return saved;
@@ -192,17 +195,19 @@ export class MasterService {
     }
   }
 
-  /** Shared create/update prep: gate, resolve form, validate, extract code. */
+  /** Shared create/update prep: gate, resolve form, validate, extract code.
+   *  `skipValidation` (draft saves) bypasses field validation but still needs a code. */
   private async prepareWrite(
     slug: string,
     input: Record<string, unknown>,
+    opts: { skipValidation?: boolean } = {},
   ): Promise<{ reg: MasterRegistry; clean: Record<string, unknown>; code: string }> {
     const reg = await this.getRegistry(slug);
     this.assertWritable(reg);
     if (!reg.formSlug) throw new BadRequestError(`master "${slug}" has no form to validate against`);
 
     const form = await configResolver.resolve<FormDefinition>(FORM_RESOURCE_TYPE, reg.formSlug);
-    const clean = validateFormData(form.definition, input);
+    const clean = opts.skipValidation ? input : validateFormData(form.definition, input);
     const code = String(clean[reg.codeField] ?? '');
     if (!code) throw new BadRequestError(`missing required field "${reg.codeField}"`);
     return { reg, clean, code };
