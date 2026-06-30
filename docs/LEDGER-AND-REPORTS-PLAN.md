@@ -114,10 +114,14 @@ touch ledger tables directly — they call the posting service with a typed payl
 Classic ERP pattern: a tree of **Group** nodes and **Ledger** leaves. **Postings are
 only allowed against leaf ledger accounts**, never groups (groups are roll-up only).
 
-- Store as an `account` table with `parent_account_id` (adjacency list) + a
-  materialized `lft/rgt` or `path` for fast subtree roll-ups (nested-set or
-  `ltree`). For our scale, adjacency list + a cached `path` string is enough; add a
-  recursive CTE for roll-ups.
+- Store as an `account` table with `parent_account_id` (adjacency list). For
+  group roll-ups use a **recursive CTE** — at normal account depths (<10 levels)
+  it's fast, and it sidesteps a real problem: accountants *reparent* groups, and a
+  materialized `lft/rgt`/`path` would force a subtree rewrite on every move (and
+  let concurrent reports read a half-rewritten tree). With a plain adjacency list,
+  reparenting is a one-row `UPDATE parent_id`; postings target leaf accounts so
+  history is never affected. **Decision: no materialized path — recursive CTE.**
+  (External-review point #5.)
 - Each account has a **root type**: Asset / Liability / Equity / Income / Expense
   (drives the accounting equation and which report it lands in), plus `is_group`,
   `account_type` (Bank, Receivable, Payable, Stock, Tax, COGS, …), and `currency`.
@@ -307,7 +311,31 @@ philosophy as forms/workflows and lets clients add accounts/dimensions without c
 - Serialize concurrent posts to the *same key* (same account / same item×warehouse)
   with a **Postgres advisory lock** (or `SELECT … FOR UPDATE` on the bin /
   account_balance row) so two simultaneous posts can't both read the same opening
-  balance.
+  balance. Keep the lock scope **minimal** — acquire it only around the
+  read-balance → insert → update-cache sequence, never around document resolution
+  or external calls.
+
+> **On hot-account contention (external-review #1).** Every sale touches Cash/AR;
+> every dispatch touches COGS — so a per-account lock serializes those. At our scale
+> (single company per deployment, tens of posts/sec at peak) a microsecond single-row
+> cache update under that lock is fine. We deliberately keep the balance update
+> **synchronous**, because an async/eventually-consistent balance would break the
+> checks that need the *current* balance at posting time — **negative-stock** (current
+> `bin.actual_qty`) and **credit-limit** (current AR). If profiling ever shows real
+> contention, the correct escape hatch that *preserves* synchronous correctness is
+> **bucketed counters** (N sub-rows per hot account, summed on read) — not an async
+> flush. Design the cache-update path to be swappable; ship synchronous; revisit only
+> on evidence.
+
+### 6.4 Emit a posting event (data exhaust for AI / read-models)
+
+After a successful commit, the posting service **publishes a `ledger.posted` domain
+event** (the immutable lines + voucher ref + dimensions) onto the existing event bus
+(`publish({ type, … })` on the BullMQ `events` queue we already run). This gives a
+clean, append-only stream of ledger movements from V1 — feed it later to read-models,
+OLAP, anomaly detection, or vector stores **without** reverse-engineering Postgres.
+At single-deployment scale this is the right weight; we do **not** need Kafka/Debezium
+CDC. (External-review #6.)
 
 ---
 
@@ -330,10 +358,29 @@ Make repost **chunked & resumable** (ERPNext's repost famously hangs on big batc
 Lock the key during repost. Surface a "stock/ledger variance" report to detect any
 cache vs. recomputed mismatch.
 
-> Cheaper alternative to confirm with the user: **disallow back-dating** (postings
-> must be ≥ last posting date for that key, or only via an explicit "stock/ledger
-> reconciliation" voucher). This removes the entire repost engine. Most pain in
-> ERPNext comes from allowing arbitrary back-dating — worth deciding deliberately.
+**Run reposts/backfills on a separate, lower-priority queue.** Even on a single
+deployment, a one-off bulk operation (a year-end import, a mass recompute) must not
+starve live operational postings. Split BullMQ by **job class** — a high-priority
+`ledger-repost` queue (live, small, bounded) vs. a low-priority capped-concurrency
+`ledger-backfill` queue — so a big background job drains slowly without blocking
+real-time work. (This is the right-sized read of external-review #2 — which assumed a
+shared multi-tenant SaaS; we're single-tenant-per-deploy, so it's job-class
+prioritization within one stack, not tenant-sharded queues.)
+
+> **Decision (was "to confirm"): bounded back-dating, not arbitrary.**
+> - **Forward-only** for operational postings, with back-dating allowed **only inside
+>   the current open fiscal period** (you can enter yesterday's invoice; you cannot
+>   post into a closed period).
+> - **Anything older** → an explicit dated **reconciliation/adjustment voucher**, or
+>   for go-live an **opening-balance import** that writes period-open snapshots —
+>   both post *forward* (as of period open), never as deep back-dated entries.
+> - The repost engine therefore only ever reposts **within the open period** —
+>   bounded and small — never millions of historical rows.
+>
+> This keeps the legitimately-common "entered a day late" workflow, preserves the
+> immutable-ledger guarantees, is far less code than arbitrary repost, **and
+> structurally removes the import-storm risk** (a 3-year import becomes opening
+> balances, not a flood of back-dated entries triggering a full repost).
 
 ### 7.2 Deterministic ordering
 
@@ -366,6 +413,20 @@ class of bugs. Two viable choices:
 
 Define a single rounding policy (banker's vs half-up) and round **once** at
 document-total level, then derive — never accumulate rounding across lines.
+
+> **Hard rule — the Node/DB decimal boundary (external-review #4).** To avoid a
+> rounding-strategy mismatch between app-layer math and SQL aggregation:
+> - **Postgres only ever ADDS/SUBTRACTS already-exact `NUMERIC` values** — running
+>   balances (`SUM` window functions), trial balance, stock value totals. No
+>   multiply/divide/round in SQL.
+> - **All multiplication, division, and rounding happens in Node** with `decimal.js`
+>   and the one declared rounding policy — moving-average rate, FIFO consumption,
+>   line extensions (qty × rate), tax. The *pre-rounded, exact* result is what gets
+>   stored.
+>
+> Our reporting math is conveniently all addition (SUM over stored debit/credit/value),
+> so this boundary is clean and enforceable. Treat any `*`, `/`, or `round()` in a
+> ledger/report SQL statement as a bug.
 
 ### 7.6 Concurrency
 
@@ -449,14 +510,16 @@ Profit & Loss · Balance Sheet · Accounts Receivable / Payable (party-wise outs
 |---|---|---|
 | Money/qty type | `NUMERIC(21,6)` + `decimal.js` | exact decimal; avoids float drift. Slower than int but correct & readable. |
 | Storage | Postgres (existing) | window fns, recursive CTEs, materialized views, advisory locks, partitioning — everything we need. No new datastore. |
-| Account tree | adjacency list + cached path / recursive CTE (or `ltree`) | simple; fast roll-ups. Nested-set only if tree churns rarely and roll-ups dominate. |
+| Account tree | adjacency list + **recursive CTE** (no materialized path) | reparenting is a one-row update; CTE roll-ups are fast at <10 levels (review #5). |
+| Query layer | **raw parameterized SQL** (`AppDataSource.query` / `pg`), not the ORM query builder | TypeORM is rigid with window fns, recursive CTEs, and materialized views; the document-data layer already uses raw SQL, so this is the house style. Kysely optional if it gets unwieldy (review #3). |
+| Event stream | existing domain-event bus (`publish` → BullMQ `events` queue) | emit `ledger.posted` from V1 for AI/read-models; no Kafka/Debezium at this scale (review #6). |
 | Balance speed | cached balance rows + period snapshots | O(1) current balance, O(accounts) period reports; always rebuildable. |
 | Async work | BullMQ worker (existing) | repost jobs, mat-view refresh, period close, heavy exports — off the request path. |
 | Report cache | Redis (existing) keyed by posting sequence | instant repeat reports, auto-busted on new posts. |
 | Report grid | ag-grid (existing) | grouping/sort/CSV built in; pivot needs Enterprise or server-side. |
 | Validation/types | Zod (existing) | one schema for posting payloads + report definitions, like everywhere else. |
 | Config | `config_resources` base→override | CoA, posting rules, stock profiles, report defs all ship as config + client overrides. |
-| Migrations | TypeORM migrations (authoritative) | new tables/indexes; never `synchronize`. |
+| Migrations | TypeORM migrations (authoritative) | TypeORM strictly for **schema migrations + simple entity CRUD**; all ledger/report reads go through the raw SQL layer above. Never `synchronize`. |
 
 Nothing here adds a new technology — it's all Postgres + Redis + BullMQ + Zod +
 ag-grid we already run. The hard part is **discipline** (immutability, atomicity,
@@ -529,8 +592,10 @@ tables point back to.
 ## 11. Phased roadmap (suggested)
 
 1. **Engine core.** `ledger_posting` header + posting service skeleton (idempotency,
-   atomic txn, sequencing, advisory-lock), reversal, the balance-cache pattern.
-   Decide back-dating policy (§7.1) — gates whether the repost engine is in v1.
+   atomic txn, sequencing, minimal-scope advisory-lock), reversal, the balance-cache
+   pattern, and the `ledger.posted` event emit (§6.4). Back-dating is **bounded to
+   the open period** (§7.1 decision) → v1 ships a *small* in-period repost, not the
+   full historical engine.
 2. **Stock ledger (first, per the locked plan).** `stock_ledger_entry` + `bin`,
    Moving Average valuation, warehouse master, Stock Entry document → posting rule.
    Reports: Stock Ledger + Stock Balance.
@@ -544,8 +609,9 @@ tables point back to.
 6. **Reporting engine proper.** `report_definition` config, `/api/reports/:slug/run`,
    ag-grid report screens, period snapshots, P&L / Balance Sheet, AR/AP ageing,
    Redis caching + materialized views + export.
-7. **Hardening.** Repost engine (if back-dating allowed), FIFO valuation, negative
-   stock, multi-currency, period/year close, variance reports.
+7. **Hardening.** Full historical repost (only if we ever loosen the open-period
+   bound), FIFO valuation, negative stock, multi-currency, period/year close,
+   variance reports, job-class queue split for backfills (§7.1).
 
 ---
 
@@ -553,8 +619,10 @@ tables point back to.
 
 These genuinely change the design — worth deciding up front:
 
-1. **Back-dating:** allow arbitrary back-dated entries (→ build the repost engine), or
-   restrict to forward-only + explicit reconciliation vouchers (→ much simpler v1)?
+1. **Back-dating:** **DECIDED → bounded back-dating** — forward-only operationally,
+   back-dating allowed only within the current open fiscal period, older corrections
+   via dated reconciliation / opening-balance vouchers (§7.1). (Sidesteps arbitrary
+   repost *and* the bulk-import storm.)
 2. **Money representation:** `NUMERIC(21,6)` + decimal.js (recommended) vs integer
    minor units? And the rounding policy (half-up vs banker's, dp per field)?
 3. **Valuation:** Moving Average first (recommended), FIFO later? Per-item or global?
@@ -575,6 +643,25 @@ These genuinely change the design — worth deciding up front:
     Enterprise / server-side pivot for analytical reports?
 12. **Fiscal year:** calendar-year only first, or non-calendar fiscal years from the
     start?
+
+---
+
+## 13. External review responses (round 1)
+
+An external review (Gemini, extended thinking) raised six points. Verdicts and how
+they're reflected above:
+
+| # | Point | Verdict | Resolution |
+|---|---|---|---|
+| 1 | Hot-account lock contention | **Valid in principle, overblown at our scale** | Keep balance update **synchronous** (async flush breaks negative-stock & credit-limit checks that need the *current* balance). Minimal lock scope; **bucketed counters** as the escape hatch if profiling ever shows contention. §6.3. |
+| 2 | Multi-tenant noisy-neighbour repost | **Wrong premise** — we are single-tenant-per-deploy, no shared SaaS queue. Real residual: a bulk import shouldn't starve a deployment's own live postings. | **Job-class queues** (`ledger-repost` high-pri vs `ledger-backfill` low-pri capped) within one stack. The bounded back-dating policy removes most of this anyway. §7.1. |
+| 3 | TypeORM vs advanced SQL friction | **Valid — and already our house style** | Explicit split: TypeORM for migrations + simple CRUD; **raw parameterized SQL** for all ledger/report queries (the document-data layer already does this). §9. |
+| 4 | Node/DB decimal-rounding mismatch | **Valid and important** | Hard rule: **DB only adds/subtracts exact `NUMERIC`; all ×, ÷, rounding in Node** (`decimal.js`) before storing. Our report math is all SUM, so the boundary is clean. §7.5. |
+| 5 | CoA reparenting corrupts materialized path | **Valid** | **Drop the materialized path** — adjacency list + recursive CTE roll-ups; reparenting = one-row `UPDATE parent_id`. §4.1, §9. |
+| 6 | No data-exhaust hook for AI | **Valid — and nearly free for us** | Emit **`ledger.posted`** on the existing event bus from V1 (no Kafka/Debezium at this scale). §6.4. |
+
+Net: #3–#6 folded in as written; #1 noted with synchronous-now / bucket-later (async
+flush rejected on correctness grounds); #2 reframed for single-tenancy.
 
 ---
 
