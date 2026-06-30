@@ -20,6 +20,7 @@ export function buildMasterRouter(): Router {
   router.get('/:slug', requirePermission('master', 'view'), asyncHandler(masterController.get));
   router.get('/:slug/options', requirePermission('master', 'view'), asyncHandler(masterController.options));
   router.get('/:slug/data', requirePermission('master', 'view'), asyncHandler(masterController.listData));
+  router.get('/:slug/record/:code', requirePermission('master', 'view'), asyncHandler(masterController.getRecord));
 
   // Actions
   router.post('/:slug/data', requirePermission('master', 'create'), asyncHandler(masterController.createData));

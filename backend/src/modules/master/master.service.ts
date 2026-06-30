@@ -91,6 +91,20 @@ export class MasterService {
     });
   }
 
+  /**
+   * Fetch ONE record by its code, WITH line-items. List/options skip children for
+   * speed, so the record screen loads the full record (incl. line-items) here.
+   */
+  async getRecord(slug: string, code: string): Promise<MasterData> {
+    const reg = await this.getRegistry(slug);
+    if (reg.kind === 'document') {
+      return documentDataService.getByCode(slug, code) as unknown as MasterData;
+    }
+    const row = await this.data.findOne({ masterSlug: slug, code });
+    if (!row) throw new NotFoundError('record not found');
+    return row;
+  }
+
   /** Dropdown options for a master (value=code, label=labelField), cached. */
   async getOptions(slug: string): Promise<MasterOption[]> {
     const reg = await this.getRegistry(slug);

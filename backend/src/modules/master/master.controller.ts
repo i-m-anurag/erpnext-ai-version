@@ -25,6 +25,9 @@ export const masterController = {
     const offset = Number(req.query.offset ?? 0);
     res.json({ rows: await masterService.listData(param(req, 'slug'), limit, offset) });
   },
+  async getRecord(req: Request, res: Response): Promise<void> {
+    res.json({ row: await masterService.getRecord(param(req, 'slug'), param(req, 'code')) });
+  },
   async createData(req: Request, res: Response): Promise<void> {
     const slug = param(req, 'slug');
     const draft = req.query.draft === 'true';

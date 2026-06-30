@@ -20,6 +20,13 @@ export class MasterApiService {
     return this.http.get<{ rows: MasterRow[] }>(`/api/masters/${slug}/data`).pipe(map((r) => r.rows));
   }
 
+  /** One record by code, WITH line-items (list/options omit children for speed). */
+  getRecord(slug: string, code: string): Observable<MasterRow> {
+    return this.http
+      .get<{ row: MasterRow }>(`/api/masters/${slug}/record/${encodeURIComponent(code)}`)
+      .pipe(map((r) => r.row));
+  }
+
   getOptions(slug: string): Observable<MasterOption[]> {
     return this.http.get<{ options: MasterOption[] }>(`/api/masters/${slug}/options`).pipe(map((r) => r.options));
   }

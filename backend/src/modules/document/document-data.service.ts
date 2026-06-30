@@ -69,7 +69,8 @@ export class DocumentDataService {
       `SELECT * FROM ${ident(c.table)} WHERE "deletedAt" IS NULL ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2`,
       [Math.min(limit, 500), offset],
     )) as Sql[];
-    return Promise.all(rows.map((r) => this.assemble(c, r)));
+    // list/options never render line-items → skip child-table queries (no N+1).
+    return Promise.all(rows.map((r) => this.assemble(c, r, false)));
   }
 
   async getById(slug: string, id: string): Promise<DocumentRow> {
@@ -177,11 +178,21 @@ export class DocumentDataService {
   }
 
   // ── internals ───────────────────────────────────────────────────────────
-  private async assemble(c: Ctx, row: Sql): Promise<DocumentRow> {
+  /**
+   * Build a DocumentRow from a parent row. `withChildren` controls whether the
+   * line-item (table) fields are fetched: that's one extra query PER table field
+   * PER row, so list/options skip it (those views never show line-items) to avoid
+   * an N+1 explosion; only the single-record reads (getById/getByCode) load them.
+   */
+  private async assemble(c: Ctx, row: Sql, withChildren = true): Promise<DocumentRow> {
     const data: Record<string, unknown> = { [c.codeField]: row.code };
     for (const f of c.scalar) data[f.key] = row[f.key];
     if (row.extra && typeof row.extra === 'object') Object.assign(data, row.extra as Sql);
     for (const tf of c.tables) {
+      if (!withChildren) {
+        data[tf.key] = []; // keep the shape stable without querying the child table
+        continue;
+      }
       const child = `${c.table}__${tf.key.toLowerCase()}`;
       const lines = (await AppDataSource.query(
         `SELECT * FROM ${ident(child)} WHERE "parent_id"=$1 ORDER BY "idx" ASC`,

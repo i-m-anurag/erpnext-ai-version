@@ -214,6 +214,9 @@ export class RecordViewComponent {
 
   protected readonly related = signal<RelatedDoc[]>([]);
   protected readonly createOptions = signal<CreateOption[]>([]);
+  /** The full record (incl. line-items) for the edit form. The list payload omits
+   *  children for speed, so an existing record is loaded on its own here. */
+  private readonly recordRow = signal<Record<string, unknown> | undefined>(undefined);
 
   constructor() {
     effect(() => {
@@ -235,6 +238,19 @@ export class RecordViewComponent {
           this.loadDocLinks();
         },
         error: () => this.loading.set(false),
+      });
+    });
+
+    // Load the full record (with line-items) for the edit form. Runs when the
+    // resolved config or the route id changes.
+    effect(() => {
+      const cfg = this.config();
+      const rid = this.id();
+      this.recordRow.set(undefined);
+      if (!cfg?.backed || !cfg.masterSlug || rid === 'new') return;
+      this.masters.getRecord(cfg.masterSlug, rid).subscribe({
+        next: (row) => this.recordRow.set(row.data),
+        error: () => this.recordRow.set(undefined),
       });
     });
   }
@@ -354,7 +370,8 @@ export class RecordViewComponent {
     if (!cfg) return undefined;
     let initial: Record<string, unknown> | undefined;
     if (!this.isNew()) {
-      const row = cfg.rows.find((r) => String(r[cfg.idKey]) === this.recordId());
+      // prefer the full record (with line-items); fall back to the list row until it loads
+      const row = this.recordRow() ?? cfg.rows.find((r) => String(r[cfg.idKey]) === this.recordId());
       if (row) initial = this.coerce(cfg, row);
     }
     return this.fb.build(cfg.form, initial);
