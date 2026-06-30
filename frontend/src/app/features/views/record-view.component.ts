@@ -100,6 +100,8 @@ const KIND_ICON: Record<TimelineKind, string> = {
       <div class="iq-record__main erp-card p-4">
         @if (group(); as g) {
           <erp-dynamic-form [config]="cfg.form" [group]="g" />
+        } @else {
+          <div class="text-muted small"><i class="ph ph-circle-notch"></i> Loading record…</div>
         }
       </div>
 
@@ -368,13 +370,18 @@ export class RecordViewComponent {
   protected readonly group = computed<FormGroup | undefined>(() => {
     const cfg = this.config();
     if (!cfg) return undefined;
-    let initial: Record<string, unknown> | undefined;
-    if (!this.isNew()) {
-      // prefer the full record (with line-items); fall back to the list row until it loads
-      const row = this.recordRow() ?? cfg.rows.find((r) => String(r[cfg.idKey]) === this.recordId());
-      if (row) initial = this.coerce(cfg, row);
+    if (this.isNew()) return this.fb.build(cfg.form);
+    // Existing backed record: the list payload omits line-items, so we must build
+    // the form from the dedicated full-record fetch (recordRow). Until it arrives,
+    // return undefined (the view shows "Loading…") rather than building from the
+    // empty list row — otherwise a save in that window would wipe the children.
+    if (cfg.backed) {
+      const rec = this.recordRow();
+      return rec ? this.fb.build(cfg.form, this.coerce(cfg, rec)) : undefined;
     }
-    return this.fb.build(cfg.form, initial);
+    // Non-backed (demo) views have their full row in cfg.rows.
+    const row = cfg.rows.find((r) => String(r[cfg.idKey]) === this.recordId());
+    return this.fb.build(cfg.form, row ? this.coerce(cfg, row) : undefined);
   });
 
   /** Submit: full validation. On error, reveal/scroll to the first invalid field
