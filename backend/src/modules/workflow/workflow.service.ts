@@ -8,6 +8,7 @@ import { WORKFLOW_RESOURCE_TYPE } from './workflow.resource.js';
 import type { Rule, WorkflowDefinition, WorkflowState } from './workflow.schema.js';
 import { evaluateConditions } from './condition.js';
 import { executeAction, type ActionContext, type WorkflowRecord } from './workflow.actions.js';
+import { assignmentService } from './assignment.service.js';
 import { documentDataService } from '../document/index.js';
 
 export interface WorkflowStatus {
@@ -104,6 +105,11 @@ export class WorkflowService {
     const rules = this.matchingRules(wf, action, from, roles);
     if (rules.length === 0) throw new BadRequestError(`action "${action}" is not available`);
 
+    // Assignments that were open BEFORE this transition. If the state advances,
+    // that step's work is done, so we close exactly these — never the fresh ones
+    // that an `assign` action may open for the new state (order-independent).
+    const openBefore = await assignmentService.openIdsFor(masterSlug, code);
+
     let mutated = false;
     for (const rule of rules) {
       const branch = rule.branches.find((b) => evaluateConditions(b.conditions, rec.data));
@@ -117,6 +123,7 @@ export class WorkflowService {
 
     if (mutated) await this.persistRecord(masterSlug, rec);
     const to = rec.state ?? wf.startState;
+    if (from !== to) await assignmentService.closeByIds(openBefore);
     return { action, from, to, stateChanged: from !== to };
   }
 }

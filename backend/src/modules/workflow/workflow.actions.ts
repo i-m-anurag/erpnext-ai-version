@@ -76,6 +76,9 @@ async function runAssign(action: Extract<RuleAction, { type: 'assign' }>, ctx: A
       assigneeUserId: assignee,
       status: 'open',
       ruleName: ctx.ruleName,
+      role: action.role ?? null,
+      state: ctx.row.state,
+      assignedByUserId: ctx.actorUserId,
     }),
   );
   const name = await nameOf(assignee);
