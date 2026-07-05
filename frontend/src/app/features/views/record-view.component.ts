@@ -369,6 +369,7 @@ export class RecordViewComponent {
         this.transitioning.set(false);
         this.notify.success(`${r.action} → ${r.to}`);
         this.loadWorkflow();
+        this.loadAssignments();
         this.activity.timeline(entity, this.recordId()).subscribe((t) => this.timeline.set(t));
       },
       error: (e: { error?: { error?: { message?: string } } }) => {
