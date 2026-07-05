@@ -5,7 +5,7 @@
   "states": [
     { "name": "Draft", "color": "#6b7280" },
     { "name": "Pending Approval", "color": "#f59e0b" },
-    { "name": "Approved", "color": "#22c55e" },
+    { "name": "Approved", "color": "#22c55e", "allowCreateNext": true },
     { "name": "Rejected", "color": "#ef4444" }
   ],
   "rules": [
@@ -28,7 +28,7 @@
     },
     {
       "name": "Approve",
-      "trigger": { "on": "action", "action": "Approve", "fromState": "Pending Approval", "roles": ["admin"] },
+      "trigger": { "on": "action", "action": "Approve", "fromState": "Pending Approval", "roles": ["admin"], "requiresAssignee": true },
       "branches": [
         {
           "conditions": [],

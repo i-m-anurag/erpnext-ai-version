@@ -3,7 +3,7 @@ import { BaseRepository } from '../../shared/base.repository.js';
 import { MasterRegistry } from '../master/master-registry.entity.js';
 import { MasterData } from '../master/master-data.entity.js';
 import { permissionService } from '../permission/index.js';
-import { BadRequestError, NotFoundError } from '../../shared/errors.js';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../../shared/errors.js';
 import { WORKFLOW_RESOURCE_TYPE } from './workflow.resource.js';
 import type { Rule, WorkflowDefinition, WorkflowState } from './workflow.schema.js';
 import { evaluateConditions } from './condition.js';
@@ -15,8 +15,15 @@ export interface WorkflowStatus {
   hasWorkflow: boolean;
   currentState: string | null;
   states: WorkflowState[];
-  /** action names this user may trigger from the current state */
-  actions: { action: string }[];
+  /** actions available from the current state; `enabled` is false when an action
+   *  requires being the assignee and this user isn't. */
+  actions: { action: string; requiresAssignee: boolean; enabled: boolean }[];
+  /** the field form may be edited / saved (only in the start state). */
+  editable: boolean;
+  /** cross-document "Create next" buttons are allowed in the current state. */
+  canCreateNext: boolean;
+  /** this user is the record's current open assignee. */
+  isAssignee: boolean;
 }
 
 export interface ActionResult {
@@ -80,20 +87,66 @@ export class WorkflowService {
 
   async status(masterSlug: string, code: string, userId: string): Promise<WorkflowStatus> {
     const wf = await this.getForMaster(masterSlug);
-    if (!wf) return { hasWorkflow: false, currentState: null, states: [], actions: [] };
+    // No workflow → nothing to gate: form editable, create-next allowed (as before).
+    if (!wf) {
+      return { hasWorkflow: false, currentState: null, states: [], actions: [], editable: true, canCreateNext: true, isAssignee: false };
+    }
     const rec = await this.loadRecord(masterSlug, code);
     const cur = rec.state ?? wf.startState;
     const roles = await permissionService.rolesForUser(userId);
-    const names = new Set<string>();
+    const assignee = await assignmentService.activeAssignee(masterSlug, code);
+    const isAssignee = assignee != null && assignee === userId;
+
+    // action name → requiresAssignee (OR across matching rules)
+    const byAction = new Map<string, boolean>();
     for (const r of wf.rules) {
       if (
         (r.trigger.fromState == null || r.trigger.fromState === cur) &&
         (r.trigger.roles.length === 0 || r.trigger.roles.some((role) => roles.includes(role)))
       ) {
-        names.add(r.trigger.action);
+        byAction.set(r.trigger.action, (byAction.get(r.trigger.action) ?? false) || r.trigger.requiresAssignee === true);
       }
     }
-    return { hasWorkflow: true, currentState: cur, states: wf.states, actions: [...names].map((action) => ({ action })) };
+    const actions = [...byAction].map(([action, requiresAssignee]) => ({
+      action,
+      requiresAssignee,
+      enabled: !requiresAssignee || isAssignee,
+    }));
+
+    return {
+      hasWorkflow: true,
+      currentState: cur,
+      states: wf.states,
+      actions,
+      editable: cur === wf.startState,
+      canCreateNext: wf.states.find((s) => s.name === cur)?.allowCreateNext === true,
+      isAssignee,
+    };
+  }
+
+  /** Whether a record's field form may be edited (only in the start state). No
+   *  workflow → always editable. Used to gate data updates + the frontend form. */
+  async isEditable(masterSlug: string, code: string): Promise<boolean> {
+    const wf = await this.getForMaster(masterSlug);
+    if (!wf) return true;
+    const rec = await this.loadRecord(masterSlug, code);
+    return (rec.state ?? wf.startState) === wf.startState;
+  }
+
+  /** Editability from a known state (avoids re-loading the record). */
+  async isEditableState(masterSlug: string, state: string | null): Promise<boolean> {
+    const wf = await this.getForMaster(masterSlug);
+    if (!wf) return true;
+    return (state ?? wf.startState) === wf.startState;
+  }
+
+  /** Whether cross-document "create next" is allowed in the record's current state. */
+  async canCreateNext(masterSlug: string, code: string): Promise<boolean> {
+    const wf = await this.getForMaster(masterSlug);
+    if (!wf) return true;
+    const rec = await this.loadRecord(masterSlug, code);
+    const cur = rec.state ?? wf.startState;
+    return wf.states.find((s) => s.name === cur)?.allowCreateNext === true;
   }
 
   async runAction(masterSlug: string, code: string, action: string, userId: string): Promise<ActionResult> {
@@ -104,6 +157,12 @@ export class WorkflowService {
     const roles = await permissionService.rolesForUser(userId);
     const rules = this.matchingRules(wf, action, from, roles);
     if (rules.length === 0) throw new BadRequestError(`action "${action}" is not available`);
+
+    // Assignee gate (opt-in per rule): only the current assignee may fire it.
+    if (rules.some((r) => r.trigger.requiresAssignee === true)) {
+      const assignee = await assignmentService.activeAssignee(masterSlug, code);
+      if (assignee !== userId) throw new ForbiddenError('this action is restricted to the current assignee');
+    }
 
     // Assignments that were open BEFORE this transition. If the state advances,
     // that step's work is done, so we close exactly these — never the fresh ones

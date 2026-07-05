@@ -9,6 +9,8 @@ import { z } from 'zod';
 export const workflowStateSchema = z.object({
   name: z.string().min(1),
   color: z.string().optional(),
+  /** Cross-document "Create next" buttons are allowed only in states that set this. */
+  allowCreateNext: z.boolean().optional(),
 });
 
 export type ConditionValue = string | number | boolean | null;
@@ -54,6 +56,8 @@ export const ruleSchema = z.object({
     fromState: z.string().nullable().optional(),
     /** role codes allowed to trigger; empty = any authenticated user */
     roles: z.array(z.string()).default([]),
+    /** when true, only the record's current assignee may fire this action. */
+    requiresAssignee: z.boolean().optional(),
   }),
   branches: z.array(branchSchema).default([]),
 });

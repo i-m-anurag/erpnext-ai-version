@@ -55,17 +55,19 @@ const KIND_ICON: Record<TimelineKind, string> = {
             <button class="btn btn-sm btn-light" (click)="openExisting(ex)" [title]="ex.code">
               <i class="ph ph-arrow-square-out"></i> Go to {{ ex.code }}
             </button>
-          } @else {
+          } @else if (canCreateNext()) {
             <button class="btn btn-sm btn-light" (click)="createNextDoc(opt)"><i class="ph ph-arrow-bend-up-right"></i> {{ opt.label }}</button>
           }
         }
         <button class="btn btn-sm btn-ai"><i class="ph ph-sparkle"></i> Ask IQ</button>
-        <button class="btn btn-sm btn-light" [disabled]="saving()" (click)="saveDraft()">
-          <i class="ph ph-floppy-disk"></i> Save as Draft
-        </button>
-        <button class="btn btn-sm btn-primary" [disabled]="saving()" (click)="submit()">
-          <i class="ph ph-check"></i> {{ saving() ? 'Saving…' : 'Submit' }}
-        </button>
+        @if (formEditable()) {
+          <button class="btn btn-sm btn-light" [disabled]="saving()" (click)="saveDraft()">
+            <i class="ph ph-floppy-disk"></i> Save as Draft
+          </button>
+          <button class="btn btn-sm btn-primary" [disabled]="saving()" (click)="submit()">
+            <i class="ph ph-check"></i> {{ saving() ? 'Saving…' : 'Submit' }}
+          </button>
+        }
       </div>
     </div>
 
@@ -88,8 +90,9 @@ const KIND_ICON: Record<TimelineKind, string> = {
           <div class="d-flex gap-2 mb-3 align-items-center">
             <span class="text-muted small">Actions:</span>
             @for (a of w.actions; track a.action) {
-              <button class="btn btn-sm btn-primary" [disabled]="transitioning()" (click)="doTransition(a.action)">
-                {{ a.action }}
+              <button class="btn btn-sm btn-primary" [disabled]="transitioning() || !a.enabled" (click)="doTransition(a.action)"
+                      [title]="!a.enabled ? 'Only the current assignee can do this' : ''">
+                {{ a.action }}@if (!a.enabled) { <i class="ph ph-lock-simple ms-1"></i> }
               </button>
             }
           </div>
@@ -239,6 +242,9 @@ export class RecordViewComponent {
 
   protected readonly wf = signal<WorkflowStatus | undefined>(undefined);
   protected readonly transitioning = signal(false);
+  /** No workflow (or not yet loaded) → editable / create-next allowed, as before. */
+  protected readonly formEditable = computed(() => { const w = this.wf(); return !w || w.editable; });
+  protected readonly canCreateNext = computed(() => { const w = this.wf(); return !w || w.canCreateNext; });
 
   protected readonly related = signal<RelatedDoc[]>([]);
   protected readonly createOptions = signal<CreateOption[]>([]);
@@ -284,6 +290,14 @@ export class RecordViewComponent {
         next: (row) => this.recordRow.set(row.data),
         error: () => this.recordRow.set(undefined),
       });
+    });
+
+    // Make the form read-only once the record leaves its editable (Draft) state.
+    // Only ever disable — a freshly built group already has the correct per-field
+    // state (auto/read-only fields disabled), so we never blanket-enable.
+    effect(() => {
+      const g = this.group();
+      if (g && !this.formEditable()) g.disable({ emitEvent: false });
     });
   }
 

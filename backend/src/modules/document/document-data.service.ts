@@ -93,6 +93,13 @@ export class DocumentDataService {
     return this.assemble(c, rows[0]!);
   }
 
+  /** Just the workflow state of a record (cheap — no children), for edit gating. */
+  async stateOf(slug: string, id: string): Promise<string | null> {
+    const c = await this.ctx(slug);
+    const rows = (await AppDataSource.query(`SELECT "state" FROM ${ident(c.table)} WHERE "id"=$1`, [id])) as Sql[];
+    return (rows[0]?.state as string) ?? null;
+  }
+
   /** Persist a workflow result: state + any set_field changes (no children, no validation). */
   async persistWorkflow(slug: string, id: string, state: string | null, data: Record<string, unknown>): Promise<void> {
     const c = await this.ctx(slug);

@@ -7,6 +7,7 @@ import { validateFormData, FORM_RESOURCE_TYPE, type FormDefinition } from '../fo
 import { namingSeriesService } from '../naming/index.js';
 import { tableNameForSlug } from '../document/table-name.js';
 import { documentDataService } from '../document/document-data.service.js';
+import { workflowService } from '../workflow/workflow.service.js';
 import { MasterRegistry, type MasterManagedBy } from './master-registry.entity.js';
 import { MasterData } from './master-data.entity.js';
 
@@ -146,6 +147,17 @@ export class MasterService {
 
   async updateData(slug: string, id: string, input: Record<string, unknown>, draft = false): Promise<MasterData> {
     const reg = await this.getRegistry(slug);
+    // Editability gate: once a record leaves its workflow start state, the field
+    // form is read-only — edits then happen only through workflow actions.
+    if (reg.workflowSlug) {
+      const state =
+        reg.kind === 'document'
+          ? await documentDataService.stateOf(slug, id)
+          : ((await this.data.findOne({ id, masterSlug: slug }))?.state ?? null);
+      if (!(await workflowService.isEditableState(slug, state))) {
+        throw new BadRequestError('this record cannot be edited in its current workflow state');
+      }
+    }
     if (reg.kind === 'document') {
       const row = await documentDataService.update(slug, id, input, { draft });
       await cache.invalidate(optionsKey(slug));

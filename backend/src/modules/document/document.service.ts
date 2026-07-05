@@ -6,6 +6,7 @@ import { MasterData } from '../master/master-data.entity.js';
 import { activityService } from '../activity/index.js';
 import { namingSeriesService } from '../naming/index.js';
 import { documentDataService } from './document-data.service.js';
+import { workflowService } from '../workflow/workflow.service.js';
 import { DocumentLink } from './document-link.entity.js';
 import { DOCUMENT_PIPELINE_RESOURCE_TYPE, type Pipeline, type PipelineStep } from './document-pipeline.schema.js';
 
@@ -85,6 +86,11 @@ export class DocumentService {
     const pl = await this.pipeline();
     const step = pl.steps.find((s) => s.from === fromMaster && s.to === toMaster);
     if (!step) throw new BadRequestError(`no pipeline step ${fromMaster} → ${toMaster}`);
+
+    // Gate: the source's workflow state must allow creating the next document.
+    if (!(await workflowService.canCreateNext(fromMaster, fromCode))) {
+      throw new BadRequestError(`${fromCode} cannot create ${toMaster} in its current state`);
+    }
 
     const fromReg = await this.registry.findOne({ slug: fromMaster });
     const targetReg = await this.registry.findOne({ slug: toMaster });
