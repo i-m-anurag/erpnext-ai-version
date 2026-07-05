@@ -47,6 +47,9 @@ import { findModule, MODULES } from '../core/config/modules.config';
                [routerLinkActiveOptions]="{ exact: true }">
               <i class="ph ph-house erp-sidebar__icon"></i><span>Home</span>
             </a>
+            <a class="erp-sidebar__link" routerLink="/app/my-work" routerLinkActive="active">
+              <i class="ph ph-list-checks erp-sidebar__icon"></i><span>My Work</span>
+            </a>
             <div class="erp-sidebar__group">Modules</div>
             @for (m of modules; track m.slug) {
               <a class="erp-sidebar__link" [routerLink]="['/app/m', m.slug]" routerLinkActive="active">

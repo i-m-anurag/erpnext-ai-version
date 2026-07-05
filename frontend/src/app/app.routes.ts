@@ -18,6 +18,11 @@ export const routes: Routes = [
           import('./features/workspace-home/workspace-home.component').then((m) => m.WorkspaceHomeComponent),
       },
       {
+        path: 'my-work',
+        data: { title: 'My Work' },
+        loadComponent: () => import('./features/my-work/my-work.component').then((m) => m.MyWorkComponent),
+      },
+      {
         // Administration module — wires the pre-existing (API-backed) masters,
         // roles and dynamic-form playground into the new module shell. Declared
         // BEFORE the generic `m/:slug` route so these specific subs win.

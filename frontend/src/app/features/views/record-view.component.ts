@@ -14,6 +14,7 @@ import {
 } from '../../core/api/activity.api.service';
 import { WorkflowApiService, type WorkflowStatus } from '../../core/api/workflow.api.service';
 import { DocumentApiService, type CreateOption, type RelatedDoc } from '../../core/api/document.api.service';
+import { AssignmentApiService, type Assignment } from '../../core/api/assignment.api.service';
 import { NotificationService } from '../../core/notify/notification.service';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
 import { routeForMaster, type ResolvedView } from '../../core/config/view-configs';
@@ -106,6 +107,30 @@ const KIND_ICON: Record<TimelineKind, string> = {
       </div>
 
       <div class="iq-record__side">
+        @if (assignments().length) {
+          <div class="erp-card p-3">
+            <div class="fw-semibold mb-2">Assignment</div>
+            @if (openAssignee(); as a) {
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="iq-comment__avatar">{{ initials(a.assigneeName) }}</span>
+                <div>
+                  <div><b>{{ a.assigneeName }}</b> @if (a.role) { <span class="text-muted small">· {{ a.role }}</span> }</div>
+                  <div class="text-muted small">Open @if (a.state) { · {{ a.state }} }</div>
+                </div>
+              </div>
+            } @else {
+              <div class="text-muted small mb-2">No open assignment.</div>
+            }
+            <div class="text-muted small mb-1">History</div>
+            @for (a of assignments(); track a.id) {
+              <div class="d-flex justify-content-between small py-1" [class.text-muted]="a.status === 'closed'">
+                <span>{{ a.assigneeName }}@if (a.role) { <span class="text-muted"> · {{ a.role }}</span> }</span>
+                <span class="text-muted">{{ a.status }}</span>
+              </div>
+            }
+          </div>
+        }
+
         @if (related().length) {
           <div class="erp-card p-3">
             <div class="fw-semibold mb-2">Related documents</div>
@@ -196,6 +221,7 @@ export class RecordViewComponent {
   private readonly activity = inject(ActivityApiService);
   private readonly workflowApi = inject(WorkflowApiService);
   private readonly documents = inject(DocumentApiService);
+  private readonly assignmentApi = inject(AssignmentApiService);
   private readonly notify = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly formCmp = viewChild(DynamicFormComponent);
@@ -216,6 +242,8 @@ export class RecordViewComponent {
 
   protected readonly related = signal<RelatedDoc[]>([]);
   protected readonly createOptions = signal<CreateOption[]>([]);
+  protected readonly assignments = signal<Assignment[]>([]);
+  protected readonly openAssignee = computed(() => this.assignments().find((a) => a.status === 'open'));
   /** The full record (incl. line-items) for the edit form. The list payload omits
    *  children for speed, so an existing record is loaded on its own here. */
   private readonly recordRow = signal<Record<string, unknown> | undefined>(undefined);
@@ -230,12 +258,14 @@ export class RecordViewComponent {
       this.wf.set(undefined);
       this.related.set([]);
       this.createOptions.set([]);
+      this.assignments.set([]);
       this.loading.set(true);
       this.resolver.resolve(module, sub).subscribe({
         next: (cfg) => {
           this.config.set(cfg);
           this.loading.set(false);
           this.loadActivity();
+          this.loadAssignments();
           this.loadWorkflow();
           this.loadDocLinks();
         },
@@ -263,6 +293,15 @@ export class RecordViewComponent {
     this.documents.links(entity, this.recordId()).subscribe((r) => {
       this.related.set(r.related);
       this.createOptions.set(r.createOptions);
+    });
+  }
+
+  private loadAssignments(): void {
+    const entity = this.entityType();
+    if (!entity || !this.canComment()) return;
+    this.assignmentApi.forRecord(entity, this.recordId()).subscribe({
+      next: (list) => this.assignments.set(list),
+      error: () => this.assignments.set([]),
     });
   }
 
