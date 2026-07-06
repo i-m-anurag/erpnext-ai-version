@@ -8,6 +8,7 @@ import { WORKFLOW_RESOURCE_TYPE } from './workflow.resource.js';
 import type { Rule, WorkflowDefinition, WorkflowState } from './workflow.schema.js';
 import { evaluateBranch } from './condition.js';
 import { attributeContextService } from './attribute-context.service.js';
+import { approvalService } from './approval.service.js';
 import { executeAction, type ActionContext, type WorkflowRecord } from './workflow.actions.js';
 import { assignmentService } from './assignment.service.js';
 import { workflowInstanceService } from './workflow-instance.service.js';
@@ -201,6 +202,15 @@ export class WorkflowService {
     // branch conditions can compare fields to user attributes, other fields, or
     // matrix-derived limits — not just hard-coded literals.
     const context = await attributeContextService.build(rec.data, userId, wf.attributes ?? []);
+
+    // If this action starts an approval chain, delegate: it sets the pending state
+    // and opens the first step's task (approval then happens via those tasks).
+    const approvalCfg = wf.approvals?.find((a) => a.action === action);
+    if (approvalCfg && (await approvalService.start(masterSlug, code, instance, approvalCfg, context, userId))) {
+      const to = instance.currentState ?? wf.startState;
+      if (from !== to) await assignmentService.closeByIds(openBefore);
+      return { action, from, to, stateChanged: from !== to };
+    }
 
     let mutated = false;
     for (const rule of rules) {

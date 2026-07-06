@@ -40,4 +40,12 @@ export class Assignment extends BaseEntity {
   /** When the assignment was closed (status → 'closed'). */
   @Column({ name: 'closed_at', type: 'timestamptz', nullable: true })
   closedAt!: Date | null;
+
+  /** Approval-chain step this task belongs to (null for a plain assignment). */
+  @Column({ name: 'step_no', type: 'integer', nullable: true })
+  stepNo!: number | null;
+
+  /** Final decision on an approval task. */
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  outcome!: 'approved' | 'rejected' | null;
 }

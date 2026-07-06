@@ -16,6 +16,9 @@ export function buildAssignmentRouter(): Router {
   router.get('/mine', asyncHandler(assignmentController.mine));
   router.get('/:master/:code', requirePermission('workflow', 'view'), asyncHandler(assignmentController.forRecord));
   router.post('/:id/reassign', requirePermission('workflow', 'transition'), asyncHandler(assignmentController.reassign));
+  // acting on your own approval task needs no extra permission (assignee-checked in the service)
+  router.post('/:id/approve', asyncHandler(assignmentController.approve));
+  router.post('/:id/reject', asyncHandler(assignmentController.reject));
 
   return router;
 }

@@ -103,6 +103,36 @@ export const attributeSchema = z.object({
   }),
 });
 
+/** One approver in a serial chain: a role (optionally scoped to the record's branch)
+ *  or a named user. */
+export const approvalStepSchema = z.object({
+  approver: z.enum(['role', 'user']),
+  role: z.string().optional(),
+  user: z.string().optional(),
+  branchScoped: z.boolean().optional(),
+});
+
+/**
+ * An approval chain attached to a triggering action (e.g. Submit). The FIRST rule
+ * whose `when` (JSONLogic) matches supplies the ordered approver `steps` (amount
+ * tiers → deeper chains). While the chain runs the record sits in `pendingState`;
+ * clearing all steps moves it to `onApproved`, a rejection to `onRejected`.
+ */
+export const approvalConfigSchema = z.object({
+  action: z.string().min(1),
+  pendingState: z.string().min(1),
+  onApproved: z.string().min(1),
+  onRejected: z.string().min(1),
+  rules: z
+    .array(
+      z.object({
+        when: z.record(z.string(), z.unknown()).optional(),
+        steps: z.array(approvalStepSchema).min(1),
+      }),
+    )
+    .default([]),
+});
+
 export const workflowDefinitionSchema = z.object({
   slug: z.string().min(1),
   appliesTo: z.string().min(1),
@@ -111,6 +141,8 @@ export const workflowDefinitionSchema = z.object({
   rules: z.array(ruleSchema).default([]),
   /** derived `lookup.*` attributes usable in JSONLogic conditions. */
   attributes: z.array(attributeSchema).default([]),
+  /** serial approval chains attached to triggering actions. */
+  approvals: z.array(approvalConfigSchema).default([]),
 });
 
 export type WorkflowDefinition = z.infer<typeof workflowDefinitionSchema>;
@@ -120,3 +152,4 @@ export type RuleBranch = z.infer<typeof branchSchema>;
 export type RuleAction = z.infer<typeof actionSchema>;
 export type Condition = z.infer<typeof conditionSchema>;
 export type WorkflowAttribute = z.infer<typeof attributeSchema>;
+export type ApprovalConfig = z.infer<typeof approvalConfigSchema>;

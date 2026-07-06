@@ -29,4 +29,24 @@ export class WorkflowInstance extends BaseEntity {
   /** Denormalised branch/location (for reporting + branch-scoped approver routing). */
   @Column({ name: 'branch', type: 'varchar', length: 64, nullable: true })
   branch!: string | null;
+
+  /** The active approval chain (null when none in progress). */
+  @Column({ type: 'jsonb', nullable: true })
+  approval!: ApprovalChain | null;
+}
+
+/** Runtime state of an in-progress serial approval chain (stored on the instance). */
+export interface ApprovalChain {
+  action: string;
+  pendingState: string;
+  onApproved: string;
+  onRejected: string;
+  steps: ApprovalStep[];
+  currentStep: number;
+}
+export interface ApprovalStep {
+  approver: 'role' | 'user';
+  role?: string;
+  user?: string;
+  branchScoped?: boolean;
 }

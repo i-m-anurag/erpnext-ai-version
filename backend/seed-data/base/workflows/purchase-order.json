@@ -11,46 +11,32 @@
   "attributes": [
     { "key": "approvalLimit", "type": "number", "source": "matrix", "matrix": { "role": "admin", "branchField": "branch" } }
   ],
+  "approvals": [
+    {
+      "action": "Submit",
+      "pendingState": "Pending Approval",
+      "onApproved": "Approved",
+      "onRejected": "Rejected",
+      "rules": [
+        {
+          "when": { "<=": [ { "var": "doc.amount" }, { "var": "lookup.approvalLimit" } ] },
+          "steps": [ { "approver": "role", "role": "manager", "branchScoped": true } ]
+        },
+        {
+          "when": { ">": [ { "var": "doc.amount" }, { "var": "lookup.approvalLimit" } ] },
+          "steps": [
+            { "approver": "role", "role": "manager", "branchScoped": true },
+            { "approver": "role", "role": "director", "branchScoped": true }
+          ]
+        }
+      ]
+    }
+  ],
   "rules": [
     {
       "name": "Submit",
       "trigger": { "on": "action", "action": "Submit", "fromState": "Draft", "roles": ["admin"] },
-      "branches": [
-        {
-          "when": { ">": [ { "var": "doc.amount" }, { "var": "lookup.approvalLimit" } ] },
-          "actions": [
-            { "type": "set_state", "to": "Pending Approval" },
-            { "type": "set_field", "field": "overLimit", "value": true },
-            { "type": "assign", "role": "admin", "byLimit": { "amountField": "amount", "branchField": "branch" } }
-          ]
-        },
-        {
-          "conditions": [],
-          "actions": [
-            { "type": "set_state", "to": "Pending Approval" },
-            { "type": "set_field", "field": "overLimit", "value": false },
-            { "type": "assign", "role": "admin", "byLimit": { "amountField": "amount", "branchField": "branch" } }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Approve",
-      "trigger": { "on": "action", "action": "Approve", "fromState": "Pending Approval", "roles": ["admin"], "requiresAssignee": true },
-      "branches": [
-        {
-          "conditions": [],
-          "actions": [
-            { "type": "set_state", "to": "Approved" },
-            { "type": "email", "template": "record-approved", "to": ["role:admin"] }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Reject",
-      "trigger": { "on": "action", "action": "Reject", "fromState": "Pending Approval", "roles": ["admin"] },
-      "branches": [{ "conditions": [], "actions": [{ "type": "set_state", "to": "Rejected" }] }]
+      "branches": [{ "conditions": [], "actions": [] }]
     },
     {
       "name": "Reopen",

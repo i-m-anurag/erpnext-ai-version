@@ -100,6 +100,12 @@ export class DocumentDataService {
     return (rows[0]?.state as string) ?? null;
   }
 
+  /** Update the doc's cached workflow state by code (instance stays authoritative). */
+  async setStateByCode(slug: string, code: string, state: string | null): Promise<void> {
+    const c = await this.ctx(slug);
+    await AppDataSource.query(`UPDATE ${ident(c.table)} SET "state"=$1, "updatedAt"=now() WHERE "code"=$2`, [state, code]);
+  }
+
   /** Persist a workflow result: state + any set_field changes (no children, no validation). */
   async persistWorkflow(slug: string, id: string, state: string | null, data: Record<string, unknown>): Promise<void> {
     const c = await this.ctx(slug);
