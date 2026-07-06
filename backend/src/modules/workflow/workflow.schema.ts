@@ -21,11 +21,17 @@ export const conditionValueSchema: z.ZodType<ConditionValue> = z.union([
   z.null(),
 ]);
 
-/** A single field comparison. Conditions in a branch are ANDed. */
+/**
+ * A single field comparison. Conditions in a branch are ANDed. The right-hand side
+ * is either a literal `value` OR a dynamic `valueField` (another field on the same
+ * record) — so branches can compare two fields, not only a field to a hard-coded
+ * constant (e.g. `acceptedQty <= orderedQty`, or `total > approvedBudget`).
+ */
 export const conditionSchema = z.object({
   field: z.string().min(1),
   op: z.enum(['==', '!=', '<', '<=', '>', '>=']),
-  value: conditionValueSchema,
+  value: conditionValueSchema.optional(),
+  valueField: z.string().min(1).optional(),
 });
 
 /** Action registry (extensible). */
@@ -38,6 +44,17 @@ export const actionSchema = z.discriminatedUnion('type', [
     role: z.string().optional(),
     users: z.array(z.string()).optional(),
     strategy: z.enum(['least_loaded', 'round_robin']).default('least_loaded'),
+    /**
+     * Dynamic routing by the approval matrix: pick from users with `role` who are
+     * in the record's branch AND whose (role, branch) limit covers the record's
+     * amount. `amountField`/`branchField` name the record fields to read.
+     */
+    byLimit: z
+      .object({
+        amountField: z.string().min(1),
+        branchField: z.string().min(1).default('branch'),
+      })
+      .optional(),
   }),
 ]);
 

@@ -1,0 +1,8 @@
+{
+  "slug": "default",
+  "entries": [
+    { "role": "admin", "branch": "DEL", "limit": 100000 },
+    { "role": "admin", "branch": "MUM", "limit": 20000 },
+    { "role": "admin", "branch": "BLR", "limit": 50000 }
+  ]
+}

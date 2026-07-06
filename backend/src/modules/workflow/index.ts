@@ -5,5 +5,8 @@ export { workflowService } from './workflow.service.js';
 export { assignmentService } from './assignment.service.js';
 export { workflowAdminService } from './workflow.admin.service.js';
 export { registerWorkflowResourceType, WORKFLOW_RESOURCE_TYPE } from './workflow.resource.js';
+export { registerApprovalMatrixResourceType, APPROVAL_MATRIX_RESOURCE_TYPE } from './approval-matrix.resource.js';
+export { approvalMatrixSchema } from './approval-matrix.schema.js';
+export { approvalMatrixService } from './approval-matrix.service.js';
 export { workflowDefinitionSchema } from './workflow.schema.js';
 export type { WorkflowDefinition } from './workflow.schema.js';

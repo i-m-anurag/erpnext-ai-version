@@ -38,4 +38,9 @@ export class User extends BaseEntity {
 
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
   lastLoginAt!: Date | null;
+
+  /** Home branch/location (a `branch` master code, e.g. "DEL"). Drives location-
+   *  based approval routing. */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  branch!: string | null;
 }

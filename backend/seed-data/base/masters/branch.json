@@ -1,0 +1,11 @@
+{
+  "slug": "branch",
+  "name": "Branch",
+  "managedBy": "seeded",
+  "editable": false,
+  "data": [
+    { "code": "DEL", "name": "Delhi" },
+    { "code": "MUM", "name": "Mumbai" },
+    { "code": "BLR", "name": "Bengaluru" }
+  ]
+}

@@ -16,7 +16,9 @@
           { "value": "Globex Corp", "label": "Globex Corp" },
           { "value": "Initech", "label": "Initech" }
         ] },
-        { "key": "poDate", "type": "date", "label": "PO Date", "required": true }
+        { "key": "poDate", "type": "date", "label": "PO Date", "required": true },
+        { "key": "branch", "type": "master-lookup", "label": "Branch", "required": true, "inList": true, "optionsSource": { "master": "branch" } },
+        { "key": "amount", "type": "number", "label": "Amount", "required": true, "inList": true, "validators": { "min": 0 } }
       ]
     },
     {

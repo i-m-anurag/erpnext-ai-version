@@ -10,6 +10,7 @@ import { mastersSeeder } from './seeders/masters.seeder.js';
 import { formsSeeder } from './seeders/forms.seeder.js';
 import { emailTemplatesSeeder } from './seeders/email-templates.seeder.js';
 import { workflowsSeeder } from './seeders/workflows.seeder.js';
+import { approvalMatrixSeeder } from './seeders/approval-matrix.seeder.js';
 import { pipelinesSeeder } from './seeders/pipelines.seeder.js';
 import { namingSeriesSeeder } from './seeders/naming-series.seeder.js';
 import { adminBootstrapSeeder } from './seeders/admin-bootstrap.seeder.js';
@@ -28,6 +29,7 @@ const seeders: Seeder[] = [
   formsSeeder,
   emailTemplatesSeeder,
   workflowsSeeder,
+  approvalMatrixSeeder,
   pipelinesSeeder,
   namingSeriesSeeder,
   adminBootstrapSeeder,

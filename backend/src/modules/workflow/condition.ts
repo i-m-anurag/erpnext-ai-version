@@ -11,7 +11,8 @@ export function evaluateConditions(conditions: Condition[], data: Record<string,
 
 function evalOne(c: Condition, data: Record<string, unknown>): boolean {
   const lhs = data[c.field];
-  const rhs = c.value;
+  // dynamic RHS: another field's value takes precedence over a literal.
+  const rhs = c.valueField !== undefined ? data[c.valueField] : c.value;
   switch (c.op) {
     case '==':
       return looseEq(lhs, rhs);

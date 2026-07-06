@@ -14,15 +14,11 @@
       "trigger": { "on": "action", "action": "Submit", "fromState": "Draft", "roles": ["admin"] },
       "branches": [
         {
-          "conditions": [{ "field": "vendor", "op": "==", "value": "Acme Supplies" }],
+          "conditions": [],
           "actions": [
             { "type": "set_state", "to": "Pending Approval" },
-            { "type": "assign", "role": "admin", "strategy": "least_loaded" }
+            { "type": "assign", "role": "admin", "byLimit": { "amountField": "amount", "branchField": "branch" } }
           ]
-        },
-        {
-          "conditions": [],
-          "actions": [{ "type": "set_state", "to": "Pending Approval" }]
         }
       ]
     },
