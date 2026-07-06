@@ -6,7 +6,6 @@ import { activityService } from '../activity/index.js';
 import { permissionService } from '../permission/index.js';
 import { User } from '../auth/user.entity.js';
 import { Assignment } from './assignment.entity.js';
-import { approvalMatrixService } from './approval-matrix.service.js';
 import type { RuleAction } from './workflow.schema.js';
 
 const assignments = new BaseRepository(Assignment);
@@ -53,14 +52,9 @@ export async function executeAction(action: RuleAction, ctx: ActionContext): Pro
 }
 
 async function runAssign(action: Extract<RuleAction, { type: 'assign' }>, ctx: ActionContext): Promise<void> {
-  let candidates: string[];
-  if (action.byLimit) {
-    candidates = await matrixCandidates(action, ctx);
-  } else {
-    candidates = [...(action.users ?? [])];
-    if (action.role) candidates = candidates.concat(await permissionService.userIdsWithRoleCode(action.role));
-    candidates = [...new Set(candidates)];
-  }
+  let candidates = [...(action.users ?? [])];
+  if (action.role) candidates = candidates.concat(await permissionService.userIdsWithRoleCode(action.role));
+  candidates = [...new Set(candidates)];
   if (candidates.length === 0) return;
 
   // least_loaded (default): fewest OPEN assignments wins. round_robin approximates
@@ -89,39 +83,6 @@ async function runAssign(action: Extract<RuleAction, { type: 'assign' }>, ctx: A
   );
   const name = await nameOf(assignee);
   await activityService.addTimeline(ctx.entityType, ctx.recordId, 'assigned', `Assigned to ${name}`, ctx.actorUserId);
-}
-
-/**
- * Approval-matrix routing: users with `action.role` who are in the record's branch
- * AND whose (role, branch) limit covers the record's amount. Returns [] (and logs)
- * when no tier can approve — e.g. the amount exceeds the role's limit in that branch.
- */
-async function matrixCandidates(
-  action: Extract<RuleAction, { type: 'assign' }>,
-  ctx: ActionContext,
-): Promise<string[]> {
-  const role = action.role;
-  if (!role || !action.byLimit) return [];
-  const amount = Number(ctx.row.data[action.byLimit.amountField] ?? 0);
-  const branch = String(ctx.row.data[action.byLimit.branchField] ?? '');
-  if (!branch) return [];
-
-  const limit = await approvalMatrixService.limitFor(role, branch);
-  if (limit === null || limit < amount) {
-    await activityService.addTimeline(
-      ctx.entityType,
-      ctx.recordId,
-      'assigned',
-      `No "${role}" in ${branch} can approve ${amount} (limit ${limit ?? 'none'})`,
-      ctx.actorUserId,
-    );
-    return [];
-  }
-
-  const roleUsers = await permissionService.userIdsWithRoleCode(role);
-  if (roleUsers.length === 0) return [];
-  const inBranch = await users.find({ where: { id: In(roleUsers), branch } });
-  return inBranch.map((u) => u.id);
 }
 
 async function runEmail(action: Extract<RuleAction, { type: 'email' }>, ctx: ActionContext): Promise<void> {

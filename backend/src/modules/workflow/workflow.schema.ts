@@ -44,17 +44,6 @@ export const actionSchema = z.discriminatedUnion('type', [
     role: z.string().optional(),
     users: z.array(z.string()).optional(),
     strategy: z.enum(['least_loaded', 'round_robin']).default('least_loaded'),
-    /**
-     * Dynamic routing by the approval matrix: pick from users with `role` who are
-     * in the record's branch AND whose (role, branch) limit covers the record's
-     * amount. `amountField`/`branchField` name the record fields to read.
-     */
-    byLimit: z
-      .object({
-        amountField: z.string().min(1),
-        branchField: z.string().min(1).default('branch'),
-      })
-      .optional(),
   }),
 ]);
 
