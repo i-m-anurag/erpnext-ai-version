@@ -56,6 +56,26 @@ export class WorkflowVersionService {
   async ensurePublished(workflowSlug: string): Promise<WorkflowVersion> {
     return (await this.currentPublished(workflowSlug)) ?? (await this.publish(workflowSlug));
   }
+
+  /**
+   * Publish a new version ONLY if the authored definition differs from the current
+   * published one (idempotent — safe to call on every seed/deploy). Returns whether
+   * a new version was created.
+   */
+  async publishIfChanged(workflowSlug: string): Promise<{ version: WorkflowVersion; changed: boolean }> {
+    const def = (await configResolver.resolve<WorkflowDefinition>(WORKFLOW_RESOURCE_TYPE, workflowSlug)).definition;
+    const current = await this.currentPublished(workflowSlug);
+    if (current && stable(current.definition) === stable(def)) return { version: current, changed: false };
+    return { version: await this.publish(workflowSlug), changed: true };
+  }
+}
+
+/** Deterministic JSON (key-sorted) for change detection. */
+function stable(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
+  const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stable(v)}`).join(',')}}`;
 }
 
 export const workflowVersionService = new WorkflowVersionService();

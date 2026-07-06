@@ -24,8 +24,8 @@ export class WorkflowInstanceService {
     entityType: string,
     recordId: string,
     workflowSlug: string,
-    opts: { branch?: string | null } = {},
-  ): Promise<WorkflowInstance | null> {
+    opts: { branch?: string | null; startState?: string | null } = {},
+  ): Promise<WorkflowInstance> {
     const existing = await this.get(entityType, recordId);
     if (existing) return existing;
 
@@ -35,7 +35,8 @@ export class WorkflowInstanceService {
         entityType,
         recordId,
         workflowVersionId: version.id,
-        currentState: version.definition.startState,
+        // new docs start at startState; a backfilled doc keeps its cached state.
+        currentState: opts.startState ?? version.definition.startState,
         status: 'active',
         branch: opts.branch ?? null,
       }),

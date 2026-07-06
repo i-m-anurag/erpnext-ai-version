@@ -8,6 +8,7 @@ import { namingSeriesService } from '../naming/index.js';
 import { tableNameForSlug } from '../document/table-name.js';
 import { documentDataService } from '../document/document-data.service.js';
 import { workflowService } from '../workflow/workflow.service.js';
+import { workflowInstanceService } from '../workflow/workflow-instance.service.js';
 import { MasterRegistry, type MasterManagedBy } from './master-registry.entity.js';
 import { MasterData } from './master-data.entity.js';
 
@@ -128,6 +129,7 @@ export class MasterService {
     if (reg.kind === 'document') {
       // draft → skip validation + status 'draft'; submit → validate + 'active'.
       const row = draft ? await documentDataService.createDraft(slug, input) : await documentDataService.create(slug, input);
+      await this.ensureWorkflowInstance(reg, row.code, row.data);
       await cache.invalidate(optionsKey(slug));
       return row as unknown as MasterData;
     }
@@ -141,8 +143,22 @@ export class MasterService {
     }
     const status = draft ? 'draft' : 'active';
     const saved = await this.data.save(this.data.create({ masterSlug: slug, code, data: clean, status }));
+    await this.ensureWorkflowInstance(reg, code, clean);
     await cache.invalidate(optionsKey(slug));
     return saved;
+  }
+
+  /** Create the workflow instance (pinned to the current published version) for a
+   *  newly created record that has a workflow. No-op if the master has no workflow. */
+  private async ensureWorkflowInstance(
+    reg: MasterRegistry,
+    code: string,
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    if (!reg.workflowSlug) return;
+    await workflowInstanceService.ensure(reg.slug, code, reg.workflowSlug, {
+      branch: (data['branch'] as string | undefined) ?? null,
+    });
   }
 
   async updateData(slug: string, id: string, input: Record<string, unknown>, draft = false): Promise<MasterData> {

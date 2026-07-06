@@ -9,6 +9,8 @@ import type { Rule, WorkflowDefinition, WorkflowState } from './workflow.schema.
 import { evaluateConditions } from './condition.js';
 import { executeAction, type ActionContext, type WorkflowRecord } from './workflow.actions.js';
 import { assignmentService } from './assignment.service.js';
+import { workflowInstanceService } from './workflow-instance.service.js';
+import type { WorkflowInstance } from './workflow-instance.entity.js';
 import { documentDataService } from '../document/index.js';
 
 export interface WorkflowStatus {
@@ -85,14 +87,38 @@ export class WorkflowService {
     await this.data.save(row);
   }
 
+  /**
+   * The running instance for a record + its PINNED definition. Backfills an instance
+   * for documents that predate v2 (seeding the instance from the doc's cached state).
+   * Returns null when the master has no workflow.
+   */
+  private async instanceFor(
+    masterSlug: string,
+    code: string,
+  ): Promise<{ instance: WorkflowInstance; def: WorkflowDefinition } | null> {
+    const reg = await this.registry.findOne({ slug: masterSlug });
+    if (!reg?.workflowSlug) return null;
+    let instance = await workflowInstanceService.get(masterSlug, code);
+    if (!instance) {
+      const rec = await this.loadRecord(masterSlug, code); // backfill from the doc cache
+      instance = await workflowInstanceService.ensure(masterSlug, code, reg.workflowSlug, {
+        branch: (rec.data['branch'] as string | undefined) ?? null,
+        startState: rec.state ?? undefined,
+      });
+    }
+    const def = await workflowInstanceService.definitionFor(instance);
+    if (!def) throw new NotFoundError('pinned workflow version missing');
+    return { instance, def };
+  }
+
   async status(masterSlug: string, code: string, userId: string): Promise<WorkflowStatus> {
-    const wf = await this.getForMaster(masterSlug);
+    const ctx = await this.instanceFor(masterSlug, code);
     // No workflow → nothing to gate: form editable, create-next allowed (as before).
-    if (!wf) {
+    if (!ctx) {
       return { hasWorkflow: false, currentState: null, states: [], actions: [], editable: true, canCreateNext: true, isAssignee: false };
     }
-    const rec = await this.loadRecord(masterSlug, code);
-    const cur = rec.state ?? wf.startState;
+    const wf = ctx.def;
+    const cur = ctx.instance.currentState ?? wf.startState;
     const roles = await permissionService.rolesForUser(userId);
     const assignee = await assignmentService.activeAssignee(masterSlug, code);
     const isAssignee = assignee != null && assignee === userId;
@@ -125,15 +151,15 @@ export class WorkflowService {
   }
 
   /** Whether a record's field form may be edited (only in the start state). No
-   *  workflow → always editable. Used to gate data updates + the frontend form. */
+   *  workflow → always editable. Uses the pinned definition + instance state. */
   async isEditable(masterSlug: string, code: string): Promise<boolean> {
-    const wf = await this.getForMaster(masterSlug);
-    if (!wf) return true;
-    const rec = await this.loadRecord(masterSlug, code);
-    return (rec.state ?? wf.startState) === wf.startState;
+    const ctx = await this.instanceFor(masterSlug, code);
+    if (!ctx) return true;
+    return (ctx.instance.currentState ?? ctx.def.startState) === ctx.def.startState;
   }
 
-  /** Editability from a known state (avoids re-loading the record). */
+  /** Editability from a known state (the doc's cached state), avoiding a record load.
+   *  Uses config's startState (stable across versions) — good enough for the guard. */
   async isEditableState(masterSlug: string, state: string | null): Promise<boolean> {
     const wf = await this.getForMaster(masterSlug);
     if (!wf) return true;
@@ -142,17 +168,18 @@ export class WorkflowService {
 
   /** Whether cross-document "create next" is allowed in the record's current state. */
   async canCreateNext(masterSlug: string, code: string): Promise<boolean> {
-    const wf = await this.getForMaster(masterSlug);
-    if (!wf) return true;
-    const rec = await this.loadRecord(masterSlug, code);
-    const cur = rec.state ?? wf.startState;
-    return wf.states.find((s) => s.name === cur)?.allowCreateNext === true;
+    const ctx = await this.instanceFor(masterSlug, code);
+    if (!ctx) return true;
+    const cur = ctx.instance.currentState ?? ctx.def.startState;
+    return ctx.def.states.find((s) => s.name === cur)?.allowCreateNext === true;
   }
 
   async runAction(masterSlug: string, code: string, action: string, userId: string): Promise<ActionResult> {
-    const wf = await this.getForMaster(masterSlug);
-    if (!wf) throw new BadRequestError('this master has no workflow');
+    const ctx = await this.instanceFor(masterSlug, code);
+    if (!ctx) throw new BadRequestError('this master has no workflow');
+    const { instance, def: wf } = ctx;
     const rec = await this.loadRecord(masterSlug, code);
+    rec.state = instance.currentState; // instance is authoritative
     const from = rec.state ?? wf.startState;
     const roles = await permissionService.rolesForUser(userId);
     const rules = this.matchingRules(wf, action, from, roles);
@@ -180,8 +207,11 @@ export class WorkflowService {
       }
     }
 
-    if (mutated) await this.persistRecord(masterSlug, rec);
     const to = rec.state ?? wf.startState;
+    // Instance is authoritative; the doc's `state` column is a cache updated via
+    // persistRecord (which also saves any set_field data changes).
+    await workflowInstanceService.setState(instance, to);
+    if (mutated) await this.persistRecord(masterSlug, rec);
     if (from !== to) await assignmentService.closeByIds(openBefore);
     return { action, from, to, stateChanged: from !== to };
   }
