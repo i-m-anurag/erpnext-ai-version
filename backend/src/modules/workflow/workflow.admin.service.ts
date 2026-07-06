@@ -3,6 +3,7 @@ import { NotFoundError } from '../../shared/errors.js';
 import { ConfigResource } from '../config/config-resource.entity.js';
 import { configResolver } from '../config/index.js';
 import { WORKFLOW_RESOURCE_TYPE } from './workflow.resource.js';
+import { workflowVersionService } from './workflow-version.service.js';
 import { workflowDefinitionSchema, type WorkflowDefinition } from './workflow.schema.js';
 
 export interface WorkflowSummary {
@@ -51,6 +52,9 @@ export class WorkflowAdminService {
       'custom',
       def as unknown as Record<string, unknown>,
     );
+    // Snapshot a new immutable version so *new* documents pick up the edit
+    // (in-flight instances stay pinned to the version they started on).
+    await workflowVersionService.publishIfChanged(slug);
     return def;
   }
 
@@ -59,6 +63,8 @@ export class WorkflowAdminService {
     if (!custom) throw new NotFoundError('no custom override to reset');
     await this.repo.delete(custom.id);
     await configResolver.invalidate(WORKFLOW_RESOURCE_TYPE, slug);
+    // Reverting to base also changes the effective definition → publish it.
+    await workflowVersionService.publishIfChanged(slug);
   }
 }
 

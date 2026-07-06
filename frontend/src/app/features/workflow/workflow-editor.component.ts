@@ -8,17 +8,34 @@ import { TemplateApiService, type TemplateSummary } from '../../core/api/templat
 import { RolesApiService, type RoleOption } from '../../core/api/roles.api.service';
 import {
   WorkflowDefApiService,
+  type ApprovalConfig,
+  type ApprovalRule,
+  type ApprovalStep,
   type Condition,
   type Rule,
   type RuleAction,
   type RuleBranch,
   type WorkflowDef,
 } from '../../core/api/workflow-def.api.service';
+import type { FormFieldDef } from '../../core/models/api.models';
 import { NotificationService } from '../../core/notify/notification.service';
 
 const OPS: Condition['op'][] = ['==', '!=', '<', '<=', '>', '>='];
 const ACTION_TYPES: RuleAction['type'][] = ['set_state', 'set_field', 'email', 'assign'];
 const SWATCHES = ['#6b7280', '#5f79eb', '#9f7af3', '#f59e0b', '#22c55e', '#ef4444', '#06b6d4'];
+const THRESH_OPS = ['>', '>=', '<', '<=', '==', '!='] as const;
+type ThreshOp = (typeof THRESH_OPS)[number];
+
+/** Plain threshold view-model for one approval tier's condition — no JSONLogic in
+ *  the UI. `always` = the catch-all/base tier (no condition). Serialized to `when`. */
+interface ThreshVM {
+  always: boolean;
+  field: string;
+  op: ThreshOp;
+  value: string;
+}
+/** An approval tier carrying its transient editing view-model. */
+type EditTier = ApprovalRule & { __t?: ThreshVM };
 
 /**
  * Rule-engine configurator: states + rules with if/else-if/else branches, each
@@ -77,6 +94,88 @@ const SWATCHES = ['#6b7280', '#5f79eb', '#9f7af3', '#f59e0b', '#22c55e', '#ef444
         <datalist id="swatches">@for (c of swatches; track c) { <option [value]="c"></option> }</datalist>
         <button class="btn btn-sm btn-light mt-2" (click)="d.states.push({ name: '', color: '#6b7280' })"><i class="ph ph-plus"></i> Add state</button>
       </div>
+
+      <!-- Approval rules -->
+      <div class="fw-semibold mb-2">Approval rules
+        <span class="text-muted small fw-normal">— who must approve an action, based on amount (checked top-to-bottom, first match wins)</span>
+      </div>
+      @for (cfg of d.approvals!; track $index; let ci = $index) {
+        <div class="erp-card p-3 mb-3 iq-rule">
+          <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
+            <div style="max-width:150px">
+              <label class="erp-field__label form-label">On action</label>
+              <input class="form-control form-control-sm fw-semibold" [(ngModel)]="cfg.action" placeholder="e.g. Submit" />
+            </div>
+            <div>
+              <label class="erp-field__label form-label">While pending</label>
+              <select class="form-select form-select-sm" [(ngModel)]="cfg.pendingState">
+                @for (s of d.states; track s.name) { <option [value]="s.name">{{ s.name }}</option> }
+              </select>
+            </div>
+            <div>
+              <label class="erp-field__label form-label">If approved →</label>
+              <select class="form-select form-select-sm" [(ngModel)]="cfg.onApproved">
+                @for (s of d.states; track s.name) { <option [value]="s.name">{{ s.name }}</option> }
+              </select>
+            </div>
+            <div>
+              <label class="erp-field__label form-label">If rejected →</label>
+              <select class="form-select form-select-sm" [(ngModel)]="cfg.onRejected">
+                @for (s of d.states; track s.name) { <option [value]="s.name">{{ s.name }}</option> }
+              </select>
+            </div>
+            <button class="btn-icon text-danger ms-auto" (click)="d.approvals!.splice(ci,1)"><i class="ph ph-trash"></i></button>
+          </div>
+
+          @for (tier of cfg.rules; track $index; let ti = $index) {
+            <div class="iq-branch mb-2">
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="iq-branch__label">{{ threshOf(tier).always ? 'OTHERWISE' : 'IF' }}</span>
+                <button class="btn-icon text-danger" (click)="cfg.rules.splice(ti,1)"><i class="ph ph-x"></i></button>
+              </div>
+              <div class="d-flex gap-2 align-items-center mb-2 flex-wrap">
+                <label class="small d-flex align-items-center gap-1 mb-0">
+                  <input type="checkbox" class="form-check-input mt-0" [(ngModel)]="threshOf(tier).always" /> applies to all (base tier)
+                </label>
+                @if (!threshOf(tier).always) {
+                  <span class="text-muted small">when</span>
+                  <select class="form-select form-select-sm" style="max-width:170px" [(ngModel)]="threshOf(tier).field">
+                    @for (f of fields(); track f.key) { <option [value]="f.key">{{ f.label }}</option> }
+                  </select>
+                  <select class="form-select form-select-sm" style="max-width:80px" [(ngModel)]="threshOf(tier).op">
+                    @for (o of threshOps; track o) { <option [value]="o">{{ o }}</option> }
+                  </select>
+                  <input type="number" class="form-control form-control-sm" style="max-width:130px" [(ngModel)]="threshOf(tier).value" placeholder="amount" />
+                }
+              </div>
+
+              <div class="iq-branch__then text-muted small">APPROVERS (in order)</div>
+              @for (st of tier.steps; track $index; let si = $index) {
+                <div class="d-flex gap-2 align-items-center mb-1 flex-wrap">
+                  <span class="text-muted small">{{ si + 1 }}.</span>
+                  <select class="form-select form-select-sm" style="max-width:100px" [(ngModel)]="st.approver">
+                    <option value="role">role</option><option value="user">user</option>
+                  </select>
+                  @if (st.approver === 'role') {
+                    <select class="form-select form-select-sm" style="max-width:160px" [(ngModel)]="st.role">
+                      @for (ro of roles(); track ro.code) { <option [value]="ro.code">{{ ro.name }}</option> }
+                    </select>
+                    <label class="small d-flex align-items-center gap-1 mb-0">
+                      <input type="checkbox" class="form-check-input mt-0" [(ngModel)]="st.branchScoped" /> branch-scoped
+                    </label>
+                  } @else {
+                    <input class="form-control form-control-sm" style="max-width:220px" [(ngModel)]="st.user" placeholder="user id" />
+                  }
+                  <button class="btn-icon" (click)="tier.steps.splice(si,1)"><i class="ph ph-x"></i></button>
+                </div>
+              }
+              <button class="btn btn-sm btn-link p-0" (click)="tier.steps.push(freshStep())">+ approver</button>
+            </div>
+          }
+          <button class="btn btn-sm btn-light" (click)="addTier(cfg)"><i class="ph ph-plus"></i> Add tier</button>
+        </div>
+      }
+      <button class="btn btn-sm btn-primary mb-3" (click)="addApproval()"><i class="ph ph-plus"></i> Add approval chain</button>
 
       <!-- Rules -->
       <div class="fw-semibold mb-2">Rules</div>
@@ -200,6 +299,7 @@ export class WorkflowEditorComponent {
   protected readonly roles = signal<RoleOption[]>([]);
   protected readonly saving = signal(false);
   protected readonly ops = OPS;
+  protected readonly threshOps = THRESH_OPS;
   protected readonly actionTypes = ACTION_TYPES;
   protected readonly swatches = SWATCHES;
 
@@ -219,14 +319,26 @@ export class WorkflowEditorComponent {
     this.templateApi.list().subscribe((t) => this.templatesAll.set(t));
     this.rolesApi.list().subscribe((r) => this.roles.set(r));
     this.api.get(this.slug()).subscribe((wf) => {
+      wf.approvals ??= [];
+      for (const cfg of wf.approvals) for (const tier of cfg.rules) (tier as EditTier).__t = this.hydrateThresh(tier.when);
       this.def.set(wf);
       this.masters.getMaster(wf.appliesTo).subscribe((m) => {
         if (!m.formSlug) return;
-        this.formApi.getForm(m.formSlug).subscribe((form) =>
-          this.fields.set(form.fields.filter((f) => f.type !== 'table').map((f) => ({ key: f.key, label: f.label }))),
-        );
+        this.formApi.getForm(m.formSlug).subscribe((form) => this.fields.set(this.flattenFields(form.fields)));
       });
     });
+  }
+
+  /** Leaf form fields, flattening display-group children (e.g. the nested `amount`
+   *  inside an Order Details group) so they're pickable as `doc.<key>`. */
+  private flattenFields(fields: FormFieldDef[]): { key: string; label: string }[] {
+    const out: { key: string; label: string }[] = [];
+    for (const f of fields) {
+      if (f.type === 'group' && Array.isArray(f.fields)) { out.push(...this.flattenFields(f.fields)); continue; }
+      if (f.type === 'table' || f.type === 'group') continue;
+      out.push({ key: f.key, label: f.label });
+    }
+    return out;
   }
 
   protected splitCsv(s: string): string[] {
@@ -253,9 +365,63 @@ export class WorkflowEditorComponent {
     branch.actions[i] = fresh[type];
   }
 
+  // ── approval rules ──────────────────────────────────────────────────────────
+  protected addApproval(): void {
+    const d = this.def();
+    if (!d) return;
+    const first = d.states[0]?.name ?? '';
+    const pending = d.states.find((s) => /pend/i.test(s.name))?.name ?? first;
+    const approved = d.states.find((s) => /approv/i.test(s.name))?.name ?? first;
+    const rejected = d.states.find((s) => /reject/i.test(s.name))?.name ?? first;
+    (d.approvals ??= []).push({
+      action: '', pendingState: pending, onApproved: approved, onRejected: rejected,
+      rules: [{ steps: [this.freshStep()], __t: this.hydrateThresh(undefined) } as EditTier],
+    });
+  }
+  protected addTier(cfg: ApprovalConfig): void {
+    cfg.rules.push({ steps: [this.freshStep()], __t: this.hydrateThresh(undefined) } as EditTier);
+  }
+  protected freshStep(): ApprovalStep {
+    return { approver: 'role', role: this.roles()[0]?.code ?? '', branchScoped: true };
+  }
+  protected threshOf(tier: ApprovalRule): ThreshVM {
+    return ((tier as EditTier).__t ??= this.hydrateThresh(tier.when));
+  }
+
+  /** Parse a stored `when` into the plain threshold VM. Only simple
+   *  `doc.<field> <op> <number>` is representable; anything else → base tier. */
+  private hydrateThresh(when?: Record<string, unknown>): ThreshVM {
+    const base: ThreshVM = { always: true, field: this.fields()[0]?.key ?? '', op: '>', value: '' };
+    if (!when || Object.keys(when).length === 0) return base;
+    const op = Object.keys(when)[0] as ThreshOp;
+    const args = (when as Record<string, unknown>)[op];
+    if ((THRESH_OPS as readonly string[]).includes(op) && Array.isArray(args) && args.length === 2) {
+      const [l, r] = args as [unknown, unknown];
+      const path = l && typeof l === 'object' && 'var' in (l as object) ? String((l as { var: unknown }).var) : '';
+      if (path.startsWith('doc.') && typeof r !== 'object') {
+        return { always: false, field: path.slice(4), op, value: String(r ?? '') };
+      }
+    }
+    return base;
+  }
+  /** Threshold VM → JSONLogic `when` (or undefined for the base/always tier). */
+  private serializeThresh(vm: ThreshVM | undefined): Record<string, unknown> | undefined {
+    if (!vm || vm.always || !vm.field) return undefined;
+    const n = Number(vm.value);
+    return { [vm.op]: [{ var: `doc.${vm.field}` }, Number.isNaN(n) ? vm.value : n] };
+  }
+
   protected save(): void {
     const d = this.def();
     if (!d) return;
+    // Fold each tier's threshold VM back into `when`, then strip the transient VM.
+    for (const cfg of d.approvals ?? []) {
+      for (const tier of cfg.rules) {
+        const et = tier as EditTier;
+        tier.when = this.serializeThresh(et.__t);
+        delete et.__t;
+      }
+    }
     this.saving.set(true);
     this.api.save(this.slug(), d).subscribe({
       next: () => {

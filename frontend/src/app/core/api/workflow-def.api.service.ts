@@ -25,12 +25,37 @@ export interface Rule {
   trigger: { on: 'action'; action: string; fromState?: string | null; roles: string[] };
   branches: RuleBranch[];
 }
+
+/** One approver in a serial approval chain (a role, optionally branch-scoped, or a user). */
+export interface ApprovalStep {
+  approver: 'role' | 'user';
+  role?: string;
+  user?: string;
+  branchScoped?: boolean;
+}
+/** A tier: the first tier whose `when` matches supplies the ordered approver steps.
+ *  The UI authors `when` as a plain `doc.<field> <op> <number>` threshold (or none). */
+export interface ApprovalRule {
+  when?: Record<string, unknown>;
+  steps: ApprovalStep[];
+}
+/** A serial approval chain attached to a triggering action (e.g. Submit). */
+export interface ApprovalConfig {
+  action: string;
+  pendingState: string;
+  onApproved: string;
+  onRejected: string;
+  rules: ApprovalRule[];
+}
+
 export interface WorkflowDef {
   slug: string;
   appliesTo: string;
   startState: string;
   states: WorkflowStateDef[];
   rules: Rule[];
+  /** serial approval chains attached to actions (authored via the Approval Rules form). */
+  approvals?: ApprovalConfig[];
   resolvedFrom?: string;
 }
 export interface WorkflowSummary {
