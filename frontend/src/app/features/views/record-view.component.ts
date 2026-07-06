@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, input, signal, viewChild } from '@
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { AuthStore } from '../../core/state/auth.store';
 import type { FormGroup } from '@angular/forms';
 import { DynamicFormComponent } from '../../dynamic-form/dynamic-form.component';
 import { FormBuilderService } from '../../dynamic-form/form-builder.service';
@@ -110,6 +111,20 @@ const KIND_ICON: Record<TimelineKind, string> = {
       </div>
 
       <div class="iq-record__side">
+        @if (myApprovalTask(); as t) {
+          <div class="erp-card p-3 border border-warning-subtle">
+            <div class="fw-semibold mb-1"><i class="ph ph-seal-check text-warning"></i> Awaiting your approval</div>
+            <div class="text-muted small mb-3">Step {{ (t.stepNo ?? 0) + 1 }}@if (t.role) { · {{ t.role }} }@if (t.state) { — {{ t.state }} }</div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-primary" [disabled]="acting()" (click)="act(true)">
+                <i class="ph ph-check"></i> Approve
+              </button>
+              <button class="btn btn-sm btn-light" [disabled]="acting()" (click)="act(false)">
+                <i class="ph ph-x"></i> Reject
+              </button>
+            </div>
+          </div>
+        }
         @if (assignments().length) {
           <div class="erp-card p-3">
             <div class="fw-semibold mb-2">Assignment</div>
@@ -227,6 +242,7 @@ export class RecordViewComponent {
   private readonly assignmentApi = inject(AssignmentApiService);
   private readonly notify = inject(NotificationService);
   private readonly router = inject(Router);
+  private readonly authStore = inject(AuthStore);
   private readonly formCmp = viewChild(DynamicFormComponent);
 
   protected readonly config = signal<ResolvedView | undefined>(undefined);
@@ -250,6 +266,15 @@ export class RecordViewComponent {
   protected readonly createOptions = signal<CreateOption[]>([]);
   protected readonly assignments = signal<Assignment[]>([]);
   protected readonly openAssignee = computed(() => this.assignments().find((a) => a.status === 'open'));
+  protected readonly acting = signal(false);
+  /** The open approval task on this record assigned to *me* (if any) — drives the
+   *  inline Approve/Reject card so the approver can act without leaving the record. */
+  protected readonly myApprovalTask = computed(() => {
+    const me = this.authStore.user()?.id;
+    return this.assignments().find(
+      (a) => a.status === 'open' && a.stepNo !== null && a.assigneeUserId === me,
+    );
+  });
   /** The full record (incl. line-items) for the edit form. The list payload omits
    *  children for speed, so an existing record is loaded on its own here. */
   private readonly recordRow = signal<Record<string, unknown> | undefined>(undefined);
@@ -375,6 +400,28 @@ export class RecordViewComponent {
       error: (e: { error?: { error?: { message?: string } } }) => {
         this.transitioning.set(false);
         this.notify.error(e?.error?.error?.message ?? 'Transition failed');
+      },
+    });
+  }
+
+  /** Approve/reject the current user's open approval task from the record page. */
+  protected act(approve: boolean): void {
+    const task = this.myApprovalTask();
+    const entity = this.entityType();
+    if (!task || this.acting()) return;
+    this.acting.set(true);
+    const call = approve ? this.assignmentApi.approve(task.id) : this.assignmentApi.reject(task.id);
+    call.subscribe({
+      next: (r) => {
+        this.acting.set(false);
+        this.notify.success(r.chainDone ? `${task.recordId} → ${r.to}` : `Approved — moved to step ${(r.nextStep ?? 0) + 1}`);
+        this.loadWorkflow();
+        this.loadAssignments();
+        if (entity) this.activity.timeline(entity, this.recordId()).subscribe((t) => this.timeline.set(t));
+      },
+      error: (e: { error?: { error?: { message?: string } } }) => {
+        this.acting.set(false);
+        this.notify.error(e?.error?.error?.message ?? 'Action failed');
       },
     });
   }
