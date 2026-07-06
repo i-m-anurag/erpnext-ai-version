@@ -20,6 +20,10 @@ export interface AssignmentView {
   assignedByName: string | null;
   createdAt: Date;
   closedAt: Date | null;
+  /** Approval-chain step (null = plain assignment); an open task with a stepNo is
+   *  an approval task the assignee can approve/reject. */
+  stepNo: number | null;
+  outcome: 'approved' | 'rejected' | null;
 }
 
 /**
@@ -126,6 +130,8 @@ export class AssignmentService {
       assignedByName: r.assignedByUserId ? (names.get(r.assignedByUserId) ?? null) : null,
       createdAt: r.createdAt,
       closedAt: r.closedAt,
+      stepNo: r.stepNo,
+      outcome: r.outcome,
     }));
   }
 

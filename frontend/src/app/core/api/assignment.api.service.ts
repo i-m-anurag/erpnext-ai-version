@@ -17,6 +17,17 @@ export interface Assignment {
   assignedByName: string | null;
   createdAt: string;
   closedAt: string | null;
+  /** Approval-chain step (null = plain assignment). An open task with a stepNo can
+   *  be approved/rejected by its assignee. */
+  stepNo: number | null;
+  outcome: 'approved' | 'rejected' | null;
+}
+
+export interface ApprovalActResult {
+  outcome: 'approved' | 'rejected';
+  to: string;
+  chainDone: boolean;
+  nextStep?: number;
 }
 
 /** Worklist + per-record assignment history + reassign. */
@@ -42,5 +53,15 @@ export class AssignmentApiService {
     return this.http
       .post<{ assignment: Assignment }>(`/api/assignments/${id}/reassign`, { toUserId })
       .pipe(map((r) => r.assignment));
+  }
+
+  /** Approve an approval task (advances the chain). */
+  approve(id: string, comment?: string): Observable<ApprovalActResult> {
+    return this.http.post<{ result: ApprovalActResult }>(`/api/assignments/${id}/approve`, { comment }).pipe(map((r) => r.result));
+  }
+
+  /** Reject an approval task (ends the chain). */
+  reject(id: string, comment?: string): Observable<ApprovalActResult> {
+    return this.http.post<{ result: ApprovalActResult }>(`/api/assignments/${id}/reject`, { comment }).pipe(map((r) => r.result));
   }
 }
