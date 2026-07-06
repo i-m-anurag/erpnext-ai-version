@@ -8,15 +8,27 @@
     { "name": "Approved", "color": "#22c55e", "allowCreateNext": true },
     { "name": "Rejected", "color": "#ef4444" }
   ],
+  "attributes": [
+    { "key": "approvalLimit", "type": "number", "source": "matrix", "matrix": { "role": "admin", "branchField": "branch" } }
+  ],
   "rules": [
     {
       "name": "Submit",
       "trigger": { "on": "action", "action": "Submit", "fromState": "Draft", "roles": ["admin"] },
       "branches": [
         {
+          "when": { ">": [ { "var": "doc.amount" }, { "var": "lookup.approvalLimit" } ] },
+          "actions": [
+            { "type": "set_state", "to": "Pending Approval" },
+            { "type": "set_field", "field": "overLimit", "value": true },
+            { "type": "assign", "role": "admin", "byLimit": { "amountField": "amount", "branchField": "branch" } }
+          ]
+        },
+        {
           "conditions": [],
           "actions": [
             { "type": "set_state", "to": "Pending Approval" },
+            { "type": "set_field", "field": "overLimit", "value": false },
             { "type": "assign", "role": "admin", "byLimit": { "amountField": "amount", "branchField": "branch" } }
           ]
         }

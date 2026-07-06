@@ -23,6 +23,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@types/json-logic-js": "^2.0.8",
     "argon2": "^0.44.0",
     "bullmq": "^5.78.1",
     "cookie-parser": "^1.4.7",
@@ -32,6 +33,7 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
     "ioredis": "^5.11.0",
+    "json-logic-js": "^2.0.5",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^8.0.10",
     "pg": "^8.21.0",

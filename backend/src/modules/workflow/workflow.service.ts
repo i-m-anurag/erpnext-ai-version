@@ -6,7 +6,8 @@ import { permissionService } from '../permission/index.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../shared/errors.js';
 import { WORKFLOW_RESOURCE_TYPE } from './workflow.resource.js';
 import type { Rule, WorkflowDefinition, WorkflowState } from './workflow.schema.js';
-import { evaluateConditions } from './condition.js';
+import { evaluateBranch } from './condition.js';
+import { attributeContextService } from './attribute-context.service.js';
 import { executeAction, type ActionContext, type WorkflowRecord } from './workflow.actions.js';
 import { assignmentService } from './assignment.service.js';
 import { workflowInstanceService } from './workflow-instance.service.js';
@@ -196,9 +197,14 @@ export class WorkflowService {
     // that an `assign` action may open for the new state (order-independent).
     const openBefore = await assignmentService.openIdsFor(masterSlug, code);
 
+    // Build the attribute context once (doc/user/system + resolved lookups) so
+    // branch conditions can compare fields to user attributes, other fields, or
+    // matrix-derived limits — not just hard-coded literals.
+    const context = await attributeContextService.build(rec.data, userId, wf.attributes ?? []);
+
     let mutated = false;
     for (const rule of rules) {
-      const branch = rule.branches.find((b) => evaluateConditions(b.conditions, rec.data));
+      const branch = rule.branches.find((b) => evaluateBranch(b, context));
       if (!branch) continue;
       const ctx: ActionContext = { entityType: masterSlug, recordId: code, row: rec, actorUserId: userId, ruleName: rule.name };
       for (const act of branch.actions) {

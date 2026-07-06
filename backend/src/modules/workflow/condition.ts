@@ -1,9 +1,21 @@
-import type { Condition } from './workflow.schema.js';
+import jsonLogic from 'json-logic-js';
+import type { Condition, RuleBranch } from './workflow.schema.js';
 
 /**
- * Evaluate a branch's conditions (ANDed) against a record's data. Structured
- * (field/op/value), so the UI builds them from the entity's form fields — no
- * free-text expressions. An empty list = the else branch (always true).
+ * Evaluate a branch's condition. Prefers a JSONLogic `when` (safe, serializable,
+ * evaluated over the full attribute context — doc.* / user.* / system.* / lookup.*);
+ * falls back to the legacy structured `conditions` (over doc.* only). An empty
+ * branch = the else branch (always true).
+ */
+export function evaluateBranch(branch: RuleBranch, context: Record<string, unknown>): boolean {
+  if (branch.when) return jsonLogic.apply(branch.when as Parameters<typeof jsonLogic.apply>[0], context) === true;
+  const doc = (context.doc as Record<string, unknown> | undefined) ?? {};
+  return evaluateConditions(branch.conditions, doc);
+}
+
+/**
+ * Legacy structured conditions (field/op/value), ANDed, over a record's data.
+ * Kept for definitions authored before JSONLogic; new branches use `when`.
  */
 export function evaluateConditions(conditions: Condition[], data: Record<string, unknown>): boolean {
   return conditions.every((c) => evalOne(c, data));

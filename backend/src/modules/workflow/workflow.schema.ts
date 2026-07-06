@@ -58,8 +58,15 @@ export const actionSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
-/** if (conditions ANDed) → actions. An empty `conditions` array = the else branch. */
+/**
+ * A branch runs when its condition holds. Two forms:
+ *  • `when` — a JSONLogic expression over the attribute context (doc.* / user.* /
+ *    system.* / lookup.*), e.g. `{">":[{"var":"doc.amount"},{"var":"lookup.limit"}]}`.
+ *  • `conditions` — the legacy structured {field,op,value} list (over doc.* only).
+ * An empty branch (no `when`, empty `conditions`) is the else branch (always true).
+ */
 export const branchSchema = z.object({
+  when: z.record(z.string(), z.unknown()).optional(),
   conditions: z.array(conditionSchema).default([]),
   actions: z.array(actionSchema).default([]),
 });
@@ -79,12 +86,31 @@ export const ruleSchema = z.object({
   branches: z.array(branchSchema).default([]),
 });
 
+/**
+ * A derived (looked-up) attribute made available to conditions as `lookup.<key>`.
+ * Phase 1 supports `matrix` — the approval-matrix limit for a role in the record's
+ * branch (so `doc.amount > lookup.<key>` expresses amount-vs-approval-limit).
+ * `doc.*` (form fields), `user.*` (roles/branch) and `system.*` are always present.
+ */
+export const attributeSchema = z.object({
+  key: z.string().min(1),
+  label: z.string().optional(),
+  type: z.enum(['text', 'number', 'date', 'boolean']).optional(),
+  source: z.literal('matrix'),
+  matrix: z.object({
+    role: z.string().min(1),
+    branchField: z.string().default('branch'),
+  }),
+});
+
 export const workflowDefinitionSchema = z.object({
   slug: z.string().min(1),
   appliesTo: z.string().min(1),
   startState: z.string().min(1),
   states: z.array(workflowStateSchema).min(1),
   rules: z.array(ruleSchema).default([]),
+  /** derived `lookup.*` attributes usable in JSONLogic conditions. */
+  attributes: z.array(attributeSchema).default([]),
 });
 
 export type WorkflowDefinition = z.infer<typeof workflowDefinitionSchema>;
@@ -93,3 +119,4 @@ export type Rule = z.infer<typeof ruleSchema>;
 export type RuleBranch = z.infer<typeof branchSchema>;
 export type RuleAction = z.infer<typeof actionSchema>;
 export type Condition = z.infer<typeof conditionSchema>;
+export type WorkflowAttribute = z.infer<typeof attributeSchema>;
