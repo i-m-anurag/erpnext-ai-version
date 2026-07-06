@@ -10,6 +10,8 @@ import { MasterData } from '../modules/master/master-data.entity.js';
 import { TimelineEntry } from '../modules/activity/timeline-entry.entity.js';
 import { Comment } from '../modules/activity/comment.entity.js';
 import { Assignment } from '../modules/workflow/assignment.entity.js';
+import { WorkflowVersion } from '../modules/workflow/workflow-version.entity.js';
+import { WorkflowInstance } from '../modules/workflow/workflow-instance.entity.js';
 import { DocumentLink } from '../modules/document/document-link.entity.js';
 
 /**
@@ -30,5 +32,7 @@ export const entities = [
   TimelineEntry,
   Comment,
   Assignment,
+  WorkflowVersion,
+  WorkflowInstance,
   DocumentLink,
 ];

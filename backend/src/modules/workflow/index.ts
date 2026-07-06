@@ -3,6 +3,8 @@ export { buildWorkflowAdminRouter } from './workflow.admin.routes.js';
 export { buildAssignmentRouter } from './assignment.routes.js';
 export { workflowService } from './workflow.service.js';
 export { assignmentService } from './assignment.service.js';
+export { workflowVersionService } from './workflow-version.service.js';
+export { workflowInstanceService } from './workflow-instance.service.js';
 export { workflowAdminService } from './workflow.admin.service.js';
 export { registerWorkflowResourceType, WORKFLOW_RESOURCE_TYPE } from './workflow.resource.js';
 export { registerApprovalMatrixResourceType, APPROVAL_MATRIX_RESOURCE_TYPE } from './approval-matrix.resource.js';
