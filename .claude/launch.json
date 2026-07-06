@@ -5,7 +5,8 @@
       "name": "erp-frontend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "frontend", "start", "--", "--port", "4300"],
-      "port": 4300
+      "port": 4300,
+      "autoPort": false
     }
   ]
 }
