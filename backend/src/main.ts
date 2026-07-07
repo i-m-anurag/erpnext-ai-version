@@ -5,10 +5,13 @@ import { connectRedis, redis } from './db/redis.js';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { registerAllResourceTypes } from './db/seeds/register-resources.js';
+import { registerFormControllers } from './modules/form-logic/index.js';
 
 async function bootstrap(): Promise<void> {
   // Register configurable resource types (forms, …) before serving requests.
   registerAllResourceTypes();
+  // Register per-form business-logic controllers.
+  registerFormControllers();
 
   await AppDataSource.initialize();
   logger.info('database connected');

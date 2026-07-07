@@ -93,6 +93,16 @@ export class DocumentDataService {
     return this.assemble(c, rows[0]!);
   }
 
+  /** Set only the business `state` column (used by form-controller computeStatus).
+   *  Unlike persistWorkflow this never touches `extra`, so it won't clobber jsonb. */
+  async setState(slug: string, id: string, state: string | null): Promise<void> {
+    const c = await this.ctx(slug);
+    await AppDataSource.query(
+      `UPDATE ${ident(c.table)} SET "state"=$1, "updatedAt"=now() WHERE "id"=$2`,
+      [state, id],
+    );
+  }
+
   /** Persist a workflow result: state + any set_field changes (no children, no validation). */
   async persistWorkflow(slug: string, id: string, state: string | null, data: Record<string, unknown>): Promise<void> {
     const c = await this.ctx(slug);
