@@ -1,5 +1,6 @@
 import { registerFormController, getFormController } from './form-controller';
 import { purchaseOrderController } from './controllers/purchase-order.controller';
+import { requisitionController } from './controllers/requisition.controller';
 
 export {
   getFormController,
@@ -23,4 +24,5 @@ export function registerFormControllers(): void {
   if (done) return;
   done = true;
   registerFormController('purchase-order', purchaseOrderController);
+  registerFormController('requisition', requisitionController);
 }
