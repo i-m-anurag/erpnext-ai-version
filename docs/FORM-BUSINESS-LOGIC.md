@@ -85,6 +85,20 @@ The record header **always** shows the lifecycle **Status** (Draft/Active/Archiv
 and, when present, the business **State** badge. The badge's colour comes from the
 client controller's `status()`; with no controller it shows the raw state text.
 
+## Cross-document propagation (linked docs driving status)
+
+A controller's `afterSave` can update *other* documents — this is how one doc's
+save advances another's status. The `purchase-order` controller does this: on save
+it finds the requisition it was created from (via `documentService.links`), sums the
+ordered quantities across **all** linked POs (so re-saves never double-count), writes
+them onto the requisition lines, and re-saves the requisition through
+`masterService.updateData` — which re-runs the requisition controller's
+`computeStatus`, advancing it Pending → Partially Ordered → Ordered.
+
+The same shape wires Purchase Receipt → `receivedQty` and Stock Entry →
+`issuedQty` / `transferredQty`. To avoid the form-logic ↔ master import cycle,
+import `masterService` lazily (`await import(...)`) inside the hook.
+
 ## Reference example
 
 `purchase-order` is wired end-to-end on both sides as a copyable template:
