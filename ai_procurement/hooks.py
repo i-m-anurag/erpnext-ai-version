@@ -29,7 +29,8 @@ app_license = "mit"
 # app_include_js = "/assets/ai_procurement/js/ai_procurement.js"
 
 # include js, css files in header of web template
-# web_include_css = "/assets/ai_procurement/css/ai_procurement.css"
+# Login-page overrides (scoped to body[data-path="login"] inside the file).
+web_include_css = ["/assets/ai_procurement/css/login.css"]
 # web_include_js = "/assets/ai_procurement/js/ai_procurement.js"
 
 # include custom scss in every website theme (without file extension ".scss")

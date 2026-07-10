@@ -1,0 +1,89 @@
+/* ==========================================================================
+ * Login page overrides (IQ-SMART ERP)
+ *
+ * Loaded on every website page via the `web_include_css` hook, but every rule
+ * here is scoped to `body[data-path="login"]` so it ONLY affects /login,
+ * /update-password, etc. — never other portal pages.
+ *
+ * Edit the values below. After editing run:
+ *   bench build --app ai_procurement && bench --site <site> clear-cache
+ * then hard-refresh the login page (Cmd/Ctrl+Shift+R).
+ *
+ * Key login-page selectors (from frappe/www/login.html):
+ *   .login-content.page-card   -> the login card
+ *   .page-card-head            -> header (holds the logo)
+ *   .page-card-body            -> body (form fields)
+ *   .page-card-actions         -> action area (login button)
+ *   .app-logo                  -> logo image
+ *   .btn-login / .btn-primary  -> the primary Login button
+ *   .form-control              -> input fields
+ * ========================================================================== */
+
+/* ---- Page background (full-screen) ------------------------------------- */
+body[data-path="login"] {
+	background: linear-gradient(135deg, #0b1f3a 0%, #123a63 100%);
+	/* Or a background image:
+	background: url("/assets/ai_procurement/images/login-bg.jpg") center/cover no-repeat; */
+}
+
+/* ---- The login card ---------------------------------------------------- */
+body[data-path="login"] .login-content.page-card {
+	border-radius: 14px;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+	border: none;
+	padding: 8px 4px;
+	background: #ffffff;
+}
+
+/* ---- Logo -------------------------------------------------------------- */
+body[data-path="login"] .page-card-head .app-logo {
+	width: 56px;
+	height: 56px;
+}
+body[data-path="login"] .page-card-head {
+	margin-bottom: 8px;
+}
+
+/* ---- Headings / text --------------------------------------------------- */
+body[data-path="login"] .page-card-head h4 {
+	font-weight: 700;
+	letter-spacing: 0.2px;
+	color: #0b1f3a;
+}
+
+/* ---- Input fields ------------------------------------------------------ */
+body[data-path="login"] .form-control {
+	border-radius: 8px;
+	height: 42px;
+	border: 1px solid #d0d7e2;
+}
+body[data-path="login"] .form-control:focus {
+	border-color: #123a63;
+	box-shadow: 0 0 0 2px rgba(18, 58, 99, 0.15);
+}
+
+/* ---- Primary "Login" button ------------------------------------------- */
+body[data-path="login"] .btn-login,
+body[data-path="login"] .btn-primary {
+	background: #123a63;
+	border-color: #123a63;
+	border-radius: 8px;
+	height: 42px;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+}
+body[data-path="login"] .btn-login:hover,
+body[data-path="login"] .btn-primary:hover {
+	background: #0b2b4d;
+	border-color: #0b2b4d;
+}
+
+/* ---- Footer / sign-up message ----------------------------------------- */
+body[data-path="login"] .sign-up-message {
+	color: #5f6b7a;
+}
+
+/* ---- Dark-mode friendliness (optional) --------------------------------
+body[data-path="login"] .login-content.page-card { background: #12233d; }
+body[data-path="login"] .page-card-head h4 { color: #e8eef6; }
+------------------------------------------------------------------------- */
