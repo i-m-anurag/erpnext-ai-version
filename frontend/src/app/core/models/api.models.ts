@@ -133,6 +133,8 @@ export interface MasterRow {
   code: string;
   data: Record<string, unknown>;
   status: string;
+  /** Business state derived by the form controller / workflow (null = none). */
+  state?: string | null;
 }
 
 export interface FormDefinition {

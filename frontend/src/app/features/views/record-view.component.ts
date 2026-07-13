@@ -18,6 +18,16 @@ import { NotificationService } from '../../core/notify/notification.service';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
 import { routeForMaster, type ResolvedView } from '../../core/config/view-configs';
 import { flattenDataFields, type FormFieldDef } from '../../core/models/api.models';
+import {
+  getFormController,
+  registerFormControllers,
+  type FormAction,
+  type FormRecord,
+  type StatusBadge,
+} from '../../core/form-logic';
+
+// Register client-side form controllers once when this view is first loaded.
+registerFormControllers();
 
 const KIND_ICON: Record<TimelineKind, string> = {
   created: 'ph-plus-circle',
@@ -67,6 +77,22 @@ const KIND_ICON: Record<TimelineKind, string> = {
         </button>
       </div>
     </div>
+
+    @if (formRecord(); as fr) {
+      <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+        <span class="text-muted small">Status</span>
+        <span class="iq-badge" [class]="'iq-badge--' + lifecycleTone(fr.status)">{{ prettyStatus(fr.status) }}</span>
+        @if (statusBadge(); as b) {
+          <span class="text-muted small ms-2">State</span>
+          <span class="iq-badge" [class]="'iq-badge--' + (b.tone ?? 'default')">{{ b.label }}</span>
+        }
+        @for (a of customActions(); track a.key) {
+          <button class="btn btn-sm btn-light ms-2" (click)="runAction(a)">
+            @if (a.icon) { <i class="ph {{ a.icon }}"></i> } {{ a.label }}
+          </button>
+        }
+      </div>
+    }
 
     @if (wf(); as w) {
       @if (w.hasWorkflow) {
@@ -183,6 +209,14 @@ const KIND_ICON: Record<TimelineKind, string> = {
       <div class="erp-card p-4">No view configured for this record.</div>
     }
   `,
+  styles: [`
+    .iq-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 500;
+      background: var(--erp-surface-alt); border: 1px solid var(--erp-border); color: var(--erp-text); }
+    .iq-badge--info { background: #e0f2fe; border-color: #7dd3fc; color: #075985; }
+    .iq-badge--success { background: #dcfce7; border-color: #86efac; color: #166534; }
+    .iq-badge--warn { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+    .iq-badge--danger { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+  `],
 })
 export class RecordViewComponent {
   readonly slug = input.required<string>();
@@ -219,6 +253,30 @@ export class RecordViewComponent {
   /** The full record (incl. line-items) for the edit form. The list payload omits
    *  children for speed, so an existing record is loaded on its own here. */
   private readonly recordRow = signal<Record<string, unknown> | undefined>(undefined);
+  /** Lifecycle status + business state of the loaded record (always shown in the header). */
+  protected readonly recordStatus = signal<string | undefined>(undefined);
+  protected readonly recordState = signal<string | null>(null);
+
+  /** The record shape handed to the client form controller. */
+  protected readonly formRecord = computed<FormRecord | undefined>(() => {
+    const cfg = this.config();
+    const rec = this.recordRow();
+    if (!cfg?.masterSlug || !rec || this.isNew()) return undefined;
+    return { slug: cfg.masterSlug, code: this.recordId(), data: rec, status: this.recordStatus() ?? 'active', state: this.recordState() };
+  });
+  /** Business-state badge: the controller's rendering, else the raw state text. */
+  protected readonly statusBadge = computed<StatusBadge | undefined>(() => {
+    const fr = this.formRecord();
+    if (!fr) return undefined;
+    const custom = getFormController(fr.slug)?.status?.(fr);
+    if (custom) return custom;
+    return fr.state ? { label: fr.state, tone: 'default' as const } : undefined;
+  });
+  /** Extra header buttons contributed by the form controller. */
+  protected readonly customActions = computed<FormAction[]>(() => {
+    const fr = this.formRecord();
+    return fr ? (getFormController(fr.slug)?.actions?.(fr) ?? []) : [];
+  });
 
   constructor() {
     effect(() => {
@@ -249,9 +307,15 @@ export class RecordViewComponent {
       const cfg = this.config();
       const rid = this.id();
       this.recordRow.set(undefined);
+      this.recordStatus.set(undefined);
+      this.recordState.set(null);
       if (!cfg?.backed || !cfg.masterSlug || rid === 'new') return;
       this.masters.getRecord(cfg.masterSlug, rid).subscribe({
-        next: (row) => this.recordRow.set(row.data),
+        next: (row) => {
+          this.recordRow.set(row.data);
+          this.recordStatus.set(row.status);
+          this.recordState.set(row.state ?? null);
+        },
         error: () => this.recordRow.set(undefined),
       });
     });
@@ -305,6 +369,28 @@ export class RecordViewComponent {
 
   protected stateIndex(w: WorkflowStatus): number {
     return w.states.findIndex((s) => s.name === w.currentState);
+  }
+
+  protected prettyStatus(s: string): string {
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  protected lifecycleTone(s: string): string {
+    return s === 'draft' ? 'default' : s === 'archived' ? 'danger' : 'success';
+  }
+  /** Run a controller-contributed header action with a small service context. */
+  protected runAction(a: FormAction): void {
+    const fr = this.formRecord();
+    if (!fr) return;
+    void a.run(fr, { notify: (m) => this.notify.success(m), reload: () => this.reloadRecord() });
+  }
+  private reloadRecord(): void {
+    const cfg = this.config();
+    if (!cfg?.masterSlug || this.isNew()) return;
+    this.masters.getRecord(cfg.masterSlug, this.recordId()).subscribe((row) => {
+      this.recordRow.set(row.data);
+      this.recordStatus.set(row.status);
+      this.recordState.set(row.state ?? null);
+    });
   }
 
   protected doTransition(action: string): void {
