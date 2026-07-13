@@ -9,6 +9,7 @@ import { tableNameForSlug } from '../document/table-name.js';
 import { documentDataService } from '../document/document-data.service.js';
 import { workflowService } from '../workflow/workflow.service.js';
 import { workflowInstanceService } from '../workflow/workflow-instance.service.js';
+import { getFormController, type FormDoc } from '../form-logic/index.js';
 import { MasterRegistry, type MasterManagedBy } from './master-registry.entity.js';
 import { MasterData } from './master-data.entity.js';
 
@@ -126,24 +127,31 @@ export class MasterService {
 
   async createData(slug: string, input: Record<string, unknown>, draft = false): Promise<MasterData> {
     const reg = await this.getRegistry(slug);
+    const controller = getFormController(slug);
+    if (controller?.beforeSave) {
+      const ctx = { slug, input: { ...input }, draft, isNew: true };
+      await controller.beforeSave(ctx);
+      input = ctx.input;
+    }
+    let saved: MasterData;
     if (reg.kind === 'document') {
       // draft → skip validation + status 'draft'; submit → validate + 'active'.
       const row = draft ? await documentDataService.createDraft(slug, input) : await documentDataService.create(slug, input);
-      await this.ensureWorkflowInstance(reg, row.code, row.data);
-      await cache.invalidate(optionsKey(slug));
-      return row as unknown as MasterData;
+      saved = row as unknown as MasterData;
+    } else {
+      // Auto-generate the code from the naming series (if configured) — overrides any
+      // user-supplied value so the id format is enforced.
+      const auto = await namingSeriesService.next(slug);
+      if (auto) input = { ...input, [reg.codeField]: auto };
+      const { clean, code } = await this.prepareWrite(slug, input, { skipValidation: draft });
+      if (await this.data.exists({ masterSlug: slug, code })) {
+        throw new ConflictError(`${reg.name} with ${reg.codeField}="${code}" already exists`);
+      }
+      const status = draft ? 'draft' : 'active';
+      saved = await this.data.save(this.data.create({ masterSlug: slug, code, data: clean, status }));
     }
-    // Auto-generate the code from the naming series (if configured) — overrides any
-    // user-supplied value so the id format is enforced.
-    const auto = await namingSeriesService.next(slug);
-    if (auto) input = { ...input, [reg.codeField]: auto };
-    const { clean, code } = await this.prepareWrite(slug, input, { skipValidation: draft });
-    if (await this.data.exists({ masterSlug: slug, code })) {
-      throw new ConflictError(`${reg.name} with ${reg.codeField}="${code}" already exists`);
-    }
-    const status = draft ? 'draft' : 'active';
-    const saved = await this.data.save(this.data.create({ masterSlug: slug, code, data: clean, status }));
-    await this.ensureWorkflowInstance(reg, code, clean);
+    await this.ensureWorkflowInstance(reg, saved.code, saved.data);
+    await this.runControllerAfterSave(reg, controller, saved);
     await cache.invalidate(optionsKey(slug));
     return saved;
   }
@@ -174,23 +182,55 @@ export class MasterService {
         throw new BadRequestError('this record cannot be edited in its current workflow state');
       }
     }
+    const controller = getFormController(slug);
+    if (controller?.beforeSave) {
+      const ctx = { slug, input: { ...input }, draft, isNew: false };
+      await controller.beforeSave(ctx);
+      input = ctx.input;
+    }
+    let saved: MasterData;
     if (reg.kind === 'document') {
       const row = await documentDataService.update(slug, id, input, { draft });
-      await cache.invalidate(optionsKey(slug));
-      return row as unknown as MasterData;
+      saved = row as unknown as MasterData;
+    } else {
+      const existing = await this.data.findOne({ id, masterSlug: slug });
+      if (!existing) throw new NotFoundError('master row not found');
+      const { clean, code } = await this.prepareWrite(slug, input, { skipValidation: draft });
+      if (code !== existing.code && (await this.data.exists({ masterSlug: slug, code }))) {
+        throw new ConflictError(`another row already uses that code`);
+      }
+      existing.code = code;
+      existing.data = clean;
+      existing.status = draft ? 'draft' : 'active';
+      saved = await this.data.save(existing);
     }
-    const existing = await this.data.findOne({ id, masterSlug: slug });
-    if (!existing) throw new NotFoundError('master row not found');
-    const { clean, code } = await this.prepareWrite(slug, input, { skipValidation: draft });
-    if (code !== existing.code && (await this.data.exists({ masterSlug: slug, code }))) {
-      throw new ConflictError(`another row already uses that code`);
-    }
-    existing.code = code;
-    existing.data = clean;
-    existing.status = draft ? 'draft' : 'active';
-    const saved = await this.data.save(existing);
+    await this.runControllerAfterSave(reg, controller, saved);
     await cache.invalidate(optionsKey(slug));
     return saved;
+  }
+
+  /**
+   * Run the form controller's post-persist hooks: computeStatus derives the
+   * business `state` (written via the right store for the kind), then afterSave
+   * runs side effects. Mutates `saved.state` so the returned payload is current.
+   */
+  private async runControllerAfterSave(
+    reg: MasterRegistry,
+    controller: ReturnType<typeof getFormController>,
+    saved: MasterData,
+  ): Promise<void> {
+    if (!controller) return;
+    const doc: FormDoc = { slug: reg.slug, id: saved.id, code: saved.code, data: saved.data, status: saved.status, state: saved.state };
+    if (controller.computeStatus) {
+      const next = controller.computeStatus(doc);
+      if (next != null && next !== doc.state) {
+        if (reg.kind === 'document') await documentDataService.setState(reg.slug, saved.id, next);
+        else { saved.state = next; await this.data.save(saved); }
+        saved.state = next;
+        doc.state = next;
+      }
+    }
+    if (controller.afterSave) await controller.afterSave(doc);
   }
 
   async deleteData(slug: string, id: string): Promise<void> {

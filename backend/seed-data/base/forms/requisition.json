@@ -1,10 +1,15 @@
 {
   "slug": "requisition",
-  "version": 1,
-  "title": "Requisition",
+  "version": 2,
+  "title": "Material Request",
   "layout": "two-column",
   "fields": [
     { "key": "reqNumber", "type": "text", "label": "Requisition No.", "auto": true, "placeholder": "Auto-generated on save" },
+    { "key": "materialRequestType", "type": "select", "label": "Purpose", "options": [
+      { "value": "Purchase", "label": "Purchase" },
+      { "value": "Material Issue", "label": "Material Issue" },
+      { "value": "Material Transfer", "label": "Material Transfer" }
+    ] },
     { "key": "vendor", "type": "select", "label": "Preferred Vendor", "options": [
       { "value": "Acme Supplies", "label": "Acme Supplies" },
       { "value": "Globex Corp", "label": "Globex Corp" },
@@ -12,6 +17,15 @@
     ] },
     { "key": "department", "type": "select", "label": "Department", "options": [
       { "value": "hq", "label": "HQ" }, { "value": "plant1", "label": "Plant 1" }, { "value": "plant2", "label": "Plant 2" }
+    ] },
+    { "key": "stopped", "type": "checkbox", "label": "Stopped (no more materials needed)" },
+    { "key": "items", "type": "table", "label": "Requested Items", "columns": [
+      { "key": "item", "type": "text", "label": "Item" },
+      { "key": "qty", "type": "number", "label": "Qty" },
+      { "key": "orderedQty", "type": "number", "label": "Ordered" },
+      { "key": "receivedQty", "type": "number", "label": "Received" },
+      { "key": "issuedQty", "type": "number", "label": "Issued" },
+      { "key": "transferredQty", "type": "number", "label": "Transferred" }
     ] },
     { "key": "notes", "type": "textarea", "label": "Notes" }
   ]
