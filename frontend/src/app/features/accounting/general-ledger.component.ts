@@ -28,16 +28,24 @@ function inr(v: unknown): string {
         <div class="text-muted small">Accounting</div>
         <h4 class="mb-0">General Ledger</h4>
       </div>
-      <div class="d-flex align-items-end gap-3">
+      <div class="d-flex align-items-end gap-3 flex-wrap">
         <div>
           <label class="erp-field__label form-label">Account</label>
-          <select class="form-select form-select-sm" style="min-width:260px" [(ngModel)]="account" (ngModelChange)="load()">
+          <select class="form-select form-select-sm" style="min-width:220px" [(ngModel)]="account" (ngModelChange)="load()">
             <option value="">— select an account —</option>
             @for (a of leaves(); track a.code) { <option [value]="a.code">{{ a.name }}</option> }
           </select>
         </div>
+        <div>
+          <label class="erp-field__label form-label">From</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="from" (ngModelChange)="load()" />
+        </div>
+        <div>
+          <label class="erp-field__label form-label">To</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="to" (ngModelChange)="load()" />
+        </div>
         @if (account) {
-          <div class="text-end">
+          <div class="text-end ms-2">
             <div class="erp-field__label form-label">Closing balance</div>
             <div class="fw-bold">{{ balanceLabel(closing()) }}</div>
           </div>
@@ -51,8 +59,9 @@ function inr(v: unknown): string {
         [rowData]="rows()"
         [columnDefs]="colDefs"
         [defaultColDef]="defaultColDef"
+        [pinnedTopRowData]="openingRow()"
         (cellClicked)="onCellClicked($event)"
-        style="height: calc(100vh - 230px); width: 100%"
+        style="height: calc(100vh - 260px); width: 100%"
       />
     } @else {
       <div class="erp-card p-4 text-muted">Select an account to view its ledger.</div>
@@ -66,11 +75,20 @@ export class GeneralLedgerComponent {
   private readonly route = inject(ActivatedRoute);
 
   protected account = '';
+  protected from = '';
+  protected to = '';
   protected readonly theme = themeQuartz;
   protected readonly accounts = signal<Account[]>([]);
   protected readonly rows = signal<GlReportRow[]>([]);
+  protected readonly opening = signal('0');
   protected readonly closing = signal('0');
   protected readonly leaves = computed(() => this.accounts().filter((a) => !a.isGroup));
+
+  /** Opening-balance row pinned to the top (shown once a From date narrows the range). */
+  protected readonly openingRow = computed<GlReportRow[]>(() => {
+    if (!this.from || !this.account) return [];
+    return [{ postingDate: '', voucherType: '', voucherNo: 'Opening Balance', party: null, against: null, debit: '0', credit: '0', balance: this.opening() }];
+  });
 
   /** Every column filterable + sortable, with a floating filter row (point 1). */
   protected readonly defaultColDef: ColDef = { sortable: true, filter: true, floatingFilter: true, resizable: true, flex: 1 };
@@ -79,7 +97,7 @@ export class GeneralLedgerComponent {
     {
       headerName: 'Date',
       valueGetter: (p: ValueGetterParams<GlReportRow>) =>
-        p.data ? new Date(p.data.postingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+        p.data?.postingDate ? new Date(p.data.postingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
       minWidth: 130,
     },
     {
@@ -112,12 +130,12 @@ export class GeneralLedgerComponent {
     if (acc) { this.account = acc; this.load(); }
   }
 
-  /** Server-side fetch of the selected account's ledger (point 2). */
+  /** Server-side fetch of the selected account's ledger (with optional date range). */
   protected load(): void {
-    if (!this.account) { this.rows.set([]); this.closing.set('0'); return; }
-    this.ledger.generalLedger(this.account).subscribe({
-      next: (r) => { this.rows.set(r.rows); this.closing.set(r.closing); },
-      error: () => { this.rows.set([]); this.closing.set('0'); },
+    if (!this.account) { this.rows.set([]); this.opening.set('0'); this.closing.set('0'); return; }
+    this.ledger.generalLedger(this.account, this.from || undefined, this.to || undefined).subscribe({
+      next: (r) => { this.rows.set(r.rows); this.opening.set(r.opening); this.closing.set(r.closing); },
+      error: () => { this.rows.set([]); this.opening.set('0'); this.closing.set('0'); },
     });
   }
 

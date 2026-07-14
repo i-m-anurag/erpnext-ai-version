@@ -14,7 +14,9 @@ export function buildLedgerRouter(): Router {
   router.get('/general-ledger', asyncHandler(async (req: Request, res: Response) => {
     const account = String(req.query.account ?? '');
     if (!account) throw new BadRequestError('account is required');
-    res.json(await ledgerReportService.generalLedger(account));
+    const from = req.query.from ? String(req.query.from) : undefined;
+    const to = req.query.to ? String(req.query.to) : undefined;
+    res.json(await ledgerReportService.generalLedger(account, from, to));
   }));
 
   router.get('/trial-balance', asyncHandler(async (_req: Request, res: Response) => {

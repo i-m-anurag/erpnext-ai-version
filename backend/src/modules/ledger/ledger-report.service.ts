@@ -67,27 +67,51 @@ interface AccountNet {
  * (NUMERIC) end-to-end so nothing is rounded through a float.
  */
 export class LedgerReportService {
-  /** General Ledger for one account: every entry with a running balance. */
-  async generalLedger(account: string): Promise<{ rows: GlReportRow[]; closing: string }> {
+  /**
+   * General Ledger for one account, optionally within [from, to]. `opening` is the
+   * balance of all entries before `from`; each row's running balance continues from
+   * it. Running balance is computed in JS with decimal.js (exact).
+   */
+  async generalLedger(
+    account: string,
+    from?: string,
+    to?: string,
+  ): Promise<{ rows: GlReportRow[]; opening: string; closing: string }> {
+    let opening = new Decimal(0);
+    if (from) {
+      const o = (await AppDataSource.query(
+        `SELECT COALESCE(SUM(debit - credit), 0) AS bal FROM gl_entry WHERE account = $1 AND posting_date < $2`,
+        [account, from],
+      )) as Record<string, unknown>[];
+      opening = new Decimal(String(o[0]!.bal));
+    }
+
+    const conds = ['account = $1'];
+    const params: unknown[] = [account];
+    if (from) { params.push(from); conds.push(`posting_date >= $${params.length}`); }
+    if (to) { params.push(to); conds.push(`posting_date <= $${params.length}`); }
+
     const rows = (await AppDataSource.query(
-      `SELECT posting_date, voucher_type, voucher_no, party, against, debit, credit,
-              SUM(debit - credit) OVER (ORDER BY seq) AS balance
-         FROM gl_entry
-        WHERE account = $1
-        ORDER BY seq`,
-      [account],
+      `SELECT posting_date, voucher_type, voucher_no, party, against, debit, credit
+         FROM gl_entry WHERE ${conds.join(' AND ')} ORDER BY seq`,
+      params,
     )) as Record<string, unknown>[];
-    const mapped: GlReportRow[] = rows.map((r) => ({
-      postingDate: String(r.posting_date),
-      voucherType: String(r.voucher_type),
-      voucherNo: String(r.voucher_no),
-      party: (r.party as string) ?? null,
-      against: (r.against as string) ?? null,
-      debit: String(r.debit),
-      credit: String(r.credit),
-      balance: String(r.balance),
-    }));
-    return { rows: mapped, closing: mapped.length ? mapped[mapped.length - 1]!.balance : '0' };
+
+    let bal = opening;
+    const mapped: GlReportRow[] = rows.map((r) => {
+      bal = bal.plus(String(r.debit)).minus(String(r.credit));
+      return {
+        postingDate: String(r.posting_date),
+        voucherType: String(r.voucher_type),
+        voucherNo: String(r.voucher_no),
+        party: (r.party as string) ?? null,
+        against: (r.against as string) ?? null,
+        debit: String(r.debit),
+        credit: String(r.credit),
+        balance: bal.toFixed(6),
+      };
+    });
+    return { rows: mapped, opening: opening.toFixed(6), closing: bal.toFixed(6) };
   }
 
   /** Trial Balance: per-account debit/credit totals + the grand totals (which must match). */

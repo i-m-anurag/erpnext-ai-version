@@ -14,6 +14,7 @@ export interface GlReportRow {
 }
 export interface GeneralLedger {
   rows: GlReportRow[];
+  opening: string;
   closing: string;
 }
 
@@ -35,8 +36,11 @@ export interface TrialBalance {
 export class LedgerApiService {
   private readonly http = inject(HttpClient);
 
-  generalLedger(account: string): Observable<GeneralLedger> {
-    return this.http.get<GeneralLedger>(`/api/ledger/general-ledger?account=${encodeURIComponent(account)}`);
+  generalLedger(account: string, from?: string, to?: string): Observable<GeneralLedger> {
+    let url = `/api/ledger/general-ledger?account=${encodeURIComponent(account)}`;
+    if (from) url += `&from=${encodeURIComponent(from)}`;
+    if (to) url += `&to=${encodeURIComponent(to)}`;
+    return this.http.get<GeneralLedger>(url);
   }
 
   trialBalance(): Observable<TrialBalance> {
