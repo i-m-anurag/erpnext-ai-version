@@ -125,6 +125,16 @@ export const routes: Routes = [
               import('./features/accounting/trial-balance.component').then((m) => m.TrialBalanceComponent),
           },
           {
+            path: 'profit-loss',
+            loadComponent: () =>
+              import('./features/accounting/profit-loss.component').then((m) => m.ProfitLossComponent),
+          },
+          {
+            path: 'balance-sheet',
+            loadComponent: () =>
+              import('./features/accounting/balance-sheet.component').then((m) => m.BalanceSheetComponent),
+          },
+          {
             // dashboard / payables / receivables / any other finance sub → generic workspace
             path: ':sub',
             data: { slug: 'finance' },

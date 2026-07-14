@@ -1,3 +1,4 @@
+import { Decimal } from 'decimal.js';
 import { AppDataSource } from '../../db/data-source.js';
 
 /** One line of a General Ledger report, with the running balance after this entry. */
@@ -20,6 +21,39 @@ export interface TrialBalanceRow {
   rootType: string;
   debit: string;
   credit: string;
+}
+
+/** One line of a financial statement (P&L / Balance Sheet). */
+export interface StatementRow {
+  account: string;
+  name: string;
+  amount: string;
+}
+export interface ProfitAndLoss {
+  income: StatementRow[];
+  totalIncome: string;
+  expense: StatementRow[];
+  totalExpense: string;
+  netProfit: string;
+}
+export interface BalanceSheet {
+  assets: StatementRow[];
+  totalAssets: string;
+  liabilities: StatementRow[];
+  totalLiabilities: string;
+  equity: StatementRow[];
+  totalEquity: string;
+  netProfit: string;
+  totalLiabilitiesEquity: string;
+  balanced: boolean;
+}
+
+interface AccountNet {
+  code: string;
+  name: string;
+  rootType: string;
+  debit: Decimal;
+  credit: Decimal;
 }
 
 /**
@@ -73,6 +107,67 @@ export class LedgerReportService {
       })),
       totalDebit: String(totals[0]!.debit),
       totalCredit: String(totals[0]!.credit),
+    };
+  }
+
+  /** Per-account debit/credit totals for accounts that have postings. */
+  private async accountNets(): Promise<AccountNet[]> {
+    const rows = (await AppDataSource.query(
+      `SELECT a.code, a.name, a.root_type, SUM(g.debit) AS debit, SUM(g.credit) AS credit
+         FROM account a JOIN gl_entry g ON g.account = a.code
+        GROUP BY a.code, a.name, a.root_type
+        ORDER BY a.code`,
+    )) as Record<string, unknown>[];
+    return rows.map((r) => ({
+      code: String(r.code), name: String(r.name), rootType: String(r.root_type),
+      debit: new Decimal(String(r.debit)), credit: new Decimal(String(r.credit)),
+    }));
+  }
+
+  /** Profit & Loss: income (credit − debit) and expense (debit − credit), net profit. */
+  async profitAndLoss(): Promise<ProfitAndLoss> {
+    const nets = await this.accountNets();
+    const income = nets.filter((n) => n.rootType === 'Income').map((n) => ({ account: n.code, name: n.name, amount: n.credit.minus(n.debit) }));
+    const expense = nets.filter((n) => n.rootType === 'Expense').map((n) => ({ account: n.code, name: n.name, amount: n.debit.minus(n.credit) }));
+    const sum = (rows: { amount: Decimal }[]): Decimal => rows.reduce((s, r) => s.plus(r.amount), new Decimal(0));
+    const totalIncome = sum(income);
+    const totalExpense = sum(expense);
+    return {
+      income: income.map((r) => ({ account: r.account, name: r.name, amount: r.amount.toFixed(2) })),
+      totalIncome: totalIncome.toFixed(2),
+      expense: expense.map((r) => ({ account: r.account, name: r.name, amount: r.amount.toFixed(2) })),
+      totalExpense: totalExpense.toFixed(2),
+      netProfit: totalIncome.minus(totalExpense).toFixed(2),
+    };
+  }
+
+  /** Balance Sheet: assets vs liabilities + equity, with the current-period net
+   *  profit folded into equity so the statement balances. */
+  async balanceSheet(): Promise<BalanceSheet> {
+    const nets = await this.accountNets();
+    const assets = nets.filter((n) => n.rootType === 'Asset').map((n) => ({ account: n.code, name: n.name, amount: n.debit.minus(n.credit) }));
+    const liabilities = nets.filter((n) => n.rootType === 'Liability').map((n) => ({ account: n.code, name: n.name, amount: n.credit.minus(n.debit) }));
+    const equityAccts = nets.filter((n) => n.rootType === 'Equity').map((n) => ({ account: n.code, name: n.name, amount: n.credit.minus(n.debit) }));
+
+    const pl = await this.profitAndLoss();
+    const netProfit = new Decimal(pl.netProfit);
+    const equity = [...equityAccts, { account: 'net-profit', name: 'Net Profit (Current Period)', amount: netProfit }];
+
+    const sum = (rows: { amount: Decimal }[]): Decimal => rows.reduce((s, r) => s.plus(r.amount), new Decimal(0));
+    const totalAssets = sum(assets);
+    const totalLiabilities = sum(liabilities);
+    const totalEquity = sum(equity);
+    const totalLiabEquity = totalLiabilities.plus(totalEquity);
+    const str = (rows: { account: string; name: string; amount: Decimal }[]): StatementRow[] =>
+      rows.map((r) => ({ account: r.account, name: r.name, amount: r.amount.toFixed(2) }));
+
+    return {
+      assets: str(assets), totalAssets: totalAssets.toFixed(2),
+      liabilities: str(liabilities), totalLiabilities: totalLiabilities.toFixed(2),
+      equity: str(equity), totalEquity: totalEquity.toFixed(2),
+      netProfit: netProfit.toFixed(2),
+      totalLiabilitiesEquity: totalLiabEquity.toFixed(2),
+      balanced: totalAssets.equals(totalLiabEquity),
     };
   }
 }

@@ -43,6 +43,14 @@ export class LedgerApiService {
     return this.http.get<TrialBalance>('/api/ledger/trial-balance');
   }
 
+  profitAndLoss(): Observable<ProfitAndLoss> {
+    return this.http.get<ProfitAndLoss>('/api/ledger/profit-and-loss');
+  }
+
+  balanceSheet(): Observable<BalanceSheet> {
+    return this.http.get<BalanceSheet>('/api/ledger/balance-sheet');
+  }
+
   /** The GL entries a document posted (for the record's Accounting Entries panel). */
   voucherEntries(voucherType: string, voucherNo: string): Observable<GlVoucherEntry[]> {
     return this.http
@@ -58,4 +66,28 @@ export interface GlVoucherEntry {
   credit: string;
   party: string | null;
   against: string | null;
+}
+
+export interface StatementRow {
+  account: string;
+  name: string;
+  amount: string;
+}
+export interface ProfitAndLoss {
+  income: StatementRow[];
+  totalIncome: string;
+  expense: StatementRow[];
+  totalExpense: string;
+  netProfit: string;
+}
+export interface BalanceSheet {
+  assets: StatementRow[];
+  totalAssets: string;
+  liabilities: StatementRow[];
+  totalLiabilities: string;
+  equity: StatementRow[];
+  totalEquity: string;
+  netProfit: string;
+  totalLiabilitiesEquity: string;
+  balanced: boolean;
 }
