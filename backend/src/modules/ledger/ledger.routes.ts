@@ -32,11 +32,11 @@ export function buildLedgerRouter(): Router {
   }));
 
   router.get('/payables', asyncHandler(async (_req: Request, res: Response) => {
-    res.json({ rows: await ledgerReportService.partyOutstanding('Payable') });
+    res.json({ rows: await ledgerReportService.partyAgeing('Payable') });
   }));
 
   router.get('/receivables', asyncHandler(async (_req: Request, res: Response) => {
-    res.json({ rows: await ledgerReportService.partyOutstanding('Receivable') });
+    res.json({ rows: await ledgerReportService.partyAgeing('Receivable') });
   }));
 
   router.get('/voucher/:type/:no', asyncHandler(async (req: Request, res: Response) => {

@@ -34,17 +34,30 @@ export class PartyOutstandingComponent {
 
   protected readonly title = computed(() => (this.kind() === 'receivables' ? 'Accounts Receivable' : 'Accounts Payable'));
   protected readonly totalRow = computed(() => {
-    const total = this.rows().reduce((s, r) => s + Number(r.outstanding), 0);
-    return [{ party: 'Total', outstanding: String(total) }];
+    const rows = this.rows();
+    const sum = (k: keyof PartyOutstandingRow): string =>
+      String(rows.reduce((s, r) => s + Number(r[k]), 0));
+    return [{
+      party: 'Total', current: sum('current'), days30: sum('days30'),
+      days60: sum('days60'), days90Plus: sum('days90Plus'), total: sum('total'),
+    }];
   });
 
-  protected readonly defaultColDef: ColDef = { sortable: true, filter: true, floatingFilter: true, resizable: true, flex: 1 };
+  protected readonly defaultColDef: ColDef = { sortable: true, filter: false, resizable: true, flex: 1 };
+  private readonly amt = (p: ValueFormatterParams): string => inr(p.value);
+  private readonly bold = (p: { node: { rowPinned?: string | null } }) => ({
+    fontWeight: p.node.rowPinned ? '700' : '400', fontVariantNumeric: 'tabular-nums',
+  });
   protected readonly colDefs: ColDef<PartyOutstandingRow>[] = [
-    { headerName: 'Party', field: 'party', minWidth: 240,
+    { headerName: 'Party', field: 'party', minWidth: 200, filter: true, floatingFilter: true,
       cellStyle: (p) => ({ fontWeight: p.node.rowPinned ? '700' : '400' }) },
-    { headerName: 'Outstanding', field: 'outstanding', type: 'rightAligned', minWidth: 180,
-      valueFormatter: (p: ValueFormatterParams) => inr(p.value),
-      cellStyle: (p) => ({ fontWeight: p.node.rowPinned ? '700' : '400', fontVariantNumeric: 'tabular-nums' }) },
+    { headerName: 'Current', field: 'current', type: 'rightAligned', valueFormatter: this.amt, cellStyle: this.bold },
+    { headerName: '31–60', field: 'days30', type: 'rightAligned', valueFormatter: this.amt, cellStyle: this.bold },
+    { headerName: '61–90', field: 'days60', type: 'rightAligned', valueFormatter: this.amt, cellStyle: this.bold },
+    { headerName: '90+', field: 'days90Plus', type: 'rightAligned', valueFormatter: this.amt, cellStyle: this.bold },
+    { headerName: 'Total', field: 'total', type: 'rightAligned', minWidth: 140,
+      valueFormatter: this.amt,
+      cellStyle: (p) => ({ fontWeight: '700', fontVariantNumeric: 'tabular-nums' }) },
   ];
 
   constructor() {

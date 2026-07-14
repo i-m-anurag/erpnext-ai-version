@@ -99,7 +99,11 @@ export interface ProfitAndLoss {
 }
 export interface PartyOutstandingRow {
   party: string;
-  outstanding: string;
+  current: string;
+  days30: string;
+  days60: string;
+  days90Plus: string;
+  total: string;
 }
 export interface BalanceSheet {
   assets: StatementRow[];

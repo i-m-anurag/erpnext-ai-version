@@ -54,6 +54,16 @@ export interface PartyOutstandingRow {
   outstanding: string;
 }
 
+/** One party's outstanding split into ageing buckets (FIFO — payments clear oldest first). */
+export interface AgeingRow {
+  party: string;
+  current: string;
+  days30: string;
+  days60: string;
+  days90Plus: string;
+  total: string;
+}
+
 interface AccountNet {
   code: string;
   name: string;
@@ -157,6 +167,66 @@ export class LedgerReportService {
       [accountType],
     )) as Record<string, unknown>[];
     return rows.map((r) => ({ party: String(r.party), outstanding: String(r.outstanding) }));
+  }
+
+  /**
+   * Party-wise ageing. Invoices (the balance-increasing side) are aged by their
+   * posting date; payments (the reducing side) are applied FIFO to the oldest
+   * invoices first, and each invoice's *remaining* amount lands in a bucket by age.
+   */
+  async partyAgeing(accountType: 'Payable' | 'Receivable'): Promise<AgeingRow[]> {
+    // For Payable, invoices are credits and payments debits; reversed for Receivable.
+    const rows = (await AppDataSource.query(
+      `SELECT g.party, g.posting_date, g.debit, g.credit
+         FROM gl_entry g JOIN account a ON a.code = g.account
+        WHERE a.account_type = $1 AND g.party IS NOT NULL
+        ORDER BY g.party, g.posting_date, g.seq`,
+      [accountType],
+    )) as Record<string, unknown>[];
+
+    const invAmt = (r: Record<string, unknown>): Decimal =>
+      accountType === 'Payable' ? new Decimal(String(r.credit)) : new Decimal(String(r.debit));
+    const payAmt = (r: Record<string, unknown>): Decimal =>
+      accountType === 'Payable' ? new Decimal(String(r.debit)) : new Decimal(String(r.credit));
+
+    const now = Date.now();
+    const ageDays = (d: unknown): number => Math.floor((now - new Date(String(d)).getTime()) / 86_400_000);
+
+    // Group entries by party (already ordered by date).
+    const byParty = new Map<string, Record<string, unknown>[]>();
+    for (const r of rows) {
+      const p = String(r.party);
+      (byParty.get(p) ?? byParty.set(p, []).get(p)!).push(r);
+    }
+
+    const out: AgeingRow[] = [];
+    for (const [party, entries] of byParty) {
+      const invoices = entries.filter((e) => invAmt(e).gt(0)).map((e) => ({ date: e.posting_date, remaining: invAmt(e) }));
+      let pool = entries.reduce((s, e) => s.plus(payAmt(e)), new Decimal(0));
+      // Apply payments FIFO to the oldest invoices.
+      for (const inv of invoices) {
+        const applied = Decimal.min(inv.remaining, pool);
+        inv.remaining = inv.remaining.minus(applied);
+        pool = pool.minus(applied);
+      }
+      const b = { current: new Decimal(0), days30: new Decimal(0), days60: new Decimal(0), days90: new Decimal(0) };
+      for (const inv of invoices) {
+        if (inv.remaining.lte(0)) continue;
+        const age = ageDays(inv.date);
+        if (age <= 30) b.current = b.current.plus(inv.remaining);
+        else if (age <= 60) b.days30 = b.days30.plus(inv.remaining);
+        else if (age <= 90) b.days60 = b.days60.plus(inv.remaining);
+        else b.days90 = b.days90.plus(inv.remaining);
+      }
+      const total = b.current.plus(b.days30).plus(b.days60).plus(b.days90);
+      if (total.isZero()) continue;
+      out.push({
+        party,
+        current: b.current.toFixed(2), days30: b.days30.toFixed(2), days60: b.days60.toFixed(2),
+        days90Plus: b.days90.toFixed(2), total: total.toFixed(2),
+      });
+    }
+    return out.sort((a, b) => a.party.localeCompare(b.party));
   }
 
   /** Per-account debit/credit totals for accounts that have postings. */
