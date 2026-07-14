@@ -6,12 +6,14 @@ import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { registerAllResourceTypes } from './db/seeds/register-resources.js';
 import { registerFormControllers } from './modules/form-logic/index.js';
+import { registerPostingRules } from './modules/ledger/register-posting-rules.js';
 
 async function bootstrap(): Promise<void> {
   // Register configurable resource types (forms, …) before serving requests.
   registerAllResourceTypes();
-  // Register per-form business-logic controllers.
+  // Register per-form business-logic controllers + ledger posting rules.
   registerFormControllers();
+  registerPostingRules();
 
   await AppDataSource.initialize();
   logger.info('database connected');

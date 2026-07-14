@@ -13,6 +13,7 @@ import { buildTemplateRouter } from './modules/communication/index.js';
 import { buildDocumentRouter } from './modules/document/index.js';
 import { buildNamingRouter } from './modules/naming/index.js';
 import { buildAccountRouter } from './modules/accounts/index.js';
+import { buildLedgerRouter } from './modules/ledger/index.js';
 
 /**
  * Central route registration. As modules land (auth, permission, ...), each
@@ -89,4 +90,7 @@ export function registerRoutes(app: Express): void {
 
   // Chart of Accounts (read-only; seeded). Gated by auth.
   app.use('/api/accounts', buildAccountRouter());
+
+  // Financial ledger reports (General Ledger, Trial Balance). Gated by auth.
+  app.use('/api/ledger', buildLedgerRouter());
 }

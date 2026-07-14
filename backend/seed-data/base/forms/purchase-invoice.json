@@ -24,6 +24,7 @@
         { "key": "remarks", "type": "text", "label": "Remarks" }
       ]
     },
+    { "key": "grandTotal", "type": "number", "label": "Grand Total", "auto": true, "placeholder": "Computed from line items" },
     { "key": "notes", "type": "textarea", "label": "Notes" }
   ]
 }

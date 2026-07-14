@@ -115,6 +115,16 @@ export const routes: Routes = [
               import('./features/accounting/chart-of-accounts.component').then((m) => m.ChartOfAccountsComponent),
           },
           {
+            path: 'ledger',
+            loadComponent: () =>
+              import('./features/accounting/general-ledger.component').then((m) => m.GeneralLedgerComponent),
+          },
+          {
+            path: 'trial-balance',
+            loadComponent: () =>
+              import('./features/accounting/trial-balance.component').then((m) => m.TrialBalanceComponent),
+          },
+          {
             // dashboard / payables / receivables / any other finance sub → generic workspace
             path: ':sub',
             data: { slug: 'finance' },

@@ -73,6 +73,7 @@ export const MODULES: ErpModule[] = [
       { slug: 'dashboard', name: 'Dashboard', icon: 'ph-gauge' },
       { slug: 'chart-of-accounts', name: 'Chart of Accounts', icon: 'ph-tree-structure' },
       { slug: 'ledger', name: 'General Ledger', icon: 'ph-book-open' },
+      { slug: 'trial-balance', name: 'Trial Balance', icon: 'ph-scales' },
       { slug: 'payables', name: 'Payables', icon: 'ph-arrow-up-right' },
       { slug: 'receivables', name: 'Receivables', icon: 'ph-arrow-down-left' },
       { slug: 'reports', name: 'Reports', icon: 'ph-chart-pie' },

@@ -23,4 +23,18 @@ export class AccountApiService {
   tree(): Observable<AccountNode[]> {
     return this.http.get<{ tree: AccountNode[] }>('/api/accounts/tree').pipe(map((r) => r.tree));
   }
+
+  /** Flat list of accounts (used for the ledger account picker; filter isGroup for leaves). */
+  list(): Observable<Account[]> {
+    return this.http.get<{ accounts: Account[] }>('/api/accounts').pipe(map((r) => r.accounts));
+  }
+}
+
+/** A flat account row. */
+export interface Account {
+  code: string;
+  name: string;
+  rootType: RootType;
+  accountType: string | null;
+  isGroup: boolean;
 }

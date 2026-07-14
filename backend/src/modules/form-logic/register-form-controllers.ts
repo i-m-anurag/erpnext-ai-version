@@ -1,6 +1,7 @@
 import { registerFormController } from './form-controller.js';
 import { purchaseOrderController } from './controllers/purchase-order.controller.js';
 import { requisitionController } from './controllers/requisition.controller.js';
+import { purchaseInvoiceController } from './controllers/purchase-invoice.controller.js';
 
 let registered = false;
 
@@ -13,4 +14,5 @@ export function registerFormControllers(): void {
   registered = true;
   registerFormController('purchase-order', purchaseOrderController);
   registerFormController('requisition', requisitionController);
+  registerFormController('purchase-invoice', purchaseInvoiceController);
 }

@@ -27,6 +27,7 @@
     "bullmq": "^5.78.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "decimal.js": "^10.6.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^7.5.0",
