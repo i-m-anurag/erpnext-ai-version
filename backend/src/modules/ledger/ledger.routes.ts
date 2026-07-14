@@ -5,6 +5,7 @@ import { requireAuth } from '../auth/index.js';
 import { documentDataService } from '../document/document-data.service.js';
 import { ledgerService } from './ledger.service.js';
 import { ledgerReportService } from './ledger-report.service.js';
+import { ledgerSettingsService } from './ledger-settings.service.js';
 
 /** Financial-ledger reads: General Ledger, Trial Balance, and a voucher's entries. */
 export function buildLedgerRouter(): Router {
@@ -59,6 +60,15 @@ export function buildLedgerRouter(): Router {
       /* not a document / no state column — ignore */
     }
     res.json(result);
+  }));
+
+  router.get('/settings', asyncHandler(async (_req: Request, res: Response) => {
+    res.json(await ledgerSettingsService.get());
+  }));
+
+  router.put('/settings', asyncHandler(async (req: Request, res: Response) => {
+    const freezeDate = (req.body as { freezeDate?: string | null }).freezeDate ?? null;
+    res.json(await ledgerSettingsService.set(freezeDate));
   }));
 
   return router;

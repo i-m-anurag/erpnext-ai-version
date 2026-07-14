@@ -147,6 +147,11 @@ export const routes: Routes = [
               import('./features/accounting/party-outstanding.component').then((m) => m.PartyOutstandingComponent),
           },
           {
+            path: 'period-close',
+            loadComponent: () =>
+              import('./features/accounting/period-close.component').then((m) => m.PeriodCloseComponent),
+          },
+          {
             // finance document records (e.g. payments/PAY-2026-00001) → record view
             path: ':sub/:id',
             data: { slug: 'finance' },

@@ -63,6 +63,15 @@ export class LedgerApiService {
     return this.http.get<{ rows: PartyOutstandingRow[] }>('/api/ledger/receivables').pipe(map((r) => r.rows));
   }
 
+  /** Ledger settings — the period-freeze (posting lock) date. */
+  getSettings(): Observable<{ freezeDate: string | null }> {
+    return this.http.get<{ freezeDate: string | null }>('/api/ledger/settings');
+  }
+
+  setFreezeDate(freezeDate: string | null): Observable<{ freezeDate: string | null }> {
+    return this.http.put<{ freezeDate: string | null }>('/api/ledger/settings', { freezeDate });
+  }
+
   /** Reverse a posted voucher (posts opposite entries + marks the document Cancelled). */
   reverse(voucherType: string, voucherNo: string): Observable<{ posted: boolean }> {
     return this.http.post<{ posted: boolean }>('/api/ledger/reverse', { voucherType, voucherNo });

@@ -4,6 +4,7 @@ import { AppDataSource } from '../../db/data-source.js';
 import { BaseRepository } from '../../shared/base.repository.js';
 import { BadRequestError } from '../../shared/errors.js';
 import { GlEntry } from './gl-entry.entity.js';
+import { ledgerSettingsService } from './ledger-settings.service.js';
 
 /** One side of a posting. Exactly one of debit/credit should be non-zero. */
 export interface PostingLine {
@@ -50,6 +51,12 @@ export class LedgerService {
     }
     if (dr.isZero() && cr.isZero()) throw new BadRequestError('voucher has zero value');
     if (!dr.equals(cr)) throw new BadRequestError(`voucher not balanced: debit ${dr} ≠ credit ${cr}`);
+
+    // Period freeze: reject postings on or before the lock date.
+    const freeze = await ledgerSettingsService.freezeDate();
+    if (freeze && new Date(v.postingDate) <= freeze) {
+      throw new BadRequestError(`posting date is in a frozen period (on/before ${freeze.toISOString().slice(0, 10)})`);
+    }
 
     return AppDataSource.transaction(async (mgr: EntityManager) => {
       // Idempotency: a voucher already in the ledger is never posted twice.

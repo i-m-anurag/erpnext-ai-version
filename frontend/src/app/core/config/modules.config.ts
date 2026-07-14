@@ -79,6 +79,7 @@ export const MODULES: ErpModule[] = [
       { slug: 'payments', name: 'Payments', icon: 'ph-hand-coins' },
       { slug: 'payables', name: 'Payables', icon: 'ph-arrow-up-right' },
       { slug: 'receivables', name: 'Receivables', icon: 'ph-arrow-down-left' },
+      { slug: 'period-close', name: 'Period Close', icon: 'ph-lock-simple' },
       { slug: 'reports', name: 'Reports', icon: 'ph-chart-pie' },
     ],
   },
