@@ -1,82 +1,97 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { LedgerApiService, type TrialBalance } from '../../core/api/ledger.api.service';
+import { Router } from '@angular/router';
+import { AgGridAngular } from 'ag-grid-angular';
+import { type CellClickedEvent, type ColDef, type ValueFormatterParams, themeQuartz } from 'ag-grid-community';
+import { LedgerApiService, type TrialBalance, type TrialBalanceRow } from '../../core/api/ledger.api.service';
+
+/** ₹ with Indian grouping. Blank for zero. */
+function inr(v: unknown): string {
+  const n = Number(v);
+  if (!n) return '';
+  return '₹' + Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 /**
- * Trial Balance — every account with activity, its total debits and credits, and
- * the grand totals (which must be equal for a balanced ledger).
+ * Trial Balance — every account's debit/credit totals in an ag-grid, with the grand
+ * totals pinned at the bottom and a balanced/out-of-balance badge. Each account name
+ * links to its General Ledger.
  */
 @Component({
   selector: 'erp-trial-balance',
-  imports: [],
+  imports: [AgGridAngular],
   template: `
-    <div class="mb-3">
-      <div class="text-muted small">Accounting</div>
-      <h4 class="mb-0">Trial Balance</h4>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div>
+        <div class="text-muted small">Accounting</div>
+        <h4 class="mb-0">Trial Balance</h4>
+      </div>
+      @if (tb()) {
+        @if (balanced()) { <span class="iq-badge iq-badge--ok">balanced</span> }
+        @else { <span class="iq-badge iq-badge--no">out of balance</span> }
+      }
     </div>
 
-    <div class="erp-card p-0">
-      <table class="tb">
-        <thead>
-          <tr><th>Account</th><th style="width:90px">Root</th>
-            <th class="text-end" style="width:160px">Debit</th><th class="text-end" style="width:160px">Credit</th></tr>
-        </thead>
-        <tbody>
-          @for (r of tb()?.rows ?? []; track r.account) {
-            <tr>
-              <td>{{ r.name }}</td>
-              <td class="text-muted small">{{ r.rootType }}</td>
-              <td class="text-end">{{ money(r.debit) }}</td>
-              <td class="text-end">{{ money(r.credit) }}</td>
-            </tr>
-          } @empty {
-            <tr><td colspan="4" class="text-muted text-center py-4">
-              @if (loading()) { <i class="ph ph-circle-notch"></i> Loading… } @else { No ledger activity yet. }
-            </td></tr>
-          }
-        </tbody>
-        @if (tb(); as t) {
-          <tfoot>
-            <tr class="tb__total">
-              <td colspan="2" class="fw-semibold">Total @if (balanced()) { <span class="iq-badge iq-badge--ok">balanced</span> } @else { <span class="iq-badge iq-badge--no">out of balance</span> }</td>
-              <td class="text-end fw-bold">{{ money(t.totalDebit) }}</td>
-              <td class="text-end fw-bold">{{ money(t.totalCredit) }}</td>
-            </tr>
-          </tfoot>
-        }
-      </table>
-    </div>
+    <ag-grid-angular
+      [theme]="theme"
+      [rowData]="rows()"
+      [columnDefs]="colDefs"
+      [defaultColDef]="defaultColDef"
+      [pinnedBottomRowData]="totalRow()"
+      (cellClicked)="onCellClicked($event)"
+      style="height: calc(100vh - 210px); width: 100%"
+    />
   `,
   styles: [`
-    .tb { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-    .tb th { text-align: left; padding: 10px 14px; font-size: 0.72rem; text-transform: uppercase;
-      letter-spacing: 0.03em; color: var(--erp-text-muted); border-bottom: 1px solid var(--erp-border); }
-    .tb td { padding: 8px 14px; border-bottom: 1px solid var(--erp-border); }
-    .tb__total td { border-top: 2px solid var(--erp-border); }
-    .iq-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.72rem; margin-left: 6px; }
+    .iq-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 500; }
     .iq-badge--ok { background: #dcfce7; border: 1px solid #86efac; color: #166534; }
     .iq-badge--no { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
   `],
 })
 export class TrialBalanceComponent {
   private readonly ledger = inject(LedgerApiService);
+  private readonly router = inject(Router);
 
-  protected readonly loading = signal(true);
+  protected readonly theme = themeQuartz;
   protected readonly tb = signal<TrialBalance | undefined>(undefined);
-
+  protected readonly rows = computed(() => this.tb()?.rows ?? []);
   protected readonly balanced = computed(() => {
     const t = this.tb();
     return !!t && Number(t.totalDebit) === Number(t.totalCredit);
   });
+  protected readonly totalRow = computed(() => {
+    const t = this.tb();
+    return t ? [{ account: '', name: 'Total', rootType: '', debit: t.totalDebit, credit: t.totalCredit }] : [];
+  });
+
+  protected readonly defaultColDef: ColDef = { sortable: true, filter: true, floatingFilter: true, resizable: true, flex: 1 };
+
+  protected readonly colDefs: ColDef<TrialBalanceRow>[] = [
+    {
+      headerName: 'Account', field: 'name', minWidth: 220,
+      cellStyle: (p) => p.node.rowPinned
+        ? { fontWeight: '700', color: 'inherit', cursor: 'default', textDecoration: 'none' }
+        : { fontWeight: '400', color: '#2f6fed', cursor: 'pointer', textDecoration: 'underline' },
+    },
+    { headerName: 'Root', field: 'rootType', minWidth: 120 },
+    {
+      headerName: 'Debit', field: 'debit', type: 'rightAligned', minWidth: 150,
+      valueFormatter: (p: ValueFormatterParams) => inr(p.value),
+      cellStyle: (p) => ({ color: '#dc2626', fontVariantNumeric: 'tabular-nums', fontWeight: p.node.rowPinned ? 700 : 400 }),
+    },
+    {
+      headerName: 'Credit', field: 'credit', type: 'rightAligned', minWidth: 150,
+      valueFormatter: (p: ValueFormatterParams) => inr(p.value),
+      cellStyle: (p) => ({ color: '#16a34a', fontVariantNumeric: 'tabular-nums', fontWeight: p.node.rowPinned ? 700 : 400 }),
+    },
+  ];
 
   constructor() {
-    this.ledger.trialBalance().subscribe({
-      next: (t) => { this.tb.set(t); this.loading.set(false); },
-      error: () => this.loading.set(false),
-    });
+    this.ledger.trialBalance().subscribe((t) => this.tb.set(t));
   }
 
-  protected money(v: string): string {
-    const n = Number(v);
-    return n === 0 ? '' : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  /** Account name → its General Ledger (skip the pinned total row). */
+  protected onCellClicked(e: CellClickedEvent<TrialBalanceRow>): void {
+    if (e.colDef.field !== 'name' || e.node.rowPinned || !e.data?.account) return;
+    void this.router.navigate(['/app/m/finance/ledger'], { queryParams: { account: e.data.account } });
   }
 }

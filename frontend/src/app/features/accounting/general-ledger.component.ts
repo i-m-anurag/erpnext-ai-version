@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AgGridAngular } from 'ag-grid-angular';
 import { type CellClickedEvent, type ColDef, type ValueFormatterParams, type ValueGetterParams, themeQuartz } from 'ag-grid-community';
 import { AccountApiService, type Account } from '../../core/api/account.api.service';
@@ -63,6 +63,7 @@ export class GeneralLedgerComponent {
   private readonly accountsApi = inject(AccountApiService);
   private readonly ledger = inject(LedgerApiService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   protected account = '';
   protected readonly theme = themeQuartz;
@@ -106,6 +107,9 @@ export class GeneralLedgerComponent {
 
   constructor() {
     this.accountsApi.list().subscribe((a) => this.accounts.set(a));
+    // Deep-link support: /app/m/finance/ledger?account=<code> pre-selects it.
+    const acc = this.route.snapshot.queryParamMap.get('account');
+    if (acc) { this.account = acc; this.load(); }
   }
 
   /** Server-side fetch of the selected account's ledger (point 2). */
