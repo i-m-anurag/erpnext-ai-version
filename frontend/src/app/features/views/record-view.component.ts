@@ -14,6 +14,7 @@ import {
 } from '../../core/api/activity.api.service';
 import { WorkflowApiService, type WorkflowStatus } from '../../core/api/workflow.api.service';
 import { DocumentApiService, type CreateOption, type RelatedDoc } from '../../core/api/document.api.service';
+import { LedgerApiService, type GlVoucherEntry } from '../../core/api/ledger.api.service';
 import { NotificationService } from '../../core/notify/notification.service';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
 import { routeForMaster, type ResolvedView } from '../../core/config/view-configs';
@@ -132,6 +133,19 @@ const KIND_ICON: Record<TimelineKind, string> = {
       </div>
 
       <div class="iq-record__side">
+        @if (glEntries().length) {
+          <div class="erp-card p-3">
+            <div class="fw-semibold mb-2">Accounting Entries</div>
+            <table class="iq-gl">
+              <thead><tr><th>Account</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr></thead>
+              <tbody>
+                @for (e of glEntries(); track $index) {
+                  <tr><td>{{ e.account }}</td><td class="text-end">{{ glAmt(e.debit) }}</td><td class="text-end">{{ glAmt(e.credit) }}</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
         @if (related().length) {
           <div class="erp-card p-3">
             <div class="fw-semibold mb-2">Related documents</div>
@@ -216,6 +230,9 @@ const KIND_ICON: Record<TimelineKind, string> = {
     .iq-badge--success { background: #dcfce7; border-color: #86efac; color: #166534; }
     .iq-badge--warn { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
     .iq-badge--danger { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+    .iq-gl { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .iq-gl th { text-align: left; font-weight: 500; color: var(--erp-text-muted); padding: 2px 0; font-size: 0.72rem; text-transform: uppercase; }
+    .iq-gl td { padding: 3px 0; border-top: 1px solid var(--erp-border); }
   `],
 })
 export class RecordViewComponent {
@@ -230,6 +247,7 @@ export class RecordViewComponent {
   private readonly activity = inject(ActivityApiService);
   private readonly workflowApi = inject(WorkflowApiService);
   private readonly documents = inject(DocumentApiService);
+  private readonly ledger = inject(LedgerApiService);
   private readonly notify = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly formCmp = viewChild(DynamicFormComponent);
@@ -249,6 +267,7 @@ export class RecordViewComponent {
   protected readonly transitioning = signal(false);
 
   protected readonly related = signal<RelatedDoc[]>([]);
+  protected readonly glEntries = signal<GlVoucherEntry[]>([]);
   protected readonly createOptions = signal<CreateOption[]>([]);
   /** The full record (incl. line-items) for the edit form. The list payload omits
    *  children for speed, so an existing record is loaded on its own here. */
@@ -287,6 +306,7 @@ export class RecordViewComponent {
       this.comments.set([]);
       this.wf.set(undefined);
       this.related.set([]);
+      this.glEntries.set([]);
       this.createOptions.set([]);
       this.loading.set(true);
       this.resolver.resolve(module, sub).subscribe({
@@ -296,6 +316,7 @@ export class RecordViewComponent {
           this.loadActivity();
           this.loadWorkflow();
           this.loadDocLinks();
+          this.loadGlEntries();
         },
         error: () => this.loading.set(false),
       });
@@ -328,6 +349,20 @@ export class RecordViewComponent {
       this.related.set(r.related);
       this.createOptions.set(r.createOptions);
     });
+  }
+
+  /** GL entries this record posted (shown in the Accounting Entries panel). */
+  private loadGlEntries(): void {
+    const entity = this.entityType();
+    if (!entity || !this.canComment()) return;
+    this.ledger.voucherEntries(entity, this.recordId()).subscribe({
+      next: (e) => this.glEntries.set(e),
+      error: () => this.glEntries.set([]),
+    });
+  }
+  protected glAmt(v: string): string {
+    const n = Number(v);
+    return n === 0 ? '—' : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   protected createNextDoc(opt: CreateOption): void {

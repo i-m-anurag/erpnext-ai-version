@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { type Observable } from 'rxjs';
+import { map, type Observable } from 'rxjs';
 
 export interface GlReportRow {
   postingDate: string;
@@ -42,4 +42,20 @@ export class LedgerApiService {
   trialBalance(): Observable<TrialBalance> {
     return this.http.get<TrialBalance>('/api/ledger/trial-balance');
   }
+
+  /** The GL entries a document posted (for the record's Accounting Entries panel). */
+  voucherEntries(voucherType: string, voucherNo: string): Observable<GlVoucherEntry[]> {
+    return this.http
+      .get<{ entries: GlVoucherEntry[] }>(`/api/ledger/voucher/${encodeURIComponent(voucherType)}/${encodeURIComponent(voucherNo)}`)
+      .pipe(map((r) => r.entries));
+  }
+}
+
+/** One posted GL line as returned for a voucher. */
+export interface GlVoucherEntry {
+  account: string;
+  debit: string;
+  credit: string;
+  party: string | null;
+  against: string | null;
 }
