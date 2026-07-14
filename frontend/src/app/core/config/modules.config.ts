@@ -71,6 +71,7 @@ export const MODULES: ErpModule[] = [
     kpi: 'Month-end close in 4 days',
     subModules: [
       { slug: 'dashboard', name: 'Dashboard', icon: 'ph-gauge' },
+      { slug: 'chart-of-accounts', name: 'Chart of Accounts', icon: 'ph-tree-structure' },
       { slug: 'ledger', name: 'General Ledger', icon: 'ph-book-open' },
       { slug: 'payables', name: 'Payables', icon: 'ph-arrow-up-right' },
       { slug: 'receivables', name: 'Receivables', icon: 'ph-arrow-down-left' },

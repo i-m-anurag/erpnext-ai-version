@@ -12,6 +12,7 @@ import { buildWorkflowRouter, buildWorkflowAdminRouter } from './modules/workflo
 import { buildTemplateRouter } from './modules/communication/index.js';
 import { buildDocumentRouter } from './modules/document/index.js';
 import { buildNamingRouter } from './modules/naming/index.js';
+import { buildAccountRouter } from './modules/accounts/index.js';
 
 /**
  * Central route registration. As modules land (auth, permission, ...), each
@@ -85,4 +86,7 @@ export function registerRoutes(app: Express): void {
 
   // Naming-series (auto-id) management. Gated by auth + config:* perms.
   app.use('/api/naming-series', buildNamingRouter());
+
+  // Chart of Accounts (read-only; seeded). Gated by auth.
+  app.use('/api/accounts', buildAccountRouter());
 }

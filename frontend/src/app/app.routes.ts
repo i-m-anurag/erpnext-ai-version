@@ -104,6 +104,26 @@ export const routes: Routes = [
         ],
       },
       {
+        // Finance module — Chart of Accounts + ledger reports. Declared before the
+        // generic m/:slug route so these specific subs win.
+        path: 'm/finance',
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'chart-of-accounts' },
+          {
+            path: 'chart-of-accounts',
+            loadComponent: () =>
+              import('./features/accounting/chart-of-accounts.component').then((m) => m.ChartOfAccountsComponent),
+          },
+          {
+            // dashboard / payables / receivables / any other finance sub → generic workspace
+            path: ':sub',
+            data: { slug: 'finance' },
+            loadComponent: () =>
+              import('./features/module-workspace/module-workspace.component').then((m) => m.ModuleWorkspaceComponent),
+          },
+        ],
+      },
+      {
         path: 'm/:slug',
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
