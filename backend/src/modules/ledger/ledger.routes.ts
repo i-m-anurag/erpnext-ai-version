@@ -28,6 +28,14 @@ export function buildLedgerRouter(): Router {
     res.json(await ledgerReportService.balanceSheet());
   }));
 
+  router.get('/payables', asyncHandler(async (_req: Request, res: Response) => {
+    res.json({ rows: await ledgerReportService.partyOutstanding('Payable') });
+  }));
+
+  router.get('/receivables', asyncHandler(async (_req: Request, res: Response) => {
+    res.json({ rows: await ledgerReportService.partyOutstanding('Receivable') });
+  }));
+
   router.get('/voucher/:type/:no', asyncHandler(async (req: Request, res: Response) => {
     res.json({ entries: await ledgerService.forVoucher(String(req.params.type), String(req.params.no)) });
   }));

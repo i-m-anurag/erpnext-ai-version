@@ -1,0 +1,9 @@
+{
+  "slug": "payment-entry",
+  "name": "Payment Entry",
+  "kind": "document",
+  "managedBy": "ui",
+  "editable": true,
+  "formSlug": "payment-entry",
+  "codeField": "peNumber"
+}

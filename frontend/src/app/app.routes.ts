@@ -135,7 +135,26 @@ export const routes: Routes = [
               import('./features/accounting/balance-sheet.component').then((m) => m.BalanceSheetComponent),
           },
           {
-            // dashboard / payables / receivables / any other finance sub → generic workspace
+            path: 'payables',
+            data: { kind: 'payables' },
+            loadComponent: () =>
+              import('./features/accounting/party-outstanding.component').then((m) => m.PartyOutstandingComponent),
+          },
+          {
+            path: 'receivables',
+            data: { kind: 'receivables' },
+            loadComponent: () =>
+              import('./features/accounting/party-outstanding.component').then((m) => m.PartyOutstandingComponent),
+          },
+          {
+            // finance document records (e.g. payments/PAY-2026-00001) → record view
+            path: ':sub/:id',
+            data: { slug: 'finance' },
+            loadComponent: () =>
+              import('./features/views/record-view.component').then((m) => m.RecordViewComponent),
+          },
+          {
+            // dashboard / payments list / any other finance sub → generic workspace
             path: ':sub',
             data: { slug: 'finance' },
             loadComponent: () =>

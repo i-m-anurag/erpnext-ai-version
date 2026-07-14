@@ -152,6 +152,7 @@ export const BACKED_VIEWS: Record<string, { masterSlug: string }> = {
   'procurement/requisitions': { masterSlug: 'requisition' },
   'procurement/purchase-orders': { masterSlug: 'purchase-order' },
   'procurement/invoices': { masterSlug: 'purchase-invoice' },
+  'finance/payments': { masterSlug: 'payment-entry' },
   'sales/orders': { masterSlug: 'sales-order' },
 };
 

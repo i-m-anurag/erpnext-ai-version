@@ -51,6 +51,14 @@ export class LedgerApiService {
     return this.http.get<BalanceSheet>('/api/ledger/balance-sheet');
   }
 
+  payables(): Observable<PartyOutstandingRow[]> {
+    return this.http.get<{ rows: PartyOutstandingRow[] }>('/api/ledger/payables').pipe(map((r) => r.rows));
+  }
+
+  receivables(): Observable<PartyOutstandingRow[]> {
+    return this.http.get<{ rows: PartyOutstandingRow[] }>('/api/ledger/receivables').pipe(map((r) => r.rows));
+  }
+
   /** The GL entries a document posted (for the record's Accounting Entries panel). */
   voucherEntries(voucherType: string, voucherNo: string): Observable<GlVoucherEntry[]> {
     return this.http
@@ -79,6 +87,10 @@ export interface ProfitAndLoss {
   expense: StatementRow[];
   totalExpense: string;
   netProfit: string;
+}
+export interface PartyOutstandingRow {
+  party: string;
+  outstanding: string;
 }
 export interface BalanceSheet {
   assets: StatementRow[];

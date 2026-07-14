@@ -1,0 +1,25 @@
+{
+  "slug": "payment-entry",
+  "version": 1,
+  "title": "Payment Entry",
+  "layout": "two-column",
+  "fields": [
+    { "key": "peNumber", "type": "text", "label": "Payment No.", "auto": true, "placeholder": "Auto-generated on save" },
+    { "key": "paymentType", "type": "select", "label": "Type", "required": true, "options": [
+      { "value": "Pay", "label": "Pay (to supplier)" },
+      { "value": "Receive", "label": "Receive (from customer)" }
+    ] },
+    { "key": "party", "type": "select", "label": "Party", "required": true, "options": [
+      { "value": "Acme Supplies", "label": "Acme Supplies" },
+      { "value": "Globex Corp", "label": "Globex Corp" },
+      { "value": "Initech", "label": "Initech" }
+    ] },
+    { "key": "mode", "type": "select", "label": "Mode", "required": true, "options": [
+      { "value": "Bank", "label": "Bank" },
+      { "value": "Cash", "label": "Cash" }
+    ] },
+    { "key": "paymentDate", "type": "date", "label": "Payment Date" },
+    { "key": "amount", "type": "number", "label": "Amount", "required": true, "validators": { "min": 0.01 } },
+    { "key": "reference", "type": "text", "label": "Reference" }
+  ]
+}

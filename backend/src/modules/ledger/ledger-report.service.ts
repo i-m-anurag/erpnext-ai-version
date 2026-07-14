@@ -48,6 +48,12 @@ export interface BalanceSheet {
   balanced: boolean;
 }
 
+/** One party's outstanding balance in an AR/AP report. */
+export interface PartyOutstandingRow {
+  party: string;
+  outstanding: string;
+}
+
 interface AccountNet {
   code: string;
   name: string;
@@ -108,6 +114,25 @@ export class LedgerReportService {
       totalDebit: String(totals[0]!.debit),
       totalCredit: String(totals[0]!.credit),
     };
+  }
+
+  /**
+   * Party-wise outstanding for an account role. Payable (creditors) outstanding =
+   * credit − debit (we owe); Receivable (debtors) = debit − credit (owed to us).
+   * Parties netting to zero are dropped.
+   */
+  async partyOutstanding(accountType: 'Payable' | 'Receivable'): Promise<PartyOutstandingRow[]> {
+    const sign = accountType === 'Payable' ? '(SUM(g.credit) - SUM(g.debit))' : '(SUM(g.debit) - SUM(g.credit))';
+    const rows = (await AppDataSource.query(
+      `SELECT g.party, ${sign} AS outstanding
+         FROM gl_entry g JOIN account a ON a.code = g.account
+        WHERE a.account_type = $1 AND g.party IS NOT NULL
+        GROUP BY g.party
+       HAVING ${sign} <> 0
+        ORDER BY g.party`,
+      [accountType],
+    )) as Record<string, unknown>[];
+    return rows.map((r) => ({ party: String(r.party), outstanding: String(r.outstanding) }));
   }
 
   /** Per-account debit/credit totals for accounts that have postings. */
