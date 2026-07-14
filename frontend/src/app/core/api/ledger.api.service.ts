@@ -59,6 +59,11 @@ export class LedgerApiService {
     return this.http.get<{ rows: PartyOutstandingRow[] }>('/api/ledger/receivables').pipe(map((r) => r.rows));
   }
 
+  /** Reverse a posted voucher (posts opposite entries + marks the document Cancelled). */
+  reverse(voucherType: string, voucherNo: string): Observable<{ posted: boolean }> {
+    return this.http.post<{ posted: boolean }>('/api/ledger/reverse', { voucherType, voucherNo });
+  }
+
   /** The GL entries a document posted (for the record's Accounting Entries panel). */
   voucherEntries(voucherType: string, voucherNo: string): Observable<GlVoucherEntry[]> {
     return this.http

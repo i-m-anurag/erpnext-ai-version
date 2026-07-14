@@ -135,7 +135,16 @@ const KIND_ICON: Record<TimelineKind, string> = {
       <div class="iq-record__side">
         @if (glEntries().length) {
           <div class="erp-card p-3">
-            <div class="fw-semibold mb-2">Accounting Entries</div>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-semibold">Accounting Entries</div>
+              @if (recordState() !== 'Cancelled') {
+                <button class="btn btn-xs btn-light text-danger" [disabled]="reversing()" (click)="reverseEntry()">
+                  <i class="ph ph-arrow-u-up-left"></i> Reverse
+                </button>
+              } @else {
+                <span class="iq-badge iq-badge--danger">Cancelled</span>
+              }
+            </div>
             <table class="iq-gl">
               <thead><tr><th>Account</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr></thead>
               <tbody>
@@ -230,6 +239,7 @@ const KIND_ICON: Record<TimelineKind, string> = {
     .iq-badge--success { background: #dcfce7; border-color: #86efac; color: #166534; }
     .iq-badge--warn { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
     .iq-badge--danger { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+    .btn-xs { padding: 2px 8px; font-size: 0.75rem; line-height: 1.3; }
     .iq-gl { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
     .iq-gl th { text-align: left; font-weight: 500; color: var(--erp-text-muted); padding: 2px 0; font-size: 0.72rem; text-transform: uppercase; }
     .iq-gl td { padding: 3px 0; border-top: 1px solid var(--erp-border); }
@@ -268,6 +278,7 @@ export class RecordViewComponent {
 
   protected readonly related = signal<RelatedDoc[]>([]);
   protected readonly glEntries = signal<GlVoucherEntry[]>([]);
+  protected readonly reversing = signal(false);
   protected readonly createOptions = signal<CreateOption[]>([]);
   /** The full record (incl. line-items) for the edit form. The list payload omits
    *  children for speed, so an existing record is loaded on its own here. */
@@ -363,6 +374,26 @@ export class RecordViewComponent {
   protected glAmt(v: string): string {
     const n = Number(v);
     return n === 0 ? '—' : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  /** Reverse this document's posting (corrections never edit — they reverse). */
+  protected reverseEntry(): void {
+    const entity = this.entityType();
+    if (!entity || this.reversing()) return;
+    if (!confirm('Reverse the accounting entries for this document? This posts an equal-and-opposite entry and marks it Cancelled.')) return;
+    this.reversing.set(true);
+    this.ledger.reverse(entity, this.recordId()).subscribe({
+      next: () => {
+        this.reversing.set(false);
+        this.notify.success('Entry reversed');
+        this.recordState.set('Cancelled');
+        this.loadGlEntries();
+      },
+      error: (e: { error?: { error?: { message?: string } } }) => {
+        this.reversing.set(false);
+        this.notify.error(e?.error?.error?.message ?? 'Reversal failed');
+      },
+    });
   }
 
   protected createNextDoc(opt: CreateOption): void {
