@@ -47,8 +47,9 @@ export class LedgerApiService {
     return this.http.get<TrialBalance>('/api/ledger/trial-balance');
   }
 
-  profitAndLoss(): Observable<ProfitAndLoss> {
-    return this.http.get<ProfitAndLoss>('/api/ledger/profit-and-loss');
+  profitAndLoss(from?: string, to?: string): Observable<ProfitAndLoss> {
+    const qs = [from ? `from=${from}` : '', to ? `to=${to}` : ''].filter(Boolean).join('&');
+    return this.http.get<ProfitAndLoss>(`/api/ledger/profit-and-loss${qs ? '?' + qs : ''}`);
   }
 
   balanceSheet(): Observable<BalanceSheet> {

@@ -1,7 +1,9 @@
 import { Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { AgGridAngular } from 'ag-grid-angular';
 import { type ColDef, type ValueFormatterParams, themeQuartz } from 'ag-grid-community';
 import { LedgerApiService, type ProfitAndLoss } from '../../core/api/ledger.api.service';
+import { FiscalYearApiService, type FiscalYear } from '../../core/api/fiscal-year.api.service';
 
 interface StmtRow { section: string; name: string; amount: string; subtotal: boolean; }
 
@@ -16,9 +18,18 @@ function inr(v: unknown): string {
  *  pinned Net Profit line, on ag-grid (structured statement → no column filters). */
 @Component({
   selector: 'erp-profit-loss',
-  imports: [AgGridAngular],
+  imports: [AgGridAngular, FormsModule],
   template: `
-    <div class="mb-3"><div class="text-muted small">Accounting</div><h4 class="mb-0">Profit &amp; Loss</h4></div>
+    <div class="d-flex align-items-end justify-content-between mb-3 flex-wrap gap-2">
+      <div><div class="text-muted small">Accounting</div><h4 class="mb-0">Profit &amp; Loss</h4></div>
+      <div>
+        <label class="erp-field__label form-label">Fiscal year</label>
+        <select class="form-select form-select-sm" style="min-width:200px" [(ngModel)]="selected" (ngModelChange)="load()">
+          <option value="">All time</option>
+          @for (fy of fiscalYears(); track fy.id) { <option [value]="fy.id">{{ fy.name }}@if (fy.closed) { (closed) }</option> }
+        </select>
+      </div>
+    </div>
     <ag-grid-angular
       [theme]="theme" [rowData]="rows()" [columnDefs]="colDefs" [defaultColDef]="defaultColDef"
       [pinnedBottomRowData]="netRow()" [getRowStyle]="rowStyle"
@@ -27,9 +38,12 @@ function inr(v: unknown): string {
 })
 export class ProfitLossComponent {
   private readonly ledger = inject(LedgerApiService);
+  private readonly fyApi = inject(FiscalYearApiService);
   protected readonly theme = themeQuartz;
   protected readonly rows = signal<StmtRow[]>([]);
   protected readonly netRow = signal<StmtRow[]>([]);
+  protected readonly fiscalYears = signal<FiscalYear[]>([]);
+  protected selected = '';
 
   protected readonly defaultColDef: ColDef = { sortable: false, filter: false, resizable: true, flex: 1 };
   protected readonly colDefs: ColDef<StmtRow>[] = [
@@ -49,7 +63,13 @@ export class ProfitLossComponent {
     p.data?.subtotal ? { background: 'var(--erp-surface-alt)' } : undefined;
 
   constructor() {
-    this.ledger.profitAndLoss().subscribe((pl) => this.build(pl));
+    this.fyApi.list().subscribe((f) => this.fiscalYears.set(f));
+    this.load();
+  }
+
+  protected load(): void {
+    const fy = this.fiscalYears().find((f) => f.id === this.selected);
+    this.ledger.profitAndLoss(fy?.startDate, fy?.endDate).subscribe((pl) => this.build(pl));
   }
 
   private build(pl: ProfitAndLoss): void {

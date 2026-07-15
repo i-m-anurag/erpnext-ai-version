@@ -13,6 +13,7 @@ import { workflowsSeeder } from './seeders/workflows.seeder.js';
 import { pipelinesSeeder } from './seeders/pipelines.seeder.js';
 import { namingSeriesSeeder } from './seeders/naming-series.seeder.js';
 import { accountsSeeder } from './seeders/accounts.seeder.js';
+import { fiscalYearsSeeder } from './seeders/fiscal-years.seeder.js';
 import { adminBootstrapSeeder } from './seeders/admin-bootstrap.seeder.js';
 
 /**
@@ -32,6 +33,7 @@ const seeders: Seeder[] = [
   pipelinesSeeder,
   namingSeriesSeeder,
   accountsSeeder,
+  fiscalYearsSeeder,
   adminBootstrapSeeder,
 ];
 

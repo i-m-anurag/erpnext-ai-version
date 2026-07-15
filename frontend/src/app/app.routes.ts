@@ -152,6 +152,11 @@ export const routes: Routes = [
               import('./features/accounting/period-close.component').then((m) => m.PeriodCloseComponent),
           },
           {
+            path: 'fiscal-years',
+            loadComponent: () =>
+              import('./features/accounting/fiscal-year.component').then((m) => m.FiscalYearComponent),
+          },
+          {
             // finance document records (e.g. payments/PAY-2026-00001) → record view
             path: ':sub/:id',
             data: { slug: 'finance' },

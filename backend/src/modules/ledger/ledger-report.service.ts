@@ -229,13 +229,21 @@ export class LedgerReportService {
     return out.sort((a, b) => a.party.localeCompare(b.party));
   }
 
-  /** Per-account debit/credit totals for accounts that have postings. */
-  private async accountNets(): Promise<AccountNet[]> {
+  /** Per-account debit/credit totals, optionally within a date range and/or excluding
+   *  year-end closing vouchers. */
+  private async accountNets(opts: { from?: string; to?: string; excludeClosing?: boolean } = {}): Promise<AccountNet[]> {
+    const conds: string[] = [];
+    const params: unknown[] = [];
+    if (opts.excludeClosing) conds.push(`g.voucher_type <> 'period-closing'`);
+    if (opts.from) { params.push(opts.from); conds.push(`g.posting_date::date >= $${params.length}`); }
+    if (opts.to) { params.push(opts.to); conds.push(`g.posting_date::date <= $${params.length}`); }
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const rows = (await AppDataSource.query(
       `SELECT a.code, a.name, a.root_type, SUM(g.debit) AS debit, SUM(g.credit) AS credit
-         FROM account a JOIN gl_entry g ON g.account = a.code
+         FROM account a JOIN gl_entry g ON g.account = a.code ${where}
         GROUP BY a.code, a.name, a.root_type
         ORDER BY a.code`,
+      params,
     )) as Record<string, unknown>[];
     return rows.map((r) => ({
       code: String(r.code), name: String(r.name), rootType: String(r.root_type),
@@ -243,9 +251,17 @@ export class LedgerReportService {
     }));
   }
 
-  /** Profit & Loss: income (credit − debit) and expense (debit − credit), net profit. */
-  async profitAndLoss(): Promise<ProfitAndLoss> {
-    const nets = await this.accountNets();
+  /** The day after a date (for an exclusive "after the close" lower bound). */
+  private nextDay(d: string): string {
+    const dt = new Date(`${d}T00:00:00Z`);
+    dt.setUTCDate(dt.getUTCDate() + 1);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  /** Profit & Loss over [from,to] (all-time if omitted). Excludes year-end closing
+   *  vouchers so a closed year still shows its real income/expense. */
+  async profitAndLoss(from?: string, to?: string): Promise<ProfitAndLoss> {
+    const nets = await this.accountNets({ from, to, excludeClosing: true });
     const income = nets.filter((n) => n.rootType === 'Income').map((n) => ({ account: n.code, name: n.name, amount: n.credit.minus(n.debit) }));
     const expense = nets.filter((n) => n.rootType === 'Expense').map((n) => ({ account: n.code, name: n.name, amount: n.debit.minus(n.credit) }));
     const sum = (rows: { amount: Decimal }[]): Decimal => rows.reduce((s, r) => s.plus(r.amount), new Decimal(0));
@@ -260,15 +276,21 @@ export class LedgerReportService {
     };
   }
 
-  /** Balance Sheet: assets vs liabilities + equity, with the current-period net
-   *  profit folded into equity so the statement balances. */
-  async balanceSheet(): Promise<BalanceSheet> {
+  /**
+   * Balance Sheet as of now. Assets/Liabilities/Equity are the cumulative ledger
+   * balances (so Retained Earnings already holds any closed-year profits via the
+   * closing vouchers). The "Net Profit (Current Period)" line is the P&L of the OPEN
+   * period only — everything after the last closed year — so closed profit isn't
+   * double-counted.
+   */
+  async balanceSheet(lastCloseDate?: string | null): Promise<BalanceSheet> {
     const nets = await this.accountNets();
     const assets = nets.filter((n) => n.rootType === 'Asset').map((n) => ({ account: n.code, name: n.name, amount: n.debit.minus(n.credit) }));
     const liabilities = nets.filter((n) => n.rootType === 'Liability').map((n) => ({ account: n.code, name: n.name, amount: n.credit.minus(n.debit) }));
     const equityAccts = nets.filter((n) => n.rootType === 'Equity').map((n) => ({ account: n.code, name: n.name, amount: n.credit.minus(n.debit) }));
 
-    const pl = await this.profitAndLoss();
+    const openFrom = lastCloseDate ? this.nextDay(lastCloseDate) : undefined;
+    const pl = await this.profitAndLoss(openFrom);
     const netProfit = new Decimal(pl.netProfit);
     const equity = [...equityAccts, { account: 'net-profit', name: 'Net Profit (Current Period)', amount: netProfit }];
 

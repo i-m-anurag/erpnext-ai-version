@@ -6,6 +6,7 @@ import { documentDataService } from '../document/document-data.service.js';
 import { ledgerService } from './ledger.service.js';
 import { ledgerReportService } from './ledger-report.service.js';
 import { ledgerSettingsService } from './ledger-settings.service.js';
+import { fiscalYearService } from './fiscal-year.service.js';
 
 /** Financial-ledger reads: General Ledger, Trial Balance, and a voucher's entries. */
 export function buildLedgerRouter(): Router {
@@ -24,12 +25,22 @@ export function buildLedgerRouter(): Router {
     res.json(await ledgerReportService.trialBalance());
   }));
 
-  router.get('/profit-and-loss', asyncHandler(async (_req: Request, res: Response) => {
-    res.json(await ledgerReportService.profitAndLoss());
+  router.get('/profit-and-loss', asyncHandler(async (req: Request, res: Response) => {
+    const from = req.query.from ? String(req.query.from) : undefined;
+    const to = req.query.to ? String(req.query.to) : undefined;
+    res.json(await ledgerReportService.profitAndLoss(from, to));
   }));
 
   router.get('/balance-sheet', asyncHandler(async (_req: Request, res: Response) => {
-    res.json(await ledgerReportService.balanceSheet());
+    res.json(await ledgerReportService.balanceSheet(await fiscalYearService.lastCloseDate()));
+  }));
+
+  router.get('/fiscal-years', asyncHandler(async (_req: Request, res: Response) => {
+    res.json({ fiscalYears: await fiscalYearService.list() });
+  }));
+
+  router.post('/fiscal-years/:id/close', asyncHandler(async (req: Request, res: Response) => {
+    res.json(await fiscalYearService.close(String(req.params.id)));
   }));
 
   router.get('/payables', asyncHandler(async (_req: Request, res: Response) => {
