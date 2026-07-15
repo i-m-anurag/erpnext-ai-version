@@ -52,11 +52,12 @@ export class ProfitLossComponent {
       cellStyle: (p) => ({ fontWeight: p.data?.subtotal || p.node.rowPinned ? '700' : '400' }) },
     { headerName: 'Amount', field: 'amount', type: 'rightAligned', minWidth: 160,
       valueFormatter: (p: ValueFormatterParams) => inr(p.value),
-      cellStyle: (p) => ({
-        fontWeight: p.data?.subtotal || p.node.rowPinned ? '700' : '400',
-        color: Number(p.value) < 0 ? '#dc2626' : '#16a34a',
-        fontVariantNumeric: 'tabular-nums',
-      }) },
+      cellStyle: (p) => {
+        // Income green, Expense red; the Net line (no section) goes by sign.
+        const s = p.data?.section;
+        const color = s === 'Expense' ? '#dc2626' : s === 'Income' ? '#16a34a' : (Number(p.value) < 0 ? '#dc2626' : '#16a34a');
+        return { fontWeight: p.data?.subtotal || p.node.rowPinned ? '700' : '400', color, fontVariantNumeric: 'tabular-nums' };
+      } },
   ];
 
   protected readonly rowStyle = (p: { data?: StmtRow }) =>
