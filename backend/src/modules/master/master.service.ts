@@ -8,6 +8,7 @@ import { namingSeriesService } from '../naming/index.js';
 import { tableNameForSlug } from '../document/table-name.js';
 import { documentDataService } from '../document/document-data.service.js';
 import { getFormController, type FormDoc } from '../form-logic/index.js';
+import { ledgerService } from '../ledger/index.js';
 import { MasterRegistry, type MasterManagedBy } from './master-registry.entity.js';
 import { MasterData } from './master-data.entity.js';
 
@@ -155,6 +156,15 @@ export class MasterService {
 
   async updateData(slug: string, id: string, input: Record<string, unknown>, draft = false): Promise<MasterData> {
     const reg = await this.getRegistry(slug);
+    // A document that has posted to the ledger is immutable — editing it would let the
+    // saved record drift from its (already-posted, append-only) GL entries. Reverse it
+    // to make changes.
+    if (reg.kind === 'document') {
+      const existing = await documentDataService.getById(slug, id);
+      if (await ledgerService.hasEntries(slug, existing.code)) {
+        throw new BadRequestError('this document is posted to the ledger and is read-only; reverse it to make changes');
+      }
+    }
     const controller = getFormController(slug);
     if (controller?.beforeSave) {
       const ctx = { slug, input: { ...input }, draft, isNew: false };
