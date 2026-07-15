@@ -31,11 +31,12 @@ export const purchaseInvoiceController: FormController = {
 
   /** On submit (not draft), post the invoice to the GL. Idempotent — a re-save of an
    *  already-posted invoice is a no-op (the ledger dedupes by voucher). */
-  async afterSave(doc) {
+  async afterSave(doc, tx) {
     if (doc.status === 'draft') return;
     const rule = getPostingRule(doc.slug);
     if (!rule) return;
     const postingDate = (doc.data['invoiceDate'] as string | undefined) ?? today();
-    await ledgerService.post(buildVoucher(rule, { code: doc.code, data: doc.data }, postingDate));
+    // Post on the document's transaction so save + GL post are atomic.
+    await ledgerService.post(buildVoucher(rule, { code: doc.code, data: doc.data }, postingDate), tx?.manager);
   },
 };

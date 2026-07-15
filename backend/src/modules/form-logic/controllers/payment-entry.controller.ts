@@ -23,7 +23,7 @@ export const paymentEntryController: FormController = {
     }
   },
 
-  async afterSave(doc) {
+  async afterSave(doc, tx) {
     if (doc.status === 'draft') return;
     const d = doc.data;
     const amount = Number(d['amount'] ?? 0);
@@ -44,6 +44,7 @@ export const paymentEntryController: FormController = {
             { account: modeAccount, debit: 0, credit: amount },
           ];
 
-    await ledgerService.post({ voucherType: doc.slug, voucherNo: doc.code, postingDate, lines });
+    // Post on the document's transaction so save + GL post are atomic.
+    await ledgerService.post({ voucherType: doc.slug, voucherNo: doc.code, postingDate, lines }, tx?.manager);
   },
 };

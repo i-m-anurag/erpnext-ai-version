@@ -49,7 +49,13 @@ export class LedgerService {
     }
   }
 
-  async post(v: Voucher): Promise<{ posted: boolean; lines: number }> {
+  /**
+   * Post a balanced voucher to the ledger. When `manager` is supplied the inserts
+   * run on that (caller-owned) transaction — so a document persist and its GL post
+   * commit or roll back together; without it, post opens its own transaction (used
+   * by Reverse and Year-end Close).
+   */
+  async post(v: Voucher, manager?: EntityManager): Promise<{ posted: boolean; lines: number }> {
     if (v.lines.length === 0) throw new BadRequestError('a voucher needs at least one line');
 
     let dr = new Decimal(0);
@@ -66,14 +72,14 @@ export class LedgerService {
     // Every line must reference a real account — otherwise the INNER-JOIN reports
     // would silently drop the row and unbalance the books (see also the FK).
     const codes = [...new Set(v.lines.map((l) => l.account))];
-    const found = (await AppDataSource.query(
+    const found = (await (manager ?? AppDataSource).query(
       `SELECT code FROM account WHERE code = ANY($1)`,
       [codes],
     )) as { code: string }[];
     const missing = codes.filter((c) => !found.some((f) => f.code === c));
     if (missing.length > 0) throw new BadRequestError(`unknown account(s): ${missing.join(', ')}`);
 
-    return AppDataSource.transaction(async (mgr: EntityManager) => {
+    const run = async (mgr: EntityManager): Promise<{ posted: boolean; lines: number }> => {
       // Serialize concurrent posts of the same voucher so the SELECT-then-INSERT
       // idempotency check below is race-safe (advisory lock auto-releases on commit).
       await mgr.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`${v.voucherType}|${v.voucherNo}`]);
@@ -103,7 +109,10 @@ export class LedgerService {
         );
       }
       return { posted: true, lines: v.lines.length };
-    });
+    };
+
+    // Join the caller's transaction when given one, else own it.
+    return manager ? run(manager) : AppDataSource.transaction(run);
   }
 
   /** Reverse a posted voucher by posting equal-and-opposite entries under `<no>-REV`. */

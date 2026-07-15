@@ -1,3 +1,4 @@
+import type { EntityManager } from 'typeorm';
 import { AppDataSource } from '../../db/data-source.js';
 import { BaseRepository } from '../../shared/base.repository.js';
 import { BadRequestError, NotFoundError } from '../../shared/errors.js';
@@ -16,6 +17,11 @@ function ident(name: string): string {
 }
 
 type Sql = Record<string, unknown>;
+
+/** Anything that can run a parameterised query — the DataSource (its own connection)
+ *  or an EntityManager (a caller's open transaction). Threading one through lets a
+ *  document persist share a transaction with its ledger posting. */
+type Queryable = Pick<EntityManager, 'query'>;
 
 export interface DocumentRow {
   id: string;
@@ -73,14 +79,14 @@ export class DocumentDataService {
     return Promise.all(rows.map((r) => this.assemble(c, r, false)));
   }
 
-  async getById(slug: string, id: string): Promise<DocumentRow> {
+  async getById(slug: string, id: string, db: Queryable = AppDataSource): Promise<DocumentRow> {
     const c = await this.ctx(slug);
-    const rows = (await AppDataSource.query(
+    const rows = (await db.query(
       `SELECT * FROM ${ident(c.table)} WHERE "id"=$1 AND "deletedAt" IS NULL`,
       [id],
     )) as Sql[];
     if (rows.length === 0) throw new NotFoundError('document not found');
-    return this.assemble(c, rows[0]!);
+    return this.assemble(c, rows[0]!, true, db);
   }
 
   async getByCode(slug: string, code: string): Promise<DocumentRow> {
@@ -95,9 +101,9 @@ export class DocumentDataService {
 
   /** Set only the business `state` column (used by form-controller computeStatus).
    *  Unlike persistWorkflow this never touches `extra`, so it won't clobber jsonb. */
-  async setState(slug: string, id: string, state: string | null): Promise<void> {
+  async setState(slug: string, id: string, state: string | null, db: Queryable = AppDataSource): Promise<void> {
     const c = await this.ctx(slug);
-    await AppDataSource.query(
+    await db.query(
       `UPDATE ${ident(c.table)} SET "state"=$1, "updatedAt"=now() WHERE "id"=$2`,
       [state, id],
     );
@@ -112,15 +118,16 @@ export class DocumentDataService {
     await AppDataSource.query(`UPDATE ${ident(c.table)} SET ${sets.join(', ')} WHERE "id"=$${params.length}`, params);
   }
 
-  /** Validated create (user submit) → status 'active'. */
-  create(slug: string, input: Record<string, unknown>): Promise<DocumentRow> {
-    return this.insert(slug, input, true, 'active');
+  /** Validated create (user submit) → status 'active'. `db` runs the writes on a
+   *  caller's transaction (so the document + its GL posting are atomic). */
+  create(slug: string, input: Record<string, unknown>, db: Queryable = AppDataSource): Promise<DocumentRow> {
+    return this.insert(slug, input, true, 'active', db);
   }
 
   /** Draft create — skips form validation, status 'draft' (e.g. "Save as draft"
    *  and create-next from another document). */
-  createDraft(slug: string, input: Record<string, unknown>): Promise<DocumentRow> {
-    return this.insert(slug, input, false, 'draft');
+  createDraft(slug: string, input: Record<string, unknown>, db: Queryable = AppDataSource): Promise<DocumentRow> {
+    return this.insert(slug, input, false, 'draft', db);
   }
 
   private async insert(
@@ -128,6 +135,7 @@ export class DocumentDataService {
     input: Record<string, unknown>,
     validate: boolean,
     status: string,
+    db: Queryable = AppDataSource,
   ): Promise<DocumentRow> {
     const c = await this.ctx(slug);
     const auto = await namingSeriesService.next(slug);
@@ -140,13 +148,13 @@ export class DocumentDataService {
     const names = ['"code"', '"status"', '"extra"', ...cols.map(ident)];
     const placeholders = ['$1', '$2', '$3::jsonb', ...vals.map((_, i) => `$${i + 4}`)];
     const params = [code, status, JSON.stringify(extra), ...vals];
-    const inserted = (await AppDataSource.query(
+    const inserted = (await db.query(
       `INSERT INTO ${ident(c.table)} (${names.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING *`,
       params,
     )) as Sql[];
     const row = inserted[0]!;
-    await this.insertChildren(c, String(row.id), clean);
-    return this.assemble(c, row);
+    await this.insertChildren(c, String(row.id), clean, db);
+    return this.assemble(c, row, true, db);
   }
 
   async update(
@@ -154,9 +162,10 @@ export class DocumentDataService {
     id: string,
     input: Record<string, unknown>,
     opts: { draft?: boolean } = {},
+    db: Queryable = AppDataSource,
   ): Promise<DocumentRow> {
     const c = await this.ctx(slug);
-    const existing = (await AppDataSource.query(`SELECT "code" FROM ${ident(c.table)} WHERE "id"=$1`, [id])) as Sql[];
+    const existing = (await db.query(`SELECT "code" FROM ${ident(c.table)} WHERE "id"=$1`, [id])) as Sql[];
     if (existing.length === 0) throw new NotFoundError('document not found');
     const code = String(existing[0]!.code);
     const merged = { ...input, [c.codeField]: code };
@@ -167,13 +176,13 @@ export class DocumentDataService {
     const { cols, vals, extra } = this.split(c, clean);
     const sets = ['"status"=$1', '"extra"=$2::jsonb', '"updatedAt"=now()', ...cols.map((cn, i) => `${ident(cn)}=$${i + 3}`)];
     const params = [status, JSON.stringify(extra), ...vals, id];
-    await AppDataSource.query(`UPDATE ${ident(c.table)} SET ${sets.join(', ')} WHERE "id"=$${params.length}`, params);
+    await db.query(`UPDATE ${ident(c.table)} SET ${sets.join(', ')} WHERE "id"=$${params.length}`, params);
 
     for (const tf of c.tables) {
-      await AppDataSource.query(`DELETE FROM ${ident(`${c.table}__${tf.key.toLowerCase()}`)} WHERE "parent_id"=$1`, [id]);
+      await db.query(`DELETE FROM ${ident(`${c.table}__${tf.key.toLowerCase()}`)} WHERE "parent_id"=$1`, [id]);
     }
-    await this.insertChildren(c, id, clean);
-    return this.getById(slug, id);
+    await this.insertChildren(c, id, clean, db);
+    return this.getById(slug, id, db);
   }
 
   async remove(slug: string, id: string): Promise<void> {
@@ -194,7 +203,7 @@ export class DocumentDataService {
    * PER row, so list/options skip it (those views never show line-items) to avoid
    * an N+1 explosion; only the single-record reads (getById/getByCode) load them.
    */
-  private async assemble(c: Ctx, row: Sql, withChildren = true): Promise<DocumentRow> {
+  private async assemble(c: Ctx, row: Sql, withChildren = true, db: Queryable = AppDataSource): Promise<DocumentRow> {
     const data: Record<string, unknown> = { [c.codeField]: row.code };
     for (const f of c.scalar) data[f.key] = row[f.key];
     if (row.extra && typeof row.extra === 'object') Object.assign(data, row.extra as Sql);
@@ -204,7 +213,7 @@ export class DocumentDataService {
         continue;
       }
       const child = `${c.table}__${tf.key.toLowerCase()}`;
-      const lines = (await AppDataSource.query(
+      const lines = (await db.query(
         `SELECT * FROM ${ident(child)} WHERE "parent_id"=$1 ORDER BY "idx" ASC`,
         [row.id],
       )) as Sql[];
@@ -232,7 +241,7 @@ export class DocumentDataService {
     return { cols, vals, extra };
   }
 
-  private async insertChildren(c: Ctx, parentId: string, clean: Record<string, unknown>): Promise<void> {
+  private async insertChildren(c: Ctx, parentId: string, clean: Record<string, unknown>, db: Queryable = AppDataSource): Promise<void> {
     for (const tf of c.tables) {
       const child = `${c.table}__${tf.key.toLowerCase()}`;
       const cols = (tf.columns ?? []).map((cc) => cc.key);
@@ -242,7 +251,7 @@ export class DocumentDataService {
         const names = ['"parent_id"', '"idx"', ...cols.map(ident)];
         const placeholders = ['$1', '$2', ...cols.map((_, i) => `$${i + 3}`)];
         const params = [parentId, idx++, ...cols.map((k) => r[k] ?? null)];
-        await AppDataSource.query(`INSERT INTO ${ident(child)} (${names.join(', ')}) VALUES (${placeholders.join(', ')})`, params);
+        await db.query(`INSERT INTO ${ident(child)} (${names.join(', ')}) VALUES (${placeholders.join(', ')})`, params);
       }
     }
   }

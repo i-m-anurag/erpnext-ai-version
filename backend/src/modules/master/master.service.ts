@@ -1,4 +1,5 @@
 import type { EntityManager } from 'typeorm';
+import { AppDataSource } from '../../db/data-source.js';
 import { BaseRepository } from '../../shared/base.repository.js';
 import { cache } from '../../shared/cache/cache.service.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../shared/errors.js';
@@ -134,9 +135,18 @@ export class MasterService {
     }
     let saved: MasterData;
     if (reg.kind === 'document') {
-      // draft → skip validation + status 'draft'; submit → validate + 'active'.
-      const row = draft ? await documentDataService.createDraft(slug, input) : await documentDataService.create(slug, input);
-      saved = row as unknown as MasterData;
+      // Persist the document and run its afterSave (which posts to the ledger) in ONE
+      // transaction, so a failed GL post rolls the document back — never a saved-but-
+      // unposted ghost. draft → skip validation + 'draft'; submit → validate + 'active'.
+      const finalInput = input;
+      saved = await AppDataSource.transaction(async (mgr) => {
+        const row = draft
+          ? await documentDataService.createDraft(slug, finalInput, mgr)
+          : await documentDataService.create(slug, finalInput, mgr);
+        const s = row as unknown as MasterData;
+        await this.runControllerAfterSave(reg, controller, s, mgr);
+        return s;
+      });
     } else {
       // Auto-generate the code from the naming series (if configured) — overrides any
       // user-supplied value so the id format is enforced.
@@ -148,8 +158,8 @@ export class MasterService {
       }
       const status = draft ? 'draft' : 'active';
       saved = await this.data.save(this.data.create({ masterSlug: slug, code, data: clean, status }));
+      await this.runControllerAfterSave(reg, controller, saved);
     }
-    await this.runControllerAfterSave(reg, controller, saved);
     await cache.invalidate(optionsKey(slug));
     return saved;
   }
@@ -173,8 +183,14 @@ export class MasterService {
     }
     let saved: MasterData;
     if (reg.kind === 'document') {
-      const row = await documentDataService.update(slug, id, input, { draft });
-      saved = row as unknown as MasterData;
+      // Persist + re-post atomically (see createData). draft/submit handled inside update().
+      const finalInput = input;
+      saved = await AppDataSource.transaction(async (mgr) => {
+        const row = await documentDataService.update(slug, id, finalInput, { draft }, mgr);
+        const s = row as unknown as MasterData;
+        await this.runControllerAfterSave(reg, controller, s, mgr);
+        return s;
+      });
     } else {
       const existing = await this.data.findOne({ id, masterSlug: slug });
       if (!existing) throw new NotFoundError('master row not found');
@@ -186,8 +202,8 @@ export class MasterService {
       existing.data = clean;
       existing.status = draft ? 'draft' : 'active';
       saved = await this.data.save(existing);
+      await this.runControllerAfterSave(reg, controller, saved);
     }
-    await this.runControllerAfterSave(reg, controller, saved);
     await cache.invalidate(optionsKey(slug));
     return saved;
   }
@@ -201,19 +217,20 @@ export class MasterService {
     reg: MasterRegistry,
     controller: ReturnType<typeof getFormController>,
     saved: MasterData,
+    mgr?: EntityManager,
   ): Promise<void> {
     if (!controller) return;
     const doc: FormDoc = { slug: reg.slug, id: saved.id, code: saved.code, data: saved.data, status: saved.status, state: saved.state };
     if (controller.computeStatus) {
       const next = controller.computeStatus(doc);
       if (next != null && next !== doc.state) {
-        if (reg.kind === 'document') await documentDataService.setState(reg.slug, saved.id, next);
+        if (reg.kind === 'document') await documentDataService.setState(reg.slug, saved.id, next, mgr);
         else { saved.state = next; await this.data.save(saved); }
         saved.state = next;
         doc.state = next;
       }
     }
-    if (controller.afterSave) await controller.afterSave(doc);
+    if (controller.afterSave) await controller.afterSave(doc, { manager: mgr });
   }
 
   async deleteData(slug: string, id: string): Promise<void> {
