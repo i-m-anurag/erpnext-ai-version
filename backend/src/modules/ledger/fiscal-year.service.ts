@@ -52,6 +52,21 @@ export class FiscalYearService {
     const voucher = `CLOSE-${fy.name}`;
     if (fy.closed) return { closed: false, netProfit: '0.00', voucher };
 
+    // Never close a year that hasn't ended — freezing a live period would block
+    // ongoing postings.
+    const today = new Date().toISOString().slice(0, 10);
+    if (fy.endDate > today) {
+      throw new BadRequestError(`cannot close ${fy.name}: it ends ${fy.endDate}, which is in the future`);
+    }
+
+    // Close years in order — an earlier year still open means this year's opening
+    // balances aren't final yet (and closing out of order moves the freeze backward).
+    const earlierOpen = await this.repo.find({ where: { closed: false }, order: { startDate: 'ASC' } });
+    const blocker = earlierOpen.find((y) => y.startDate < fy.startDate);
+    if (blocker) {
+      throw new BadRequestError(`cannot close ${fy.name}: close the earlier year ${blocker.name} first`);
+    }
+
     // Income/expense balances within the year (excluding any prior closing entries).
     const rows = (await AppDataSource.query(
       `SELECT a.code, a.root_type, SUM(g.debit) AS d, SUM(g.credit) AS c
@@ -86,7 +101,10 @@ export class FiscalYearService {
 
     fy.closed = true;
     await this.repo.save(fy);
-    await ledgerSettingsService.set(fy.endDate); // lock the closed period
+    // Only ever ADVANCE the freeze — never unlock an already-frozen later period.
+    const cur = await ledgerSettingsService.freezeDate();
+    const curStr = cur ? cur.toISOString().slice(0, 10) : null;
+    if (!curStr || fy.endDate > curStr) await ledgerSettingsService.set(fy.endDate);
 
     return { closed: true, netProfit: net.toFixed(2), voucher };
   }

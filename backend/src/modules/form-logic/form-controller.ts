@@ -1,3 +1,5 @@
+import type { EntityManager } from 'typeorm';
+
 /**
  * Per-form business logic ("controllers"), the server-side equivalent of ERPNext
  * DocType controllers. The generic master/document save path is form-agnostic;
@@ -36,6 +38,13 @@ export interface BeforeSaveCtx {
   actorUserId?: string;
 }
 
+/** Post-persist context. For document saves, `manager` is the open transaction the
+ *  record was persisted on — hand it to ledgerService.post so the GL entries commit
+ *  or roll back atomically WITH the document. Undefined for non-transactional saves. */
+export interface AfterSaveCtx {
+  manager?: EntityManager;
+}
+
 export interface FormController {
   /** Adjust or validate the input before it is persisted. Throw to reject. */
   beforeSave?(ctx: BeforeSaveCtx): void | Promise<void>;
@@ -44,7 +53,7 @@ export interface FormController {
   computeStatus?(doc: FormDoc): string | null;
   /** React after the record (and any derived state) is persisted — side effects,
    *  linked-document updates, activity/timeline entries, notifications. */
-  afterSave?(doc: FormDoc): void | Promise<void>;
+  afterSave?(doc: FormDoc, tx?: AfterSaveCtx): void | Promise<void>;
 }
 
 const registry = new Map<string, FormController>();

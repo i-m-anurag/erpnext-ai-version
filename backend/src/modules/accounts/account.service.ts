@@ -40,6 +40,18 @@ export class AccountService {
     return this.repo.find({ where: { isGroup: false }, order: { code: 'ASC' } });
   }
 
+  /** Resolve the single leaf account for a control role (e.g. Payable, Cash) instead
+   *  of hardcoding a code — so postings follow the Chart of Accounts, not a magic
+   *  string. Throws if the role is absent or ambiguous. */
+  async resolveByType(accountType: NonNullable<AccountType>): Promise<string> {
+    const matches = await this.repo.find({ where: { accountType, isGroup: false }, order: { code: 'ASC' } });
+    if (matches.length === 0) throw new NotFoundError(`no account configured for role: ${accountType}`);
+    if (matches.length > 1) {
+      throw new NotFoundError(`ambiguous role ${accountType}: ${matches.map((m) => m.code).join(', ')}`);
+    }
+    return matches[0]!.code;
+  }
+
   /** The Chart of Accounts as a nested tree (root nodes first). */
   async tree(): Promise<AccountNode[]> {
     const all = await this.list();

@@ -40,7 +40,22 @@ function againstFor(line: PostingLine, lines: PostingLine[]): string {
 export class LedgerService {
   private readonly repo = new BaseRepository(GlEntry);
 
-  async post(v: Voucher): Promise<{ posted: boolean; lines: number }> {
+  /** Reject a posting on or before the period-freeze date. Call before persisting a
+   *  document so a frozen-period submit fails BEFORE the document is written. */
+  async assertNotFrozen(postingDate: Date | string): Promise<void> {
+    const freeze = await ledgerSettingsService.freezeDate();
+    if (freeze && new Date(postingDate) <= freeze) {
+      throw new BadRequestError(`posting date is in a frozen period (on/before ${freeze.toISOString().slice(0, 10)})`);
+    }
+  }
+
+  /**
+   * Post a balanced voucher to the ledger. When `manager` is supplied the inserts
+   * run on that (caller-owned) transaction — so a document persist and its GL post
+   * commit or roll back together; without it, post opens its own transaction (used
+   * by Reverse and Year-end Close).
+   */
+  async post(v: Voucher, manager?: EntityManager): Promise<{ posted: boolean; lines: number }> {
     if (v.lines.length === 0) throw new BadRequestError('a voucher needs at least one line');
 
     let dr = new Decimal(0);
@@ -52,13 +67,22 @@ export class LedgerService {
     if (dr.isZero() && cr.isZero()) throw new BadRequestError('voucher has zero value');
     if (!dr.equals(cr)) throw new BadRequestError(`voucher not balanced: debit ${dr} ≠ credit ${cr}`);
 
-    // Period freeze: reject postings on or before the lock date.
-    const freeze = await ledgerSettingsService.freezeDate();
-    if (freeze && new Date(v.postingDate) <= freeze) {
-      throw new BadRequestError(`posting date is in a frozen period (on/before ${freeze.toISOString().slice(0, 10)})`);
-    }
+    await this.assertNotFrozen(v.postingDate);
 
-    return AppDataSource.transaction(async (mgr: EntityManager) => {
+    // Every line must reference a real account — otherwise the INNER-JOIN reports
+    // would silently drop the row and unbalance the books (see also the FK).
+    const codes = [...new Set(v.lines.map((l) => l.account))];
+    const found = (await (manager ?? AppDataSource).query(
+      `SELECT code FROM account WHERE code = ANY($1)`,
+      [codes],
+    )) as { code: string }[];
+    const missing = codes.filter((c) => !found.some((f) => f.code === c));
+    if (missing.length > 0) throw new BadRequestError(`unknown account(s): ${missing.join(', ')}`);
+
+    const run = async (mgr: EntityManager): Promise<{ posted: boolean; lines: number }> => {
+      // Serialize concurrent posts of the same voucher so the SELECT-then-INSERT
+      // idempotency check below is race-safe (advisory lock auto-releases on commit).
+      await mgr.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`${v.voucherType}|${v.voucherNo}`]);
       // Idempotency: a voucher already in the ledger is never posted twice.
       const seen = (await mgr.query(
         `SELECT 1 FROM gl_entry WHERE voucher_type=$1 AND voucher_no=$2 LIMIT 1`,
@@ -85,7 +109,10 @@ export class LedgerService {
         );
       }
       return { posted: true, lines: v.lines.length };
-    });
+    };
+
+    // Join the caller's transaction when given one, else own it.
+    return manager ? run(manager) : AppDataSource.transaction(run);
   }
 
   /** Reverse a posted voucher by posting equal-and-opposite entries under `<no>-REV`. */
@@ -106,6 +133,11 @@ export class LedgerService {
   /** The GL lines for one voucher (used by the "Accounting Entries" panel). */
   async forVoucher(voucherType: string, voucherNo: string): Promise<GlEntry[]> {
     return this.repo.find({ where: { voucherType, voucherNo }, order: { seq: 'ASC' } });
+  }
+
+  /** Whether a voucher has posted any GL entries — used to lock a submitted document. */
+  async hasEntries(voucherType: string, voucherNo: string): Promise<boolean> {
+    return this.repo.exists({ voucherType, voucherNo });
   }
 }
 

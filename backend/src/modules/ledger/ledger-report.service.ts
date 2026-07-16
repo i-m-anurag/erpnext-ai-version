@@ -48,12 +48,6 @@ export interface BalanceSheet {
   balanced: boolean;
 }
 
-/** One party's outstanding balance in an AR/AP report. */
-export interface PartyOutstandingRow {
-  party: string;
-  outstanding: string;
-}
-
 /** One party's outstanding split into ageing buckets (FIFO — payments clear oldest first). */
 export interface AgeingRow {
   party: string;
@@ -90,7 +84,7 @@ export class LedgerReportService {
     let opening = new Decimal(0);
     if (from) {
       const o = (await AppDataSource.query(
-        `SELECT COALESCE(SUM(debit - credit), 0) AS bal FROM gl_entry WHERE account = $1 AND posting_date < $2`,
+        `SELECT COALESCE(SUM(debit - credit), 0) AS bal FROM gl_entry WHERE account = $1 AND posting_date::date < $2`,
         [account, from],
       )) as Record<string, unknown>[];
       opening = new Decimal(String(o[0]!.bal));
@@ -98,8 +92,8 @@ export class LedgerReportService {
 
     const conds = ['account = $1'];
     const params: unknown[] = [account];
-    if (from) { params.push(from); conds.push(`posting_date >= $${params.length}`); }
-    if (to) { params.push(to); conds.push(`posting_date <= $${params.length}`); }
+    if (from) { params.push(from); conds.push(`posting_date::date >= $${params.length}`); }
+    if (to) { params.push(to); conds.push(`posting_date::date <= $${params.length}`); }
 
     const rows = (await AppDataSource.query(
       `SELECT posting_date, voucher_type, voucher_no, party, against, debit, credit
@@ -151,38 +145,32 @@ export class LedgerReportService {
   }
 
   /**
-   * Party-wise outstanding for an account role. Payable (creditors) outstanding =
-   * credit − debit (we owe); Receivable (debtors) = debit − credit (owed to us).
-   * Parties netting to zero are dropped.
-   */
-  async partyOutstanding(accountType: 'Payable' | 'Receivable'): Promise<PartyOutstandingRow[]> {
-    const sign = accountType === 'Payable' ? '(SUM(g.credit) - SUM(g.debit))' : '(SUM(g.debit) - SUM(g.credit))';
-    const rows = (await AppDataSource.query(
-      `SELECT g.party, ${sign} AS outstanding
-         FROM gl_entry g JOIN account a ON a.code = g.account
-        WHERE a.account_type = $1 AND g.party IS NOT NULL
-        GROUP BY g.party
-       HAVING ${sign} <> 0
-        ORDER BY g.party`,
-      [accountType],
-    )) as Record<string, unknown>[];
-    return rows.map((r) => ({ party: String(r.party), outstanding: String(r.outstanding) }));
-  }
-
-  /**
    * Party-wise ageing. Invoices (the balance-increasing side) are aged by their
    * posting date; payments (the reducing side) are applied FIFO to the oldest
    * invoices first, and each invoice's *remaining* amount lands in a bucket by age.
    */
   async partyAgeing(accountType: 'Payable' | 'Receivable'): Promise<AgeingRow[]> {
     // For Payable, invoices are credits and payments debits; reversed for Receivable.
-    const rows = (await AppDataSource.query(
-      `SELECT g.party, g.posting_date, g.debit, g.credit
+    const allRows = (await AppDataSource.query(
+      `SELECT g.party, g.posting_date, g.debit, g.credit, g.voucher_no
          FROM gl_entry g JOIN account a ON a.code = g.account
         WHERE a.account_type = $1 AND g.party IS NOT NULL
         ORDER BY g.party, g.posting_date, g.seq`,
       [accountType],
     )) as Record<string, unknown>[];
+
+    // Drop reversed vouchers entirely: a reversal posts `<no>-REV`, so the original
+    // `<no>` and its `-REV` net to zero and must not be aged (a reversal is not a
+    // payment applied FIFO to the oldest invoice).
+    const reversedBases = new Set<string>();
+    for (const r of allRows) {
+      const vn = String(r.voucher_no);
+      if (vn.endsWith('-REV')) reversedBases.add(vn.slice(0, -4));
+    }
+    const rows = allRows.filter((r) => {
+      const vn = String(r.voucher_no);
+      return !vn.endsWith('-REV') && !reversedBases.has(vn);
+    });
 
     const invAmt = (r: Record<string, unknown>): Decimal =>
       accountType === 'Payable' ? new Decimal(String(r.credit)) : new Decimal(String(r.debit));
