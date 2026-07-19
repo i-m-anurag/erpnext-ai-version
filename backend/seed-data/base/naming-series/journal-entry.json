@@ -1,0 +1,1 @@
+{ "slug": "journal-entry", "pattern": "JV-{YYYY}-{#####}", "reset": "yearly" }

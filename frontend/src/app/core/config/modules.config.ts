@@ -77,6 +77,7 @@ export const MODULES: ErpModule[] = [
       { slug: 'profit-loss', name: 'Profit & Loss', icon: 'ph-trend-up' },
       { slug: 'balance-sheet', name: 'Balance Sheet', icon: 'ph-scales' },
       { slug: 'payments', name: 'Payments', icon: 'ph-hand-coins' },
+      { slug: 'journal-entries', name: 'Journal Entries', icon: 'ph-notebook' },
       { slug: 'payables', name: 'Payables', icon: 'ph-arrow-up-right' },
       { slug: 'receivables', name: 'Receivables', icon: 'ph-arrow-down-left' },
       { slug: 'fiscal-years', name: 'Fiscal Years', icon: 'ph-calendar' },

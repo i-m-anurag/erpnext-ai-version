@@ -2,6 +2,7 @@ import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { type FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgSelectModule } from '@ng-select/ng-select';
 import { MasterApiService } from '../../core/api/master.api.service';
+import { AccountApiService } from '../../core/api/account.api.service';
 import type { FormFieldDef, MasterOption } from '../../core/models/api.models';
 
 @Component({
@@ -26,15 +27,18 @@ export class MasterLookupFieldComponent implements OnInit {
   readonly control = input.required<FormControl>();
   readonly controlClass = input<string>('');
   private readonly api = inject(MasterApiService);
+  private readonly accounts = inject(AccountApiService);
 
   readonly options = signal<MasterOption[]>([]);
   readonly loading = signal(false);
 
   ngOnInit(): void {
-    const master = this.config().optionsSource?.master;
-    if (!master) return;
+    const src = this.config().optionsSource;
+    // Options come from a master (getOptions) or the Chart of Accounts (source: 'accounts').
+    const load$ = src?.source === 'accounts' ? this.accounts.options() : src?.master ? this.api.getOptions(src.master) : null;
+    if (!load$) return;
     this.loading.set(true);
-    this.api.getOptions(master).subscribe({
+    load$.subscribe({
       next: (opts) => {
         this.options.set(opts);
         this.loading.set(false);

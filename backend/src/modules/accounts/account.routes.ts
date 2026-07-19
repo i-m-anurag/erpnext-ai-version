@@ -16,6 +16,11 @@ export function buildAccountRouter(): Router {
     res.json({ tree: await accountService.tree() });
   }));
 
+  // Leaf accounts as picker options — declared before '/:code' so it isn't captured.
+  router.get('/options', asyncHandler(async (_req: Request, res: Response) => {
+    res.json({ options: await accountService.options() });
+  }));
+
   router.get('/:code', asyncHandler(async (req: Request, res: Response) => {
     res.json({ account: await accountService.getByCode(String(req.params.code)) });
   }));

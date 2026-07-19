@@ -40,6 +40,13 @@ export class AccountService {
     return this.repo.find({ where: { isGroup: false }, order: { code: 'ASC' } });
   }
 
+  /** Leaf accounts as picker options (value = code, label = "code — name"), for the
+   *  account-lookup form field (e.g. Journal Entry lines). */
+  async options(): Promise<{ value: string; label: string }[]> {
+    const leaves = await this.leaves();
+    return leaves.map((a) => ({ value: a.code, label: `${a.code} — ${a.name}` }));
+  }
+
   /** Resolve the single leaf account for a control role (e.g. Payable, Cash) instead
    *  of hardcoding a code — so postings follow the Chart of Accounts, not a magic
    *  string. Throws if the role is absent or ambiguous. */

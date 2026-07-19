@@ -1,0 +1,9 @@
+{
+  "slug": "journal-entry",
+  "name": "Journal Entry",
+  "kind": "document",
+  "managedBy": "ui",
+  "editable": true,
+  "formSlug": "journal-entry",
+  "codeField": "jeNumber"
+}

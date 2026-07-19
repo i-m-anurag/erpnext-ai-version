@@ -28,6 +28,14 @@ export class AccountApiService {
   list(): Observable<Account[]> {
     return this.http.get<{ accounts: Account[] }>('/api/accounts').pipe(map((r) => r.accounts));
   }
+
+  /** Leaf accounts as picker options (value = code, label = "code — name") — feeds the
+   *  account-lookup form field (e.g. Journal Entry lines). */
+  options(): Observable<{ value: string; label: string }[]> {
+    return this.http
+      .get<{ options: { value: string; label: string }[] }>('/api/accounts/options')
+      .pipe(map((r) => r.options));
+  }
 }
 
 /** A flat account row. */

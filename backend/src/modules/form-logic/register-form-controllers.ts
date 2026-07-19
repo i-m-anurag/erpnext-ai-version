@@ -3,6 +3,7 @@ import { purchaseOrderController } from './controllers/purchase-order.controller
 import { requisitionController } from './controllers/requisition.controller.js';
 import { purchaseInvoiceController } from './controllers/purchase-invoice.controller.js';
 import { paymentEntryController } from './controllers/payment-entry.controller.js';
+import { journalEntryController } from './controllers/journal-entry.controller.js';
 
 let registered = false;
 
@@ -17,4 +18,5 @@ export function registerFormControllers(): void {
   registerFormController('requisition', requisitionController);
   registerFormController('purchase-invoice', purchaseInvoiceController);
   registerFormController('payment-entry', paymentEntryController);
+  registerFormController('journal-entry', journalEntryController);
 }
