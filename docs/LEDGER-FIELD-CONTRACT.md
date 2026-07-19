@@ -77,6 +77,45 @@ Safe to rename: `narration`, `reference`, `jeNumber` label.
 
 ---
 
+## Load-bearing option values (not just field keys)
+
+Most doctypes only depend on a field's **key**. Payment Entry is stricter: the posting
+code compares against the exact **option values**, so those values are frozen too.
+Change the wording — even just the casing — and it silently posts to the **wrong
+account** with no error.
+
+| Doctype        | Field         | Values that MUST stay exactly | Used for                                   |
+|----------------|---------------|-------------------------------|--------------------------------------------|
+| Payment Entry  | `paymentType` | `Pay`, `Receive`              | selects Dr/Cr direction                    |
+| Payment Entry  | `mode`        | `Cash`, `Bank`                | selects the account (must match a CoA role)|
+
+Other values referenced **by name** by the posting logic (not form options, but they
+must exist / stay spelled this way in the Chart of Accounts and rules):
+
+| Kind          | Values                              | Where                                   |
+|---------------|-------------------------------------|-----------------------------------------|
+| Account roles | `Cash`, `Bank`, `Payable`, `Receivable` | resolved from the CoA by Payment Entry |
+| Account codes | `purchase-expenses`, `creditors`    | Purchase Invoice posting rule           |
+| Account code  | `retained-earnings`                 | year-end close sweep                    |
+
+> These value-couplings are a smell — see **Backlog**. Making Payment Entry
+> config-driven moves them out of code into a rule file and removes the silent-failure
+> risk. Until then, **do not rename these option values.**
+
+---
+
+## Backlog
+
+- **Make Payment Entry config-driven.** Its GL mapping (Pay vs Receive, Cash vs Bank) is
+  hardcoded in `payment-entry.controller.ts`, unlike Purchase Invoice's posting-rule
+  JSON — which is why its `mode` / `paymentType` **values** are load-bearing (above).
+  Move the logic into a `seed-data/base/posting-rules/payment-entry.json` using
+  conditional `cases` (`when: { field, equals }`) plus `accountRole` / `accountByField`,
+  so both financial doctypes are config-driven and the frozen-value coupling goes away.
+  Until then, do not rename the Payment Entry option values.
+
+---
+
 ## Adding a new posting doctype safely
 
 1. Prefer a **posting rule** (`seed-data/base/posting-rules/<slug>.json`) over hardcoding
