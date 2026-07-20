@@ -38,7 +38,7 @@ export interface FormField {
     pattern?: string;
   };
   visibleWhen?: { field: string; equals: unknown };
-  optionsSource?: { master?: string; source?: 'accounts' };
+  optionsSource?: { master: string };
   options?: { value: string; label: string }[];
   columns?: FormField[];
   minRows?: number;
@@ -86,7 +86,7 @@ export const formFieldSchema: z.ZodType<FormField> = z.lazy(() =>
     /** Conditional visibility: show when another field equals a value. */
     visibleWhen: z.object({ field: z.string(), equals: z.unknown() }).optional(),
     /** Options sourced from a master (resolved server-side) … */
-    optionsSource: z.object({ master: z.string().optional(), source: z.literal('accounts').optional() }).optional(),
+    optionsSource: z.object({ master: z.string() }).optional(),
     /** … or inline static options. */
     options: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
     /** type: 'table' — per-row column fields (a nested form definition). */

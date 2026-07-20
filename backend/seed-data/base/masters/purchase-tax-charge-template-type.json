@@ -1,0 +1,12 @@
+{
+  "slug": "purchase-tax-charge-template-type",
+  "name": "Purchase Tax and Charge Type",
+  "managedBy": "seeded",
+  "editable": false,
+  "data": [
+    { "code": "Actual", "name": "Actual" },
+    { "code": "On Net Total", "name": "On Net Total" },
+    { "code": "On Previous Row Amount", "name": "On Previous Row Amount" },
+    { "code": "On Previous Row Total", "name": "On Previous Row Total" }
+  ]
+}

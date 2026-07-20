@@ -53,7 +53,7 @@ export interface FormFieldDef {
     pattern?: string;
   };
   visibleWhen?: { field: string; equals: unknown };
-  optionsSource?: { master?: string; source?: 'accounts' };
+  optionsSource?: { master: string };
   options?: { value: string; label: string }[];
   /** Optional css.json variant slug for this field's wrapper (e.g. "col2"). */
   cssSlug?: string;

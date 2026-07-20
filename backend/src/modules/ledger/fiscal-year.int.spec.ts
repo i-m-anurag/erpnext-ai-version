@@ -56,12 +56,14 @@ describe('fiscal-year close guards (integration)', () => {
   });
 
   it('#6 advances the freeze on close but never moves it backward', async () => {
-    // A closeable year whose range contains real income/expense (so it doesn't short-
-    // circuit as "nothing to close"). We mock the DB-mutating steps and assert only
-    // how the freeze is (or isn't) advanced.
+    // close() short-circuits with "nothing to close" unless the year contains income or
+    // expense, so the test owns its own fixture rather than depending on ambient demo
+    // data. The rows sit in an isolated 2019 range (outside any real fiscal year) and
+    // are inserted once — gl_entry is append-only, so re-runs reuse them.
+    await ensureFy6Fixture();
     const fy: FiscalYear = {
       id: '00000000-0000-0000-0000-0000000000f6', name: '__IT_FY6',
-      startDate: '2026-07-01', endDate: '2026-07-10', isDefault: false, closed: false,
+      startDate: '2019-04-01', endDate: '2020-03-31', isDefault: false, closed: false,
     } as FiscalYear;
     const repo = (fiscalYearService as unknown as { repo: { findOne: unknown; find: unknown; save: unknown } }).repo;
     vi.spyOn(repo as { findOne: () => unknown }, 'findOne').mockResolvedValue(fy);
@@ -78,8 +80,21 @@ describe('fiscal-year close guards (integration)', () => {
     // Freeze EARLIER than this year's end → must advance to the year end.
     setSpy.mockClear();
     fy.closed = false; // close() flipped it above on the shared mock object
-    vi.spyOn(ledgerSettingsService, 'freezeDate').mockResolvedValue(new Date('2020-01-01'));
+    vi.spyOn(ledgerSettingsService, 'freezeDate').mockResolvedValue(new Date('2018-01-01'));
     await fiscalYearService.close(fy.id);
-    expect(setSpy).toHaveBeenCalledWith('2026-07-10');
+    expect(setSpy).toHaveBeenCalledWith('2020-03-31');
   });
 });
+
+/** Idempotent GL fixture giving the __IT_FY6 year some expense to close. */
+async function ensureFy6Fixture(): Promise<void> {
+  const existing = (await AppDataSource.query(
+    `SELECT 1 FROM gl_entry WHERE voucher_no = '__ITFY6' LIMIT 1`,
+  )) as unknown[];
+  if (existing.length > 0) return;
+  await AppDataSource.query(
+    `INSERT INTO gl_entry (posting_date, account, debit, credit, voucher_type, voucher_no)
+     VALUES ('2019-06-15','purchase-expenses',100,0,'__itfixture','__ITFY6'),
+            ('2019-06-15','cash',0,100,'__itfixture','__ITFY6')`,
+  );
+}

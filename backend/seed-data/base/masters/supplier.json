@@ -1,0 +1,11 @@
+{
+  "slug": "supplier",
+  "name": "Supplier",
+  "managedBy": "ui",
+  "editable": true,
+  "data": [
+    { "code": "Acme Supplies", "name": "Acme Supplies" },
+    { "code": "Globex Corp", "name": "Globex Corp" },
+    { "code": "Initech", "name": "Initech" }
+  ]
+}

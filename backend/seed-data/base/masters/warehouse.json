@@ -1,0 +1,11 @@
+{
+  "slug": "warehouse",
+  "name": "Warehouse",
+  "managedBy": "seeded",
+  "editable": true,
+  "data": [
+    { "code": "Main Store", "name": "Main Store" },
+    { "code": "Finished Goods", "name": "Finished Goods" },
+    { "code": "Work In Progress", "name": "Work In Progress" }
+  ]
+}
