@@ -1,0 +1,11 @@
+{
+  "slug": "purpose",
+  "name": "Purpose",
+  "managedBy": "seeded",
+  "editable": false,
+  "data": [
+    { "code": "PURCHASE", "name": "Purchase" },
+    { "code": "SERVICE", "name": "Service" },
+    { "code": "RETURN", "name": "Return" }
+  ]
+}

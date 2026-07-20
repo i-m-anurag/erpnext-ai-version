@@ -53,7 +53,14 @@ export interface FormFieldDef {
     pattern?: string;
   };
   visibleWhen?: { field: string; equals: unknown };
-  optionsSource?: { master?: string; source?: 'accounts' };
+  optionsSource?: { master: string };
+  /** Server-derived value (arithmetic over sibling fields) — rendered read-only. */
+  calculate?: { expression: string; precision?: number };
+  /** Pre-fill for a new record; supports the "$today" and "$nowTime" tokens. */
+  defaultValue?: unknown;
+  readOnly?: boolean;
+  editable?: boolean;
+  showRowActions?: boolean;
   options?: { value: string; label: string }[];
   /** Optional css.json variant slug for this field's wrapper (e.g. "col2"). */
   cssSlug?: string;

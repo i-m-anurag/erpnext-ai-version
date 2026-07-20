@@ -1,0 +1,10 @@
+{
+  "slug": "price-list",
+  "name": "Price List",
+  "managedBy": "seeded",
+  "editable": true,
+  "data": [
+    { "code": "Standard Buying", "name": "Standard Buying" },
+    { "code": "Standard Selling", "name": "Standard Selling" }
+  ]
+}

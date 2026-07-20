@@ -1,12 +1,11 @@
 # Ledger Field Contract
 
 Some form fields are **read by name** by the accounting/posting logic. Their **label**
-can change freely, but their **`key`** (and, where noted, their **option values**) is a
-contract — rename one and GL posting silently breaks (wrong amount, missing party, or a
-failed/empty post).
+can change freely, but their **`key`** is a contract — rename one and GL posting breaks
+(wrong amount, missing party, or a failed post).
 
 This file lists those keys per financial doctype. Keep it in sync when you touch a
-posting controller or a posting rule.
+posting rule or a posting controller.
 
 > Rule of thumb: a field is **safe to rename** only if it does **not** appear below.
 > Everything below is load-bearing for the General Ledger.
@@ -18,43 +17,51 @@ posting controller or a posting rule.
 Coupling lives in **`seed-data/base/posting-rules/purchase-invoice.json`** and
 **`src/modules/form-logic/controllers/purchase-invoice.controller.ts`**.
 
-| Field key        | Read by            | Why it matters                                   |
-|------------------|--------------------|--------------------------------------------------|
-| `grandTotal`     | posting rule (`amountField`) | amount posted to both GL lines          |
-| `vendor`         | posting rule (`partyField`)  | party on the Creditors line             |
-| `invoiceDate`    | controller         | posting date (defaults to today if absent)       |
-| `lines`          | controller         | line-items table; drives `grandTotal`            |
-| `lines[].qty`    | controller         | `grandTotal = Σ (qty × rate)`                    |
-| `lines[].rate`   | controller         | `grandTotal = Σ (qty × rate)`                    |
+| Field key            | Read by                      | Why it matters                              |
+|----------------------|------------------------------|---------------------------------------------|
+| `grandTotal`         | posting rule (`amountField`) | amount posted to both GL lines              |
+| `supplier`           | posting rule (`partyField`)  | party on the Creditors line                 |
+| `date`               | controller                   | posting date (defaults to today if absent)  |
+| `items`              | controller                   | line-items table; drives `totalAmount`      |
+| `items[].quantity`   | controller                   | `totalAmount = Σ (quantity × rate)`         |
+| `items[].rate`       | controller                   | `totalAmount = Σ (quantity × rate)`         |
+| `additionalDiscountAmount` | controller             | `grandTotal = totalAmount − discount`       |
 
 Also required (not form fields): the account codes **`purchase-expenses`** and
 **`creditors`** in the posting rule must exist in the Chart of Accounts.
 
-Safe to rename: `poRef`, `notes`, `piNumber` label, `lines[].item`, `lines[].remarks`.
+Safe to rename: `piNumber` label, `postingTime`, `dueDate`, `isPaid`, `purpose`,
+`company`, `currency`, `priceList`, `items[].item`, `items[].warehouse`, `items[].uom`,
+and anything under `supplierInvoice` / `accountingDimensions` / `additionalDiscount`.
 
 ---
 
 ## Payment Entry — `payment-entry`
 
-Coupling lives in **`src/modules/form-logic/controllers/payment-entry.controller.ts`**
-(hardcoded — no posting rule).
+Fully config-driven — the mapping lives in
+**`seed-data/base/posting-rules/payment-entry.json`**; the controller only supplies the
+posting date. The rule branches on `paymentType` (`cases`), takes the bank/cash side
+straight from the document, and resolves the party control account by Chart-of-Accounts
+**role**, so no account code is hardcoded.
 
-| Field key      | Read by    | Why it matters                                            |
-|----------------|------------|-----------------------------------------------------------|
-| `amount`       | controller | amount posted                                             |
-| `party`        | controller | party on the Payable/Receivable line                      |
-| `mode`         | controller | **value must be `Cash` or `Bank`** → selects the account  |
-| `paymentType`  | controller | **value must be `Pay` or `Receive`** → selects Dr/Cr side |
-| `paymentDate`  | controller | posting date                                              |
+| Field key          | Read by                            | Why it matters                          |
+|--------------------|------------------------------------|-----------------------------------------|
+| `amount`           | posting rule (`amountField`)       | amount posted                           |
+| `party`            | posting rule (`partyField`)        | party on the Payable/Receivable line     |
+| `paymentType`      | posting rule (`cases[].when`)       | selects Dr/Cr direction                 |
+| `accountPaidFrom`  | posting rule (`accountField`, PAY)  | credited on a payment out               |
+| `accountPaidTo`    | posting rule (`accountField`, RECEIVE) | debited on a receipt                 |
+| `date`             | controller                          | posting date                            |
 
-> ⚠️ For `mode` and `paymentType` the **option values** are also hardcoded — changing
-> `"Cash"` → `"cash"` breaks posting just like renaming the key. (Making Payment Entry
-> config-driven — a backlog item — would remove this hardcoding.)
+**Option values that matter:** `paymentType` must stay `PAY` / `RECEIVE` — but these now
+live **in the posting rule next to the lines they control**, not buried in code. Change
+them in the `payment-entry-type` master and the rule's `cases[].when.equals` together.
 
-Control accounts are resolved by role (Cash / Bank / Payable / Receivable) from the
-Chart of Accounts, so those account **types** must each map to exactly one leaf account.
+An unmatched `paymentType` (or a missing account field) is **rejected with a clear
+error** rather than silently posting nothing.
 
-Safe to rename: `reference`, `peNumber` label.
+Safe to rename: `peNumber` label, `modeOfPayment`, `partyType`, `partyName`, `company`,
+`project`, `costCenter`, and the `advanceTaxesAndCharges` table.
 
 ---
 
@@ -77,52 +84,42 @@ Safe to rename: `narration`, `reference`, `jeNumber` label.
 
 ---
 
-## Load-bearing option values (not just field keys)
+## Values referenced by name
 
-Most doctypes only depend on a field's **key**. Payment Entry is stricter: the posting
-code compares against the exact **option values**, so those values are frozen too.
-Change the wording — even just the casing — and it silently posts to the **wrong
-account** with no error.
+Not form fields, but the posting logic depends on these existing / staying spelled
+this way:
 
-| Doctype        | Field         | Values that MUST stay exactly | Used for                                   |
-|----------------|---------------|-------------------------------|--------------------------------------------|
-| Payment Entry  | `paymentType` | `Pay`, `Receive`              | selects Dr/Cr direction                    |
-| Payment Entry  | `mode`        | `Cash`, `Bank`                | selects the account (must match a CoA role)|
-
-Other values referenced **by name** by the posting logic (not form options, but they
-must exist / stay spelled this way in the Chart of Accounts and rules):
-
-| Kind          | Values                              | Where                                   |
-|---------------|-------------------------------------|-----------------------------------------|
-| Account roles | `Cash`, `Bank`, `Payable`, `Receivable` | resolved from the CoA by Payment Entry |
-| Account codes | `purchase-expenses`, `creditors`    | Purchase Invoice posting rule           |
-| Account code  | `retained-earnings`                 | year-end close sweep                    |
-
-> These value-couplings are a smell — see **Backlog**. Making Payment Entry
-> config-driven moves them out of code into a rule file and removes the silent-failure
-> risk. Until then, **do not rename these option values.**
+| Kind          | Values                                  | Where                                    |
+|---------------|-----------------------------------------|------------------------------------------|
+| Account roles | `Payable`, `Receivable` (also `Cash`, `Bank`) | resolved from the CoA by posting rules |
+| Account codes | `purchase-expenses`, `creditors`        | Purchase Invoice posting rule            |
+| Account code  | `retained-earnings`                     | year-end close sweep                     |
+| Payment types | `PAY`, `RECEIVE`                        | `payment-entry-type` master + rule cases |
 
 ---
 
 ## Backlog
 
-- **Make Payment Entry config-driven.** Its GL mapping (Pay vs Receive, Cash vs Bank) is
-  hardcoded in `payment-entry.controller.ts`, unlike Purchase Invoice's posting-rule
-  JSON — which is why its `mode` / `paymentType` **values** are load-bearing (above).
-  Move the logic into a `seed-data/base/posting-rules/payment-entry.json` using
-  conditional `cases` (`when: { field, equals }`) plus `accountRole` / `accountByField`,
-  so both financial doctypes are config-driven and the frozen-value coupling goes away.
-  Until then, do not rename the Payment Entry option values.
+- **Live total recalculation in the form UI.** `calculate` fields are derived
+  server-side on save, so stored and posted amounts are always correct — but the form
+  does not recompute totals while you type, so Grand Total stays blank on a new,
+  unsaved document. Cosmetic only; nothing downstream depends on client-side maths.
+  Two options when it's picked up: (a) a debounced `POST /api/forms/:slug/calculate`
+  that reuses the one server evaluator — preferred, since it can't drift from what is
+  saved; or (b) port the evaluator to the frontend — instant, but duplicates money
+  arithmetic across two packages that share no code.
 
 ---
 
 ## Adding a new posting doctype safely
 
-1. Prefer a **posting rule** (`seed-data/base/posting-rules/<slug>.json`) over hardcoding
-   a controller — it declares `amountField` / `partyField` / `account` / `side` and reads
-   the document by those field keys. See Purchase Invoice.
-2. If the mapping needs branching a flat rule can't express (like Payment Entry), a
-   controller reads `doc.data[...]` directly — **document the keys here**.
+1. Prefer a **posting rule** (`seed-data/base/posting-rules/<slug>.json`) over
+   hardcoding a controller. A line names its account one of three ways:
+   - `account` — a fixed Chart-of-Accounts code
+   - `accountField` — read the code from a document field (e.g. `accountPaidTo`)
+   - `accountRole` — resolve by role (e.g. `Payable`), so nothing is hardcoded
+2. Branching is config too: use `cases` with `when: { field, equals }` instead of
+   if/else in a controller (see Payment Entry).
 3. Post via `ledgerService.post(voucher, tx?.manager)` inside `afterSave` so the GL post
    is atomic with the document save (a failed post rolls the document back).
 4. `post()` enforces that the voucher **balances** and that every account **exists** —
@@ -131,8 +128,8 @@ must exist / stay spelled this way in the Chart of Accounts and rules):
 ## When you must rename a critical key
 
 Update it in **both** places that reference it:
-- the posting rule JSON (`amountField` / `partyField` / `account`), and/or
-- the controller (`*.controller.ts`, including any hardcoded option values).
+- the posting rule JSON (`amountField` / `partyField` / `account*` / `cases[].when`), and/or
+- the controller (`*.controller.ts`).
 
 Then re-run the field grep to confirm nothing else reads the old key:
 

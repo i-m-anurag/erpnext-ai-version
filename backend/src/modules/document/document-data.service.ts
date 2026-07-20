@@ -4,6 +4,7 @@ import { BaseRepository } from '../../shared/base.repository.js';
 import { BadRequestError, NotFoundError } from '../../shared/errors.js';
 import { configResolver } from '../config/index.js';
 import { FORM_RESOURCE_TYPE, flattenDataFields, validateFormData, type FormDefinition } from '../form/index.js';
+import { applyCalculations, applyDefaults } from '../form/calculate.js';
 import type { FormField } from '../form/form.schema.js';
 import { MasterRegistry } from '../master/master-registry.entity.js';
 import { tableNameForSlug } from './table-name.js';
@@ -140,7 +141,10 @@ export class DocumentDataService {
     const c = await this.ctx(slug);
     const auto = await namingSeriesService.next(slug);
     const merged = auto ? { ...input, [c.codeField]: auto } : input;
-    const clean = validate ? validateFormData(c.form, merged) : merged;
+    // Defaults fill blanks on create; calculations then derive every `calculate` field
+    // server-side, so stored totals are authoritative regardless of what the client sent.
+    const computed = applyCalculations(c.form, applyDefaults(c.form, merged));
+    const clean = validate ? validateFormData(c.form, computed) : computed;
     const code = String(clean[c.codeField] ?? '');
     if (!code) throw new BadRequestError(`missing ${c.codeField}`);
 
@@ -168,7 +172,7 @@ export class DocumentDataService {
     const existing = (await db.query(`SELECT "code" FROM ${ident(c.table)} WHERE "id"=$1`, [id])) as Sql[];
     if (existing.length === 0) throw new NotFoundError('document not found');
     const code = String(existing[0]!.code);
-    const merged = { ...input, [c.codeField]: code };
+    const merged = applyCalculations(c.form, { ...input, [c.codeField]: code });
     // draft → skip validation + mark 'draft'; submit → validate + mark 'active'.
     const clean = opts.draft ? merged : validateFormData(c.form, merged);
     const status = opts.draft ? 'draft' : 'active';

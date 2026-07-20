@@ -1,0 +1,12 @@
+{
+  "slug": "mode-of-payment",
+  "name": "Mode of Payment",
+  "managedBy": "seeded",
+  "editable": true,
+  "data": [
+    { "code": "Cash", "name": "Cash" },
+    { "code": "Bank", "name": "Bank" },
+    { "code": "Cheque", "name": "Cheque" },
+    { "code": "UPI", "name": "UPI" }
+  ]
+}

@@ -4,27 +4,181 @@
   "title": "Purchase Invoice",
   "layout": "two-column",
   "fields": [
-    { "key": "piNumber", "type": "text", "label": "Invoice No.", "auto": true, "placeholder": "Auto-generated on save" },
-    { "key": "vendor", "type": "select", "label": "Vendor", "required": true, "options": [
-      { "value": "Acme Supplies", "label": "Acme Supplies" },
-      { "value": "Globex Corp", "label": "Globex Corp" },
-      { "value": "Initech", "label": "Initech" }
-    ] },
-    { "key": "poRef", "type": "text", "label": "PO Reference" },
-    { "key": "invoiceDate", "type": "date", "label": "Invoice Date" },
+    { "key": "piNumber", "type": "text", "label": "Invoice No.", "auto": true, "placeholder": "Auto-generated on save", "inList": true },
+    { "key": "date", "type": "date", "label": "Date", "required": true, "editable": false, "defaultValue": "$today", "inList": true },
     {
-      "key": "lines",
-      "type": "table",
-      "label": "Line Items",
-      "minRows": 1,
-      "columns": [
-        { "key": "item", "type": "master-lookup", "label": "Item", "required": true, "optionsSource": { "master": "item" } },
-        { "key": "qty", "type": "number", "label": "Qty", "required": true, "validators": { "min": 0.01 } },
-        { "key": "rate", "type": "number", "label": "Rate", "required": true, "validators": { "min": 0 } },
-        { "key": "remarks", "type": "text", "label": "Remarks" }
+      "key": "isPaid",
+      "type": "checkbox",
+      "label": "Is Paid",
+      "effects": {
+        "unchecked": {
+          "showFields": ["dueDate"]
+        }
+      }
+    },
+    { "key": "supplier", "type": "master-lookup", "label": "Supplier", "required": true, "inList": true, "optionsSource": { "master": "supplier" } },
+    { "key": "postingTime", "type": "time", "label": "Posting Time", "editable": false, "defaultValue": "$nowTime", "validators": { "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$" } },
+    {
+      "key": "purpose",
+      "type": "master-lookup",
+      "label": "Purpose",
+      "required": true,
+      "defaultValue": "PURCHASE",
+      "optionsSource": {
+        "master": "purpose"
+      }
+    },
+    {
+      "key": "isReturnDebitNote",
+      "type": "checkbox",
+      "label": "Is Return (Debit Note)",
+      "effects": {
+        "checked": {
+          "showFields": ["updateBilledAmountInPurchaseOrder", "updateBilledAmountInPurchaseReceipt"]
+        }
+      }
+    },
+    { "key": "updateBilledAmountInPurchaseOrder", "type": "checkbox", "label": "Update Billed Amount in Purchase Order" },
+    { "key": "updateBilledAmountInPurchaseReceipt", "type": "checkbox", "label": "Update Billed Amount in Purchase Receipt", "defaultValue": true },
+    { "key": "company", "type": "master-lookup", "label": "Company", "required": true, "optionsSource": { "master": "company" } },
+    {
+      "key": "editPostingDateAndTime",
+      "type": "checkbox",
+      "label": "Edit Posting Date and Time",
+      "effects": {
+        "checked": {
+          "editableFields": [
+            { "field": "date", "editable": true },
+            { "field": "postingTime", "editable": true }
+          ]
+        }
+      }
+    },
+    { "key": "dueDate", "type": "date", "label": "Due Date" },
+    {
+      "key": "supplierInvoice",
+      "type": "group",
+      "label": "Supplier Invoice",
+      "collapsible": true,
+      "nested": true,
+      "defaultCollapsed": true,
+      "layout": "two-column",
+      "fields": [
+        { "key": "supplierInvoiceNo", "type": "text", "label": "Supplier Invoice No" },
+        { "key": "supplierInvoiceDate", "type": "date", "label": "Supplier Invoice Date" }
       ]
     },
-    { "key": "grandTotal", "type": "number", "label": "Grand Total", "auto": true, "placeholder": "Computed from line items" },
-    { "key": "notes", "type": "textarea", "label": "Notes" }
+    {
+      "key": "accountingDimensions",
+      "type": "group",
+      "label": "Accounting Dimensions",
+      "collapsible": true,
+      "nested": true,
+      "defaultCollapsed": true,
+      "layout": "two-column",
+      "fields": [
+        { "key": "costCenter", "type": "text", "label": "Cost Center" },
+        { "key": "project", "type": "text", "label": "Project" }
+      ]
+    },
+    {
+      "key": "currencyAndPriceList",
+      "type": "group",
+      "label": "Currency and Price List",
+      "defaultCollapsed": true,
+      "collapsible": true,
+      "layout": "two-column",
+      "fields": [
+        {
+          "key": "currency",
+          "type": "master-lookup",
+          "label": "Currency",
+          "required": true,
+          "defaultValue": "INR",
+          "optionsSource": {
+            "master": "currency"
+          }
+        },
+        {
+          "key": "priceList",
+          "type": "master-lookup",
+          "label": "Price List",
+          "required": true,
+          "optionsSource": {
+            "master": "price-list"
+          }
+        },
+        { "key": "useTransactionDateExchangeRate", "type": "checkbox", "label": "Use Transaction Date Exchange Rate" }
+      ]
+    },
+    {
+      "key": "itemsSection",
+      "type": "group",
+      "label": "Items",
+      "defaultCollapsed": true,
+      "collapsible": false,
+      "layout": "two-column",
+      "fields": [
+        { "key": "scanBarcode", "type": "text", "label": "Scan Barcode" },
+        { "key": "updateStock", "type": "checkbox", "label": "Update Stock" },
+        { "key": "isSubcontracted", "type": "checkbox", "label": "Is Subcontracted" },
+        {
+          "key": "items",
+          "type": "table",
+          "label": "Items",
+          "required": true,
+          "minRows": 1,
+          "maxRows": 50,
+          "showRowActions": false,
+          "columns": [
+            { "key": "item", "type": "master-lookup", "label": "Item", "required": true, "optionsSource": { "master": "item" } },
+            { "key": "quantity", "type": "number", "label": "Quantity", "required": true, "validators": { "min": 0 } },
+            { "key": "rejectedQuantity", "type": "number", "label": "Rejected Quantity", "validators": { "min": 0 } },
+            { "key": "warehouse", "type": "master-lookup", "label": "Warehouse", "required": true, "optionsSource": { "master": "warehouse" } },
+            { "key": "uom", "type": "master-lookup", "label": "UOM", "required": true, "optionsSource": { "master": "uom" } },
+            { "key": "rate", "type": "number", "label": "Rate", "required": true, "validators": { "min": 0 } },
+            { "key": "amount", "type": "number", "label": "Amount", "readOnly": true, "calculate": { "expression": "quantity * rate", "precision": 2 } }
+          ]
+        },
+        { "key": "totalQuantity", "type": "number", "label": "Total Quantity", "readOnly": true, "calculate": { "expression": "sum(items.quantity)", "precision": 3 } },
+        { "key": "totalAmount", "type": "number", "label": "Total Amount", "readOnly": true, "calculate": { "expression": "sum(items.amount)", "precision": 2 } }
+      ]
+    },
+    {
+      "key": "totals",
+      "type": "group",
+      "label": "Totals",
+      "defaultCollapsed": true,
+      "collapsible": false,
+      "layout": "two-column",
+      "fields": [
+        { "key": "grandTotal", "type": "number", "label": "Grand Total", "readOnly": true, "calculate": { "expression": "totalAmount - additionalDiscountAmount", "precision": 2 } },
+        { "key": "disableRoundedTotal", "type": "checkbox", "label": "Disable Rounded Total" },
+        { "key": "roundingAdjustment", "type": "number", "label": "Rounding Adjustment", "readOnly": true, "visibleWhen": { "field": "disableRoundedTotal", "equals": false }, "calculate": { "expression": "round(grandTotal,0) - grandTotal", "precision": 2 } },
+        { "key": "useCompanyDefaultRoundOffCostCenter", "type": "checkbox", "label": "Use Company Default Round Off Cost Center" },
+        { "key": "roundedTotal", "type": "number", "label": "Rounded Total", "readOnly": true, "visibleWhen": { "field": "disableRoundedTotal", "equals": false }, "calculate": { "expression": "grandTotal + roundingAdjustment", "precision": 2 } },
+        { "key": "totalAdvance", "type": "number", "label": "Total Advance", "validators": { "min": 0 } }
+      ]
+    },
+    {
+      "key": "additionalDiscount",
+      "type": "group",
+      "label": "Additional Discount",
+      "collapsible": true,
+      "defaultCollapsed": true,
+      "layout": "two-column",
+      "fields": [
+        {
+          "key": "applyAdditionalDiscountOn",
+          "type": "master-lookup",
+          "label": "Apply Additional Discount On",
+          "optionsSource": {
+            "master": "apply-additional-discount-on"
+          }
+        },
+        { "key": "additionalDiscountPercentage", "type": "number", "label": "Additional Discount Percentage", "validators": { "min": 0, "max": 100 } },
+        { "key": "additionalDiscountAmount", "type": "number", "label": "Additional Discount Amount", "readOnly": true, "calculate": { "expression": "(additionalDiscountPercentage / 100) * totalAmount", "precision": 2 } }
+      ]
+    }
   ]
 }

@@ -1,0 +1,10 @@
+{
+  "slug": "apply-additional-discount-on",
+  "name": "Apply Additional Discount On",
+  "managedBy": "seeded",
+  "editable": false,
+  "data": [
+    { "code": "Grand Total", "name": "Grand Total" },
+    { "code": "Net Total", "name": "Net Total" }
+  ]
+}

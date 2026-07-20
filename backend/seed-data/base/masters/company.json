@@ -1,0 +1,9 @@
+{
+  "slug": "company",
+  "name": "Company",
+  "managedBy": "seeded",
+  "editable": false,
+  "data": [
+    { "code": "IQ-SMART", "name": "IQ-SMART Enterprises" }
+  ]
+}

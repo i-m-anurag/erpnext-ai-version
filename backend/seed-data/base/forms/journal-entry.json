@@ -9,7 +9,7 @@
     { "key": "narration", "type": "textarea", "label": "Narration / Reason" },
     { "key": "reference", "type": "text", "label": "Reference" },
     { "key": "lines", "type": "table", "label": "Journal Lines", "minRows": 2, "columns": [
-      { "key": "account", "type": "master-lookup", "label": "Account", "required": true, "optionsSource": { "source": "accounts" } },
+      { "key": "account", "type": "master-lookup", "label": "Account", "required": true, "optionsSource": { "master": "account" } },
       { "key": "debit", "type": "number", "label": "Debit", "validators": { "min": 0 } },
       { "key": "credit", "type": "number", "label": "Credit", "validators": { "min": 0 } },
       { "key": "party", "type": "text", "label": "Party" },

@@ -1,0 +1,11 @@
+{
+  "slug": "party-type",
+  "name": "Party Type",
+  "managedBy": "seeded",
+  "editable": false,
+  "data": [
+    { "code": "Supplier", "name": "Supplier" },
+    { "code": "Customer", "name": "Customer" },
+    { "code": "Employee", "name": "Employee" }
+  ]
+}

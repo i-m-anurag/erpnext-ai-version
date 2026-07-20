@@ -10,6 +10,7 @@ import { tableNameForSlug } from '../document/table-name.js';
 import { documentDataService } from '../document/document-data.service.js';
 import { getFormController, type FormDoc } from '../form-logic/index.js';
 import { ledgerService } from '../ledger/index.js';
+import { accountService } from '../accounts/index.js';
 import { MasterRegistry, type MasterManagedBy } from './master-registry.entity.js';
 import { MasterData } from './master-data.entity.js';
 
@@ -32,6 +33,16 @@ export interface MasterOption {
 }
 
 const optionsKey = (slug: string): string => `master:${slug}:options`;
+
+/**
+ * Masters whose options are served by a system table instead of master_data rows —
+ * so a lookup can point at e.g. the Chart of Accounts without duplicating it into the
+ * generic store (where it would go stale). Register a provider here rather than adding
+ * a per-slug branch to the resolver.
+ */
+const OPTION_PROVIDERS: Record<string, () => Promise<MasterOption[]>> = {
+  account: () => accountService.options(),
+};
 
 /**
  * Master registry + generic master-data store (§5.5). Rows for every master live
@@ -114,6 +125,8 @@ export class MasterService {
     return cache.getOrBuild<MasterOption[]>(
       optionsKey(slug),
       async () => {
+        const provider = OPTION_PROVIDERS[slug];
+        if (provider) return provider();
         if (reg.kind === 'document') return documentDataService.options(slug);
         const rows = await this.data.find({ where: { masterSlug: slug, status: 'active' }, order: { code: 'ASC' } });
         return rows.map((r) => ({

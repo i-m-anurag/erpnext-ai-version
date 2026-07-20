@@ -1,0 +1,10 @@
+{
+  "slug": "payment-entry-type",
+  "name": "Payment Entry Type",
+  "managedBy": "seeded",
+  "editable": false,
+  "data": [
+    { "code": "PAY", "name": "Pay" },
+    { "code": "RECEIVE", "name": "Receive" }
+  ]
+}
