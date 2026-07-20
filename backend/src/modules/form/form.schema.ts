@@ -13,6 +13,7 @@ export const fieldTypeSchema = z.enum([
   'select',
   'multiselect',
   'date',
+  'time',
   'checkbox',
   'file',
   'master-lookup',

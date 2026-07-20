@@ -4,22 +4,95 @@
   "title": "Payment Entry",
   "layout": "two-column",
   "fields": [
-    { "key": "peNumber", "type": "text", "label": "Payment No.", "auto": true, "placeholder": "Auto-generated on save" },
-    { "key": "paymentType", "type": "select", "label": "Type", "required": true, "options": [
-      { "value": "Pay", "label": "Pay (to supplier)" },
-      { "value": "Receive", "label": "Receive (from customer)" }
-    ] },
-    { "key": "party", "type": "select", "label": "Party", "required": true, "options": [
-      { "value": "Acme Supplies", "label": "Acme Supplies" },
-      { "value": "Globex Corp", "label": "Globex Corp" },
-      { "value": "Initech", "label": "Initech" }
-    ] },
-    { "key": "mode", "type": "select", "label": "Mode", "required": true, "options": [
-      { "value": "Bank", "label": "Bank" },
-      { "value": "Cash", "label": "Cash" }
-    ] },
-    { "key": "paymentDate", "type": "date", "label": "Payment Date" },
-    { "key": "amount", "type": "number", "label": "Amount", "required": true, "validators": { "min": 0.01 } },
-    { "key": "reference", "type": "text", "label": "Reference" }
+    {
+      "key": "typeOfPayment",
+      "type": "group",
+      "label": "Type of Payment",
+      "collapsible": false,
+      "layout": "two-column",
+      "fields": [
+        { "key": "peNumber", "type": "text", "label": "PE Number", "auto": true, "placeholder": "Auto-generated on save", "inList": true },
+        { "key": "date", "type": "date", "label": "Posting Date", "required": true, "defaultValue": "$today", "inList": true },
+        {
+          "key": "paymentType",
+          "type": "master-lookup",
+          "label": "Payment Type",
+          "required": true,
+          "defaultValue": "PAY",
+          "inList": true,
+          "optionsSource": {
+            "master": "payment-entry-type"
+          }
+        },
+        { "key": "company", "type": "master-lookup", "label": "Company", "required": true, "optionsSource": { "master": "company" } },
+        { "key": "modeOfPayment", "type": "master-lookup", "label": "Mode of Payment", "optionsSource": { "master": "mode-of-payment" } }
+      ]
+    },
+    {
+      "key": "paymentFromTo",
+      "type": "group",
+      "label": "Payment From / To",
+      "collapsible": false,
+      "layout": "single-column",
+      "fields": [
+        {
+          "key": "partyType",
+          "type": "master-lookup",
+          "label": "Party Type",
+          "defaultValue": "Supplier",
+          "optionsSource": {
+            "master": "party-type"
+          }
+        },
+        { "key": "party", "type": "master-lookup", "label": "Party", "required": true, "inList": true, "optionsSource": { "master": "supplier" } },
+        { "key": "partyName", "type": "text", "label": "Party Name" }
+      ]
+    },
+    {
+      "key": "accounts",
+      "type": "group",
+      "label": "Accounts",
+      "collapsible": true,
+      "layout": "two-column",
+      "fields": [
+        { "key": "accountPaidFrom", "type": "master-lookup", "label": "Account Paid From", "required": true, "optionsSource": { "master": "account" } },
+        { "key": "accountPaidTo", "type": "master-lookup", "label": "Account Paid To", "required": true, "optionsSource": { "master": "account" } },
+        { "key": "amount", "type": "number", "label": "Amount", "required": true, "inList": true, "validators": { "min": 0.01 } }
+      ]
+    },
+    {
+      "key": "advanceTaxesAndCharges",
+      "type": "table",
+      "label": "Advance Taxes and Charges",
+      "minRows": 0,
+      "maxRows": 50,
+      "showRowActions": false,
+      "columns": [
+        {
+          "key": "type",
+          "type": "master-lookup",
+          "label": "Type",
+          "required": true,
+          "optionsSource": {
+            "master": "purchase-tax-charge-template-type"
+          }
+        },
+        { "key": "accountHead", "type": "master-lookup", "label": "Account Head", "required": true, "optionsSource": { "master": "account" } },
+        { "key": "taxRate", "type": "number", "label": "Tax Rate", "validators": { "min": 0 } },
+        { "key": "amount", "type": "number", "label": "Amount" },
+        { "key": "total", "type": "number", "label": "Total", "calculate": { "expression": "amount + (amount * taxRate / 100)", "precision": 2 } }
+      ]
+    },
+    {
+      "key": "accountingDimensions",
+      "type": "group",
+      "label": "Accounting Dimensions",
+      "collapsible": true,
+      "layout": "two-column",
+      "fields": [
+        { "key": "project", "type": "text", "label": "Project" },
+        { "key": "costCenter", "type": "text", "label": "Cost Center" }
+      ]
+    }
   ]
 }

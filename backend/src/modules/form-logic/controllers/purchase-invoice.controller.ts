@@ -10,22 +10,27 @@ const today = (): string => new Date().toISOString().slice(0, 10);
  * Purchase Invoice business logic. On submit it auto-posts to the General Ledger
  * via the config-driven posting rule (Dr Purchase Expenses, Cr Creditors) — the
  * form-controller afterSave seam is where documents feed the ledger.
+ *
+ * NOTE: `grandTotal` is derived here for now. The form declares it as a `calculate`
+ * expression; once the expression engine lands, this computation goes away and the
+ * config becomes the single source of truth.
  */
 export const purchaseInvoiceController: FormController = {
   /** Keep grandTotal in sync with the line items before persisting, and reject a
    *  frozen-period posting BEFORE the document is written (so a rejected post can't
    *  leave a persisted-but-unposted document behind). */
   async beforeSave(ctx) {
-    const lines = ctx.input['lines'];
-    if (Array.isArray(lines)) {
-      const total = lines.reduce((sum, row) => {
+    const items = ctx.input['items'];
+    if (Array.isArray(items)) {
+      const total = items.reduce((sum, row) => {
         const r = row as Record<string, unknown>;
-        return sum + Number(r['qty'] ?? 0) * Number(r['rate'] ?? 0);
+        return sum + Number(r['quantity'] ?? 0) * Number(r['rate'] ?? 0);
       }, 0);
-      ctx.input['grandTotal'] = total;
+      ctx.input['totalAmount'] = total;
+      ctx.input['grandTotal'] = total - Number(ctx.input['additionalDiscountAmount'] ?? 0);
     }
     if (!ctx.draft) {
-      await ledgerService.assertNotFrozen((ctx.input['invoiceDate'] as string | undefined) ?? today());
+      await ledgerService.assertNotFrozen((ctx.input['date'] as string | undefined) ?? today());
     }
   },
 
@@ -35,8 +40,9 @@ export const purchaseInvoiceController: FormController = {
     if (doc.status === 'draft') return;
     const rule = getPostingRule(doc.slug);
     if (!rule) return;
-    const postingDate = (doc.data['invoiceDate'] as string | undefined) ?? today();
+    const postingDate = (doc.data['date'] as string | undefined) ?? today();
+    const voucher = await buildVoucher(rule, { code: doc.code, data: doc.data }, postingDate);
     // Post on the document's transaction so save + GL post are atomic.
-    await ledgerService.post(buildVoucher(rule, { code: doc.code, data: doc.data }, postingDate), tx?.manager);
+    await ledgerService.post(voucher, tx?.manager);
   },
 };

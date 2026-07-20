@@ -1,0 +1,21 @@
+{
+  "voucherType": "payment-entry",
+  "amountField": "amount",
+  "partyField": "party",
+  "cases": [
+    {
+      "when": { "field": "paymentType", "equals": "RECEIVE" },
+      "lines": [
+        { "accountField": "accountPaidTo", "side": "debit" },
+        { "accountRole": "Receivable", "side": "credit", "withParty": true }
+      ]
+    },
+    {
+      "when": { "field": "paymentType", "equals": "PAY" },
+      "lines": [
+        { "accountRole": "Payable", "side": "debit", "withParty": true },
+        { "accountField": "accountPaidFrom", "side": "credit" }
+      ]
+    }
+  ]
+}

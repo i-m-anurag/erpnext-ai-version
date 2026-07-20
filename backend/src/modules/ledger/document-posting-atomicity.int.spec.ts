@@ -19,15 +19,18 @@ import { ledgerService } from './index.js';
  * saved-but-unposted "ghost" document. We prove the rollback by forcing post() to
  * throw AFTER the document row has been inserted in the transaction.
  *
- * The invoice is dated after the demo freeze so beforeSave's frozen-period check (a
- * separate, pre-persist guard) passes and execution reaches the post.
+ * The input satisfies every required field of the canonical Purchase Invoice form.
  */
 const PI = 'purchase-invoice';
-const AFTER_FREEZE = '2027-06-15';
+const POSTING_DATE = '2027-06-15';
 const validInput = () => ({
-  vendor: 'Acme Supplies',
-  invoiceDate: AFTER_FREEZE,
-  lines: [{ item: 'ITM-1001', qty: 2, rate: 1500 }],
+  date: POSTING_DATE,
+  supplier: 'Acme Supplies',
+  purpose: 'PURCHASE',
+  company: 'IQ-SMART',
+  currency: 'INR',
+  priceList: 'Standard Buying',
+  items: [{ item: 'ITM-1001', quantity: 2, warehouse: 'Main Store', uom: 'EA', rate: 1500 }],
 });
 
 async function countPis(): Promise<number> {
