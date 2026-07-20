@@ -98,6 +98,19 @@ this way:
 
 ---
 
+## Backlog
+
+- **Live total recalculation in the form UI.** `calculate` fields are derived
+  server-side on save, so stored and posted amounts are always correct — but the form
+  does not recompute totals while you type, so Grand Total stays blank on a new,
+  unsaved document. Cosmetic only; nothing downstream depends on client-side maths.
+  Two options when it's picked up: (a) a debounced `POST /api/forms/:slug/calculate`
+  that reuses the one server evaluator — preferred, since it can't drift from what is
+  saved; or (b) port the evaluator to the frontend — instant, but duplicates money
+  arithmetic across two packages that share no code.
+
+---
+
 ## Adding a new posting doctype safely
 
 1. Prefer a **posting rule** (`seed-data/base/posting-rules/<slug>.json`) over
