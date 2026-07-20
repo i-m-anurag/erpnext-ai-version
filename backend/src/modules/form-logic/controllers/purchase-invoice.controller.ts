@@ -11,24 +11,13 @@ const today = (): string => new Date().toISOString().slice(0, 10);
  * via the config-driven posting rule (Dr Purchase Expenses, Cr Creditors) — the
  * form-controller afterSave seam is where documents feed the ledger.
  *
- * NOTE: `grandTotal` is derived here for now. The form declares it as a `calculate`
- * expression; once the expression engine lands, this computation goes away and the
- * config becomes the single source of truth.
+ * `grandTotal` and the other totals are derived by the form's `calculate` expressions
+ * (applied server-side on save), so there is no amount arithmetic in here.
  */
 export const purchaseInvoiceController: FormController = {
-  /** Keep grandTotal in sync with the line items before persisting, and reject a
-   *  frozen-period posting BEFORE the document is written (so a rejected post can't
-   *  leave a persisted-but-unposted document behind). */
+  /** Reject a frozen-period posting BEFORE the document is written, so a rejected
+   *  post can't leave a persisted-but-unposted document behind. */
   async beforeSave(ctx) {
-    const items = ctx.input['items'];
-    if (Array.isArray(items)) {
-      const total = items.reduce((sum, row) => {
-        const r = row as Record<string, unknown>;
-        return sum + Number(r['quantity'] ?? 0) * Number(r['rate'] ?? 0);
-      }, 0);
-      ctx.input['totalAmount'] = total;
-      ctx.input['grandTotal'] = total - Number(ctx.input['additionalDiscountAmount'] ?? 0);
-    }
     if (!ctx.draft) {
       await ledgerService.assertNotFrozen((ctx.input['date'] as string | undefined) ?? today());
     }

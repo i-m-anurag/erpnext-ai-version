@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { assertValidExpression } from './expression.js';
 
 /**
  * JSON form-definition schema (§5.1). This validates the EFFECTIVE (base+override
@@ -44,7 +45,18 @@ export interface FormField {
   columns?: FormField[];
   minRows?: number;
   maxRows?: number;
+  /** type: 'table' — hide per-row add/remove controls. */
+  showRowActions?: boolean;
   auto?: boolean;
+  /** Derived value: an arithmetic expression over sibling fields (and sum() over a
+   *  table column), evaluated server-side on save. See expression.ts. */
+  calculate?: { expression: string; precision?: number };
+  /** Pre-filled on a new record. Supports the tokens "$today" and "$nowTime". */
+  defaultValue?: unknown;
+  /** Rendered read-only (typical for a `calculate` field). */
+  readOnly?: boolean;
+  /** Explicitly non-editable; an `effects.editableFields` rule can flip this. */
+  editable?: boolean;
   /** type: 'group' — the nested sub-fields. */
   fields?: FormField[];
   /**
@@ -94,6 +106,22 @@ export const formFieldSchema: z.ZodType<FormField> = z.lazy(() =>
     columns: z.array(formFieldSchema).optional(),
     minRows: z.number().int().nonnegative().optional(),
     maxRows: z.number().int().positive().optional(),
+    showRowActions: z.boolean().optional(),
+    /** Derived value — parsed (and syntax-checked) at seed time, evaluated on save. */
+    calculate: z
+      .object({
+        expression: z.string().min(1).refine(
+          (e) => {
+            try { assertValidExpression(e); return true; } catch { return false; }
+          },
+          { message: 'invalid calculate expression' },
+        ),
+        precision: z.number().int().min(0).max(6).optional(),
+      })
+      .optional(),
+    defaultValue: z.unknown().optional(),
+    readOnly: z.boolean().optional(),
+    editable: z.boolean().optional(),
     /** type: 'group' — the nested sub-fields. */
     fields: z.array(formFieldSchema).optional(),
     /** group: data group (jsonb sub-object) when true, else display/accordion group. */
