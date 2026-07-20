@@ -17,6 +17,21 @@ function ident(name: string): string {
   return `"${name}"`;
 }
 
+/**
+ * Coerce a value read from Postgres back to the wire type the form layer expects.
+ * The driver returns `numeric` columns as strings and `timestamptz` as `Date`
+ * objects; the form validators expect `number` and (ISO) `string`. Without this,
+ * a document read cannot be re-validated/re-saved internally (e.g. a linked-doc
+ * controller propagating a change, or a `calculate` expression summing a table) —
+ * the round-tripped types fail validation.
+ */
+function coerceFromDb(type: FormField['type'], value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (type === 'number') return typeof value === 'number' ? value : Number(value);
+  if (type === 'date') return value instanceof Date ? value.toISOString() : value;
+  return value;
+}
+
 type Sql = Record<string, unknown>;
 
 /** Anything that can run a parameterised query — the DataSource (its own connection)
@@ -145,10 +160,13 @@ export class DocumentDataService {
     // server-side, so stored totals are authoritative regardless of what the client sent.
     const computed = applyCalculations(c.form, applyDefaults(c.form, merged));
     const clean = validate ? validateFormData(c.form, computed) : computed;
-    const code = String(clean[c.codeField] ?? '');
+    // Take the code from the pre-validation values first: validation can strip an
+    // `auto` field, which would otherwise lose a freshly-allocated series number.
+    const code = String(merged[c.codeField] ?? clean[c.codeField] ?? '');
     if (!code) throw new BadRequestError(`missing ${c.codeField}`);
+    const cleanWithCode = { ...clean, [c.codeField]: code };
 
-    const { cols, vals, extra } = this.split(c, clean);
+    const { cols, vals, extra } = this.split(c, cleanWithCode);
     const names = ['"code"', '"status"', '"extra"', ...cols.map(ident)];
     const placeholders = ['$1', '$2', '$3::jsonb', ...vals.map((_, i) => `$${i + 4}`)];
     const params = [code, status, JSON.stringify(extra), ...vals];
@@ -157,7 +175,7 @@ export class DocumentDataService {
       params,
     )) as Sql[];
     const row = inserted[0]!;
-    await this.insertChildren(c, String(row.id), clean, db);
+    await this.insertChildren(c, String(row.id), cleanWithCode, db);
     return this.assemble(c, row, true, db);
   }
 
@@ -194,10 +212,13 @@ export class DocumentDataService {
     await AppDataSource.query(`UPDATE ${ident(c.table)} SET "deletedAt"=now(), "status"='archived' WHERE "id"=$1`, [id]);
   }
 
-  /** Options for a document master-lookup (value=code, label=labelField/first scalar). */
+  /** Options for a document master-lookup (value=code, label=labelField/first scalar).
+   *  The row's fields ride along so a picker can show/act on more than the label —
+   *  spread FIRST so a field literally named `value`/`label` can't shadow the option's
+   *  own keys and break the dropdown. */
   async options(slug: string): Promise<{ value: string; label: string }[]> {
     const rows = await this.list(slug, 500);
-    return rows.map((r) => ({ value: r.code, label: String(r.data['name'] ?? r.code) }));
+    return rows.map((r) => ({ ...r.data, value: r.code, label: String(r.data['name'] ?? r.code) }));
   }
 
   // ── internals ───────────────────────────────────────────────────────────
@@ -209,7 +230,7 @@ export class DocumentDataService {
    */
   private async assemble(c: Ctx, row: Sql, withChildren = true, db: Queryable = AppDataSource): Promise<DocumentRow> {
     const data: Record<string, unknown> = { [c.codeField]: row.code };
-    for (const f of c.scalar) data[f.key] = row[f.key];
+    for (const f of c.scalar) data[f.key] = coerceFromDb(f.type, row[f.key]);
     if (row.extra && typeof row.extra === 'object') Object.assign(data, row.extra as Sql);
     for (const tf of c.tables) {
       if (!withChildren) {
@@ -221,8 +242,10 @@ export class DocumentDataService {
         `SELECT * FROM ${ident(child)} WHERE "parent_id"=$1 ORDER BY "idx" ASC`,
         [row.id],
       )) as Sql[];
-      const cols = (tf.columns ?? []).map((cc) => cc.key);
-      data[tf.key] = lines.map((ln) => Object.fromEntries(cols.map((k) => [k, ln[k]])));
+      const cols = tf.columns ?? [];
+      data[tf.key] = lines.map((ln) =>
+        Object.fromEntries(cols.map((cc) => [cc.key, coerceFromDb(cc.type, ln[cc.key])])),
+      );
     }
     return { id: String(row.id), masterSlug: c.slug, code: String(row.code), data, status: String(row.status), state: (row.state as string) ?? null };
   }
