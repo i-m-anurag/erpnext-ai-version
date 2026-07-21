@@ -53,8 +53,11 @@ export class FormBuilderService {
     if (field.type === 'group') {
       return this.buildGroup(field, value as Record<string, unknown> | undefined);
     }
+    // Server-derived (`calculate`) and explicitly read-only fields are shown but not
+    // editable — the server recomputes them on save regardless of what is posted.
+    const locked = field.auto === true || field.readOnly === true || field.editable === false;
     return new FormControl(
-      { value: value ?? this.defaultValue(field), disabled: field.auto === true },
+      { value: value ?? this.defaultValue(field), disabled: locked },
       {
         validators: this.validatorsFor(field),
         nonNullable: field.type === 'checkbox',
@@ -86,6 +89,15 @@ export class FormBuilderService {
   }
 
   private defaultValue(field: FormFieldDef): unknown {
+    // A declared defaultValue wins; "$today"/"$nowTime" mirror the server's tokens so a
+    // new record pre-fills the same way the server would on save. Date fields get a real
+    // Date — the datepicker renders "Invalid date" for an ISO string.
+    if (field.defaultValue !== undefined) {
+      if (field.defaultValue === '$today') return field.type === 'date' ? new Date() : new Date().toISOString().slice(0, 10);
+      if (field.defaultValue === '$nowTime') return new Date().toTimeString().slice(0, 8);
+      if (field.type === 'date' && typeof field.defaultValue === 'string') return new Date(field.defaultValue);
+      return field.defaultValue;
+    }
     switch (field.type) {
       case 'checkbox':
         return false;

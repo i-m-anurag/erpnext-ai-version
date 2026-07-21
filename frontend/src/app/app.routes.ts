@@ -104,6 +104,75 @@ export const routes: Routes = [
         ],
       },
       {
+        // Finance module — Chart of Accounts + ledger reports. Declared before the
+        // generic m/:slug route so these specific subs win.
+        path: 'm/finance',
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'chart-of-accounts' },
+          {
+            path: 'chart-of-accounts',
+            loadComponent: () =>
+              import('./features/accounting/chart-of-accounts.component').then((m) => m.ChartOfAccountsComponent),
+          },
+          {
+            path: 'ledger',
+            loadComponent: () =>
+              import('./features/accounting/general-ledger.component').then((m) => m.GeneralLedgerComponent),
+          },
+          {
+            path: 'trial-balance',
+            loadComponent: () =>
+              import('./features/accounting/trial-balance.component').then((m) => m.TrialBalanceComponent),
+          },
+          {
+            path: 'profit-loss',
+            loadComponent: () =>
+              import('./features/accounting/profit-loss.component').then((m) => m.ProfitLossComponent),
+          },
+          {
+            path: 'balance-sheet',
+            loadComponent: () =>
+              import('./features/accounting/balance-sheet.component').then((m) => m.BalanceSheetComponent),
+          },
+          {
+            path: 'payables',
+            data: { kind: 'payables' },
+            loadComponent: () =>
+              import('./features/accounting/party-outstanding.component').then((m) => m.PartyOutstandingComponent),
+          },
+          {
+            path: 'receivables',
+            data: { kind: 'receivables' },
+            loadComponent: () =>
+              import('./features/accounting/party-outstanding.component').then((m) => m.PartyOutstandingComponent),
+          },
+          {
+            path: 'period-close',
+            loadComponent: () =>
+              import('./features/accounting/period-close.component').then((m) => m.PeriodCloseComponent),
+          },
+          {
+            path: 'fiscal-years',
+            loadComponent: () =>
+              import('./features/accounting/fiscal-year.component').then((m) => m.FiscalYearComponent),
+          },
+          {
+            // finance document records (e.g. payments/PAY-2026-00001) → record view
+            path: ':sub/:id',
+            data: { slug: 'finance' },
+            loadComponent: () =>
+              import('./features/views/record-view.component').then((m) => m.RecordViewComponent),
+          },
+          {
+            // dashboard / payments list / any other finance sub → generic workspace
+            path: ':sub',
+            data: { slug: 'finance' },
+            loadComponent: () =>
+              import('./features/module-workspace/module-workspace.component').then((m) => m.ModuleWorkspaceComponent),
+          },
+        ],
+      },
+      {
         path: 'm/:slug',
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'dashboard' },

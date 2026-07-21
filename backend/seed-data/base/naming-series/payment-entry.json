@@ -1,0 +1,1 @@
+{ "slug": "payment-entry", "pattern": "PAY-{YYYY}-{#####}", "reset": "yearly" }

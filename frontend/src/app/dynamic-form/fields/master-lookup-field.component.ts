@@ -31,6 +31,8 @@ export class MasterLookupFieldComponent implements OnInit {
   readonly loading = signal(false);
 
   ngOnInit(): void {
+    // Every lookup resolves through the master options endpoint — including system-backed
+    // masters like `account`, whose options the server serves from the Chart of Accounts.
     const master = this.config().optionsSource?.master;
     if (!master) return;
     this.loading.set(true);

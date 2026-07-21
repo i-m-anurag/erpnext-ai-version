@@ -613,6 +613,32 @@ tables point back to.
    bound), FIFO valuation, negative stock, multi-currency, period/year close,
    variance reports, job-class queue split for backfills (§7.1).
 
+### 11.1 Immutability — locked for every ledger table
+
+The `gl_entry` / `stock_ledger_entry` tables are **append-only, enforced in the DB**:
+
+- **In scope (v1):**
+  - **Postgres triggers** on each ledger table: `BEFORE UPDATE OR DELETE` (row) and
+    `BEFORE TRUNCATE` (statement) → `RAISE EXCEPTION`. Fires regardless of the client,
+    even a direct `psql` as the schema owner.
+  - **Bespoke minimal entity** — NOT `BaseEntity`/`BaseRepository` (those carry
+    `updatedAt`/`deletedAt`/`softDelete`). Columns: `id`, `createdAt` only.
+  - **Corrections = reversal entries** (equal/opposite Dr/Cr referencing the original
+    voucher). Original rows never change; the ledger only grows.
+  - A monotonic **`seq BIGINT` (identity)** column from day one — needed anyway for
+    deterministic ordering (§7.2) AND it makes hash-chaining trivial to add later.
+
+### 11.2 Backlog (deferred, opt-in — no rework to add)
+
+- **Tamper-evident hash chain.** Add `prev_hash` + `row_hash = sha256(prev_hash ||
+  canonical(row))` columns and a chain verifier. Purely additive: a migration adds the
+  two columns, insert computes the hash (ordered by the `seq` we already store), and a
+  one-off job backfills existing rows. The append-only triggers and posting logic are
+  unchanged. Gives cryptographic proof that no historical row was altered — the audit
+  gold standard. **Deferred; the `seq` column above is the only forward-compat hook.**
+- **Least-privilege DB role** (`GRANT INSERT, SELECT` only) once the app connects as a
+  role separate from the schema owner.
+
 ---
 
 ## 12. Decisions to confirm before building

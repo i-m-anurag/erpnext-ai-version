@@ -11,6 +11,10 @@ import { TimelineEntry } from '../modules/activity/timeline-entry.entity.js';
 import { Comment } from '../modules/activity/comment.entity.js';
 import { Assignment } from '../modules/workflow/assignment.entity.js';
 import { DocumentLink } from '../modules/document/document-link.entity.js';
+import { Account } from '../modules/accounts/account.entity.js';
+import { GlEntry } from '../modules/ledger/gl-entry.entity.js';
+import { LedgerSettings } from '../modules/ledger/ledger-settings.entity.js';
+import { FiscalYear } from '../modules/ledger/fiscal-year.entity.js';
 
 /**
  * Explicit entity registry. Listed by import (not a filesystem glob) so the
@@ -31,4 +35,8 @@ export const entities = [
   Comment,
   Assignment,
   DocumentLink,
+  Account,
+  GlEntry,
+  LedgerSettings,
+  FiscalYear,
 ];

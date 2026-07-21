@@ -1,8 +1,10 @@
+import type { EntityManager } from 'typeorm';
 import { AppDataSource } from '../../db/data-source.js';
 import { BaseRepository } from '../../shared/base.repository.js';
 import { BadRequestError, NotFoundError } from '../../shared/errors.js';
 import { configResolver } from '../config/index.js';
 import { FORM_RESOURCE_TYPE, flattenDataFields, validateFormData, type FormDefinition } from '../form/index.js';
+import { applyCalculations, applyDefaults } from '../form/calculate.js';
 import type { FormField } from '../form/form.schema.js';
 import { MasterRegistry } from '../master/master-registry.entity.js';
 import { tableNameForSlug } from './table-name.js';
@@ -15,7 +17,27 @@ function ident(name: string): string {
   return `"${name}"`;
 }
 
+/**
+ * Coerce a value read from Postgres back to the wire type the form layer expects.
+ * The driver returns `numeric` columns as strings and `timestamptz` as `Date`
+ * objects; the form validators expect `number` and (ISO) `string`. Without this,
+ * a document read cannot be re-validated/re-saved internally (e.g. a linked-doc
+ * controller propagating a change, or a `calculate` expression summing a table) —
+ * the round-tripped types fail validation.
+ */
+function coerceFromDb(type: FormField['type'], value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (type === 'number') return typeof value === 'number' ? value : Number(value);
+  if (type === 'date') return value instanceof Date ? value.toISOString() : value;
+  return value;
+}
+
 type Sql = Record<string, unknown>;
+
+/** Anything that can run a parameterised query — the DataSource (its own connection)
+ *  or an EntityManager (a caller's open transaction). Threading one through lets a
+ *  document persist share a transaction with its ledger posting. */
+type Queryable = Pick<EntityManager, 'query'>;
 
 export interface DocumentRow {
   id: string;
@@ -73,14 +95,14 @@ export class DocumentDataService {
     return Promise.all(rows.map((r) => this.assemble(c, r, false)));
   }
 
-  async getById(slug: string, id: string): Promise<DocumentRow> {
+  async getById(slug: string, id: string, db: Queryable = AppDataSource): Promise<DocumentRow> {
     const c = await this.ctx(slug);
-    const rows = (await AppDataSource.query(
+    const rows = (await db.query(
       `SELECT * FROM ${ident(c.table)} WHERE "id"=$1 AND "deletedAt" IS NULL`,
       [id],
     )) as Sql[];
     if (rows.length === 0) throw new NotFoundError('document not found');
-    return this.assemble(c, rows[0]!);
+    return this.assemble(c, rows[0]!, true, db);
   }
 
   async getByCode(slug: string, code: string): Promise<DocumentRow> {
@@ -95,9 +117,9 @@ export class DocumentDataService {
 
   /** Set only the business `state` column (used by form-controller computeStatus).
    *  Unlike persistWorkflow this never touches `extra`, so it won't clobber jsonb. */
-  async setState(slug: string, id: string, state: string | null): Promise<void> {
+  async setState(slug: string, id: string, state: string | null, db: Queryable = AppDataSource): Promise<void> {
     const c = await this.ctx(slug);
-    await AppDataSource.query(
+    await db.query(
       `UPDATE ${ident(c.table)} SET "state"=$1, "updatedAt"=now() WHERE "id"=$2`,
       [state, id],
     );
@@ -112,15 +134,16 @@ export class DocumentDataService {
     await AppDataSource.query(`UPDATE ${ident(c.table)} SET ${sets.join(', ')} WHERE "id"=$${params.length}`, params);
   }
 
-  /** Validated create (user submit) → status 'active'. */
-  create(slug: string, input: Record<string, unknown>): Promise<DocumentRow> {
-    return this.insert(slug, input, true, 'active');
+  /** Validated create (user submit) → status 'active'. `db` runs the writes on a
+   *  caller's transaction (so the document + its GL posting are atomic). */
+  create(slug: string, input: Record<string, unknown>, db: Queryable = AppDataSource): Promise<DocumentRow> {
+    return this.insert(slug, input, true, 'active', db);
   }
 
   /** Draft create — skips form validation, status 'draft' (e.g. "Save as draft"
    *  and create-next from another document). */
-  createDraft(slug: string, input: Record<string, unknown>): Promise<DocumentRow> {
-    return this.insert(slug, input, false, 'draft');
+  createDraft(slug: string, input: Record<string, unknown>, db: Queryable = AppDataSource): Promise<DocumentRow> {
+    return this.insert(slug, input, false, 'draft', db);
   }
 
   private async insert(
@@ -128,25 +151,32 @@ export class DocumentDataService {
     input: Record<string, unknown>,
     validate: boolean,
     status: string,
+    db: Queryable = AppDataSource,
   ): Promise<DocumentRow> {
     const c = await this.ctx(slug);
     const auto = await namingSeriesService.next(slug);
     const merged = auto ? { ...input, [c.codeField]: auto } : input;
-    const clean = validate ? validateFormData(c.form, merged) : merged;
-    const code = String(clean[c.codeField] ?? '');
+    // Defaults fill blanks on create; calculations then derive every `calculate` field
+    // server-side, so stored totals are authoritative regardless of what the client sent.
+    const computed = applyCalculations(c.form, applyDefaults(c.form, merged));
+    const clean = validate ? validateFormData(c.form, computed) : computed;
+    // Take the code from the pre-validation values first: validation can strip an
+    // `auto` field, which would otherwise lose a freshly-allocated series number.
+    const code = String(merged[c.codeField] ?? clean[c.codeField] ?? '');
     if (!code) throw new BadRequestError(`missing ${c.codeField}`);
+    const cleanWithCode = { ...clean, [c.codeField]: code };
 
-    const { cols, vals, extra } = this.split(c, clean);
+    const { cols, vals, extra } = this.split(c, cleanWithCode);
     const names = ['"code"', '"status"', '"extra"', ...cols.map(ident)];
     const placeholders = ['$1', '$2', '$3::jsonb', ...vals.map((_, i) => `$${i + 4}`)];
     const params = [code, status, JSON.stringify(extra), ...vals];
-    const inserted = (await AppDataSource.query(
+    const inserted = (await db.query(
       `INSERT INTO ${ident(c.table)} (${names.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING *`,
       params,
     )) as Sql[];
     const row = inserted[0]!;
-    await this.insertChildren(c, String(row.id), clean);
-    return this.assemble(c, row);
+    await this.insertChildren(c, String(row.id), cleanWithCode, db);
+    return this.assemble(c, row, true, db);
   }
 
   async update(
@@ -154,12 +184,13 @@ export class DocumentDataService {
     id: string,
     input: Record<string, unknown>,
     opts: { draft?: boolean } = {},
+    db: Queryable = AppDataSource,
   ): Promise<DocumentRow> {
     const c = await this.ctx(slug);
-    const existing = (await AppDataSource.query(`SELECT "code" FROM ${ident(c.table)} WHERE "id"=$1`, [id])) as Sql[];
+    const existing = (await db.query(`SELECT "code" FROM ${ident(c.table)} WHERE "id"=$1`, [id])) as Sql[];
     if (existing.length === 0) throw new NotFoundError('document not found');
     const code = String(existing[0]!.code);
-    const merged = { ...input, [c.codeField]: code };
+    const merged = applyCalculations(c.form, { ...input, [c.codeField]: code });
     // draft → skip validation + mark 'draft'; submit → validate + mark 'active'.
     const clean = opts.draft ? merged : validateFormData(c.form, merged);
     const status = opts.draft ? 'draft' : 'active';
@@ -167,13 +198,13 @@ export class DocumentDataService {
     const { cols, vals, extra } = this.split(c, clean);
     const sets = ['"status"=$1', '"extra"=$2::jsonb', '"updatedAt"=now()', ...cols.map((cn, i) => `${ident(cn)}=$${i + 3}`)];
     const params = [status, JSON.stringify(extra), ...vals, id];
-    await AppDataSource.query(`UPDATE ${ident(c.table)} SET ${sets.join(', ')} WHERE "id"=$${params.length}`, params);
+    await db.query(`UPDATE ${ident(c.table)} SET ${sets.join(', ')} WHERE "id"=$${params.length}`, params);
 
     for (const tf of c.tables) {
-      await AppDataSource.query(`DELETE FROM ${ident(`${c.table}__${tf.key.toLowerCase()}`)} WHERE "parent_id"=$1`, [id]);
+      await db.query(`DELETE FROM ${ident(`${c.table}__${tf.key.toLowerCase()}`)} WHERE "parent_id"=$1`, [id]);
     }
-    await this.insertChildren(c, id, clean);
-    return this.getById(slug, id);
+    await this.insertChildren(c, id, clean, db);
+    return this.getById(slug, id, db);
   }
 
   async remove(slug: string, id: string): Promise<void> {
@@ -181,10 +212,13 @@ export class DocumentDataService {
     await AppDataSource.query(`UPDATE ${ident(c.table)} SET "deletedAt"=now(), "status"='archived' WHERE "id"=$1`, [id]);
   }
 
-  /** Options for a document master-lookup (value=code, label=labelField/first scalar). */
+  /** Options for a document master-lookup (value=code, label=labelField/first scalar).
+   *  The row's fields ride along so a picker can show/act on more than the label —
+   *  spread FIRST so a field literally named `value`/`label` can't shadow the option's
+   *  own keys and break the dropdown. */
   async options(slug: string): Promise<{ value: string; label: string }[]> {
     const rows = await this.list(slug, 500);
-    return rows.map((r) => ({ value: r.code, label: String(r.data['name'] ?? r.code) }));
+    return rows.map((r) => ({ ...r.data, value: r.code, label: String(r.data['name'] ?? r.code) }));
   }
 
   // ── internals ───────────────────────────────────────────────────────────
@@ -194,9 +228,9 @@ export class DocumentDataService {
    * PER row, so list/options skip it (those views never show line-items) to avoid
    * an N+1 explosion; only the single-record reads (getById/getByCode) load them.
    */
-  private async assemble(c: Ctx, row: Sql, withChildren = true): Promise<DocumentRow> {
+  private async assemble(c: Ctx, row: Sql, withChildren = true, db: Queryable = AppDataSource): Promise<DocumentRow> {
     const data: Record<string, unknown> = { [c.codeField]: row.code };
-    for (const f of c.scalar) data[f.key] = row[f.key];
+    for (const f of c.scalar) data[f.key] = coerceFromDb(f.type, row[f.key]);
     if (row.extra && typeof row.extra === 'object') Object.assign(data, row.extra as Sql);
     for (const tf of c.tables) {
       if (!withChildren) {
@@ -204,12 +238,14 @@ export class DocumentDataService {
         continue;
       }
       const child = `${c.table}__${tf.key.toLowerCase()}`;
-      const lines = (await AppDataSource.query(
+      const lines = (await db.query(
         `SELECT * FROM ${ident(child)} WHERE "parent_id"=$1 ORDER BY "idx" ASC`,
         [row.id],
       )) as Sql[];
-      const cols = (tf.columns ?? []).map((cc) => cc.key);
-      data[tf.key] = lines.map((ln) => Object.fromEntries(cols.map((k) => [k, ln[k]])));
+      const cols = tf.columns ?? [];
+      data[tf.key] = lines.map((ln) =>
+        Object.fromEntries(cols.map((cc) => [cc.key, coerceFromDb(cc.type, ln[cc.key])])),
+      );
     }
     return { id: String(row.id), masterSlug: c.slug, code: String(row.code), data, status: String(row.status), state: (row.state as string) ?? null };
   }
@@ -232,7 +268,7 @@ export class DocumentDataService {
     return { cols, vals, extra };
   }
 
-  private async insertChildren(c: Ctx, parentId: string, clean: Record<string, unknown>): Promise<void> {
+  private async insertChildren(c: Ctx, parentId: string, clean: Record<string, unknown>, db: Queryable = AppDataSource): Promise<void> {
     for (const tf of c.tables) {
       const child = `${c.table}__${tf.key.toLowerCase()}`;
       const cols = (tf.columns ?? []).map((cc) => cc.key);
@@ -242,7 +278,7 @@ export class DocumentDataService {
         const names = ['"parent_id"', '"idx"', ...cols.map(ident)];
         const placeholders = ['$1', '$2', ...cols.map((_, i) => `$${i + 3}`)];
         const params = [parentId, idx++, ...cols.map((k) => r[k] ?? null)];
-        await AppDataSource.query(`INSERT INTO ${ident(child)} (${names.join(', ')}) VALUES (${placeholders.join(', ')})`, params);
+        await db.query(`INSERT INTO ${ident(child)} (${names.join(', ')}) VALUES (${placeholders.join(', ')})`, params);
       }
     }
   }

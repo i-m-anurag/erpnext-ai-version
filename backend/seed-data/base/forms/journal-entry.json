@@ -1,0 +1,19 @@
+{
+  "slug": "journal-entry",
+  "version": 1,
+  "title": "Journal Entry",
+  "layout": "two-column",
+  "fields": [
+    { "key": "jeNumber", "type": "text", "label": "Journal No.", "auto": true, "placeholder": "Auto-generated on save" },
+    { "key": "postingDate", "type": "date", "label": "Posting Date", "required": true },
+    { "key": "narration", "type": "textarea", "label": "Narration / Reason" },
+    { "key": "reference", "type": "text", "label": "Reference" },
+    { "key": "lines", "type": "table", "label": "Journal Lines", "minRows": 2, "columns": [
+      { "key": "account", "type": "master-lookup", "label": "Account", "required": true, "optionsSource": { "master": "account" } },
+      { "key": "debit", "type": "number", "label": "Debit", "validators": { "min": 0 } },
+      { "key": "credit", "type": "number", "label": "Credit", "validators": { "min": 0 } },
+      { "key": "party", "type": "text", "label": "Party" },
+      { "key": "remarks", "type": "text", "label": "Remarks" }
+    ] }
+  ]
+}
