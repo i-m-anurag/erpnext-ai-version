@@ -28,10 +28,20 @@ to the **api** container internally, so the host nginx only needs a single
 | `backend/docker/ecosystem.config.cjs` | pm2 manifest (2 processes: `erp-api`, `erp-worker`) |
 | `backend/docker/entrypoint.sh` | runs migrate → seed → sync:schema, then pm2 |
 | `docker-compose.yml` | postgres + redis + api + web, all env-driven |
-| `.env.example` | the per-client env contract |
+| `config/config.production.example.json` | the per-client config template (source of truth) |
 | `deploy/build.sh` | build + tag images (SHA + latest); no registry push |
 | `deploy/deploy.sh` | run one client stack, wait for health |
 | `deploy/nginx.host.conf.example` | sample host-nginx server block |
+
+## Config → env (single source of truth)
+
+A client is described by ONE file: `config/config.<client>.json` (git-ignored, holds
+secrets, **stays on the host — never baked into an image**). `deploy.sh` runs `gen-env`
+to produce the runtime `.env` from it — the same validated pipeline dev uses. Nothing
+per-client is hand-authored, so `MODULE_*` toggles and every value are derived, and a
+bad/missing value fails validation before boot.
+
+Prereq: Node deps installed once on the host (`npm ci`) so `gen-env` can run.
 
 ## First deploy (per client)
 
@@ -39,26 +49,26 @@ to the **api** container internally, so the host nginx only needs a single
 # 1. build images once (tags with git SHA + latest)
 ./deploy/build.sh
 
-# 2. create the client's env file
-cp .env.example .env.acme
-#    then edit .env.acme — at minimum:
-#      CLIENT_SLUG, COMPOSE_PROJECT_NAME, CONTAINER_PREFIX  (all unique)
-#      WEB_HTTP_PORT                                        (unique host port)
-#      DB_PASSWORD, DB_NAME, AUTH_*_SECRET, ADMIN_*, SMTP_*, APP_PUBLIC_URL
+# 2. create the client's config (source of truth)
+cp config/config.production.example.json config/config.acme.json
+#    then edit config/config.acme.json — secrets + the "deploy" block:
+#      deploy.composeProject / containerPrefix   (unique per client)
+#      deploy.webPort                             (unique host port)
+#      database.password, auth.*Secret, admin.*, smtp.*, app.publicUrl, modules.*
 
-# 3. deploy
+# 3. deploy  (generates + validates env, then brings the stack up)
 ./deploy/deploy.sh acme
 #    → migrations + seed + schema sync run automatically on first boot
 
 # 4. wire the host nginx (once per client)
 #    copy deploy/nginx.host.conf.example → your nginx sites, set server_name,
-#    certs and WEB_HTTP_PORT, then: nginx -t && systemctl reload nginx
+#    certs and the client's webPort, then: nginx -t && systemctl reload nginx
 ```
 
 ## Multiple clients on one host
 
-Give each client its **own** `.env.<client>` with distinct
-`COMPOSE_PROJECT_NAME`, `CONTAINER_PREFIX`, and `WEB_HTTP_PORT`. Because the
+Give each client its **own** `config/config.<client>.json` with a distinct
+`deploy.composeProject`, `deploy.containerPrefix`, and `deploy.webPort`. Because the
 project name scopes the network + volumes and the prefix scopes container names,
 nothing collides:
 
@@ -89,5 +99,6 @@ append-only — migrations never rewrite posted history.
   (every deploy) picks them up automatically. No separate step.
 - **ECR:** push is intentionally omitted for now. `build.sh` already tags a SHA;
   the commented block at the bottom of `build.sh` is the push step for later.
-- **Secrets:** `.env.<client>` files are git-ignored — keep them on the server /
-  in your secrets manager, never in the repo.
+- **Secrets:** `config/config.<client>.json` (and the generated `.env`) are
+  git-ignored — keep them on the server / in your secrets manager, never in the repo
+  or an image.

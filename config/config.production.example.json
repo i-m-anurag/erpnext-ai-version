@@ -1,0 +1,74 @@
+{
+  "app": {
+    "name": "IQ-SMART ERP",
+    "env": "production",
+    "port": 3100,
+    "logLevel": "info",
+    "publicUrl": "https://acme.example.com"
+  },
+  "database": {
+    "host": "postgres",
+    "port": 5432,
+    "user": "erp",
+    "password": "CHANGE-ME-strong-db-password",
+    "name": "erp_acme",
+    "ssl": false
+  },
+  "redis": {
+    "host": "redis",
+    "port": 6379,
+    "password": "",
+    "db": 0
+  },
+  "auth": {
+    "accessTokenSecret": "CHANGE-ME-access-secret-min-16-chars",
+    "accessTokenTtl": 900,
+    "refreshTokenSecret": "CHANGE-ME-refresh-secret-min-16-chars",
+    "refreshTokenTtl": 2592000,
+    "passwordResetTtl": 86400,
+    "sessionIdleTimeout": 1800,
+    "sessionAbsoluteTimeout": 43200,
+    "cookieDomain": "acme.example.com",
+    "cookieSecure": true,
+    "concurrentSessions": true
+  },
+  "smtp": {
+    "host": "smtp.example.com",
+    "port": 587,
+    "user": "",
+    "password": "",
+    "secure": false,
+    "from": "IQ-SMART ERP <no-reply@acme.example.com>"
+  },
+  "branding": {
+    "productName": "IQ-SMART ERP",
+    "logoUrl": "/branding/logo.svg"
+  },
+  "admin": {
+    "username": "admin",
+    "email": "admin@acme.example.com",
+    "displayName": "Administrator",
+    "password": "CHANGE-ME-admin-password"
+  },
+  "modules": {
+    "auth": true,
+    "permission": true,
+    "config": true,
+    "form": true,
+    "master": true,
+    "communication": true,
+    "org": true,
+    "workflow": true,
+    "inventory": false,
+    "ledger": true
+  },
+  "deploy": {
+    "composeProject": "erp-acme",
+    "containerPrefix": "erp-acme",
+    "webPort": 8081,
+    "imageTag": "latest",
+    "imageBackend": "erp-backend",
+    "imageFrontend": "erp-frontend",
+    "migrateOnStart": true
+  }
+}

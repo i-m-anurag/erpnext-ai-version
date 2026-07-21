@@ -2,8 +2,9 @@
 # Everything is env-driven so multiple clients can run on one host without colliding
 # (distinct project name, container names, volumes, network, and host port).
 #
-# Values come from the client's env file — deploy/deploy.sh copies .env.<client> to
-# .env before running, so `docker compose` picks it up automatically.
+# Values come from ./.env, which deploy/deploy.sh GENERATES from
+# config/config.<client>.json via gen-env (validated against config/schema.ts) — the
+# same config→env pipeline dev uses. Nothing here is hand-authored per client.
 
 name: ${COMPOSE_PROJECT_NAME:-erp}
 

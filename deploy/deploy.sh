@@ -1,43 +1,53 @@
 #!/usr/bin/env bash
-# Deploy one client instance. Uses the client's env file, runs the stack, and waits
-# for the API to become healthy.
+# Deploy one client instance.
 #
-#   ./deploy/deploy.sh acme            # use images tagged :latest
-#   ./deploy/deploy.sh acme a1b2c3d    # use a specific image tag
+# The env is GENERATED from config/config.<client>.json via gen-env (validated
+# against config/schema.ts) — never hand-authored. This is the same config→env
+# pipeline dev uses, so MODULE_* toggles and every value are derived, not typed.
 #
-# Expects .env.<client> to exist (copy from .env.example). Images must already be
-# built locally (run ./deploy/build.sh first) — there is no registry pull.
+#   ./deploy/deploy.sh acme            # tag from config.deploy.imageTag
+#   ./deploy/deploy.sh acme a1b2c3d    # override the image tag
+#
+# Prereqs on the host:
+#   • config/config.<client>.json exists (copy config/config.production.example.json,
+#     fill in secrets + the deploy block). It stays on the host — never in an image.
+#   • Node deps installed once (npm ci) so gen-env can run.
+#   • Images already built locally (./deploy/build.sh).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 CLIENT="${1:?usage: deploy.sh <client> [image-tag]}"
-TAG="${2:-latest}"
-ENV_FILE=".env.${CLIENT}"
+TAG_OVERRIDE="${2:-}"
+CONFIG="config/config.${CLIENT}.json"
 
-[ -f "$ENV_FILE" ] || { echo "ERROR: $ENV_FILE not found (copy .env.example → $ENV_FILE)"; exit 1; }
+[ -f "$CONFIG" ] || {
+  echo "ERROR: $CONFIG not found."
+  echo "       cp config/config.production.example.json $CONFIG   # then edit secrets + deploy block"
+  exit 1
+}
 
-# compose reads ./.env automatically for interpolation + the api env_file.
-cp "$ENV_FILE" .env
-export IMAGE_TAG="$TAG"
+echo "==> generating env from ${CONFIG} (validated)…"
+npm run gen:env -- "$CLIENT"          # writes backend/.env
+cp backend/.env .env                   # compose reads ./.env (interpolation + api env_file)
 
-# shellcheck disable=SC1091
-CONTAINER_PREFIX="$(grep -E '^CONTAINER_PREFIX=' "$ENV_FILE" | cut -d= -f2-)"
-CONTAINER_PREFIX="${CONTAINER_PREFIX:-erp}"
+# Optional CLI tag override wins over config.deploy.imageTag.
+[ -n "$TAG_OVERRIDE" ] && { export IMAGE_TAG="$TAG_OVERRIDE"; echo "==> image tag override: $IMAGE_TAG"; }
 
-echo "==> deploying client=${CLIENT} tag=${TAG}"
+PREFIX="$(grep -E '^CONTAINER_PREFIX=' .env | cut -d= -f2- | tr -d '"')"
+PREFIX="${PREFIX:-erp}"
+
+echo "==> deploying client=${CLIENT}"
 docker compose up -d
 
-echo "==> waiting for ${CONTAINER_PREFIX}-api to become healthy…"
-for i in $(seq 1 30); do
-  status="$(docker inspect --format '{{.State.Health.Status}}' "${CONTAINER_PREFIX}-api" 2>/dev/null || echo starting)"
-  if [ "$status" = "healthy" ]; then echo "    api healthy."; break; fi
-  if [ "$status" = "unhealthy" ]; then
-    echo "    api UNHEALTHY — recent logs:"; docker logs --tail 40 "${CONTAINER_PREFIX}-api" || true; exit 1
-  fi
+echo "==> waiting for ${PREFIX}-api to become healthy…"
+for _ in $(seq 1 30); do
+  status="$(docker inspect --format '{{.State.Health.Status}}' "${PREFIX}-api" 2>/dev/null || echo starting)"
+  [ "$status" = "healthy" ] && { echo "    api healthy."; break; }
+  [ "$status" = "unhealthy" ] && { echo "    api UNHEALTHY — logs:"; docker logs --tail 40 "${PREFIX}-api" || true; exit 1; }
   sleep 4
 done
 
 echo
 docker compose ps
 echo
-echo "Done. Point your host nginx for this client at 127.0.0.1:$(grep -E '^WEB_HTTP_PORT=' "$ENV_FILE" | cut -d= -f2-)"
+echo "Done. Point the host nginx for this client at 127.0.0.1:$(grep -E '^WEB_HTTP_PORT=' .env | cut -d= -f2- | tr -d '"')"
