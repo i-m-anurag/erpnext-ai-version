@@ -1,0 +1,19 @@
+# Build context for the BACKEND image is the repo root. Keep it lean and never ship
+# local state or the frontend tree into the backend build.
+**/node_modules
+**/dist
+.git
+.github
+frontend
+docker
+deploy
+docs
+scripts
+ERP Next Theme scss
+**/*.log
+**/.env
+**/.env.*
+!**/.env.example
+**/.DS_Store
+**/coverage
+**/*.tsbuildinfo
