@@ -1,0 +1,84 @@
+# Per-client ERP stack: Postgres + Redis + API(+worker) + web(nginx).
+# Everything is env-driven so multiple clients can run on one host without colliding
+# (distinct project name, container names, volumes, network, and host port).
+#
+# Values come from ./.env, which deploy/deploy.sh GENERATES from
+# config/config.<client>.json via gen-env (validated against config/schema.ts) — the
+# same config→env pipeline dev uses. Nothing here is hand-authored per client.
+
+name: ${COMPOSE_PROJECT_NAME:-erp}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ${CONTAINER_PREFIX:-erp}-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER} -d ${DB_NAME}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [erpnet]
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${CONTAINER_PREFIX:-erp}-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [erpnet]
+
+  api:
+    image: ${IMAGE_BACKEND:-erp-backend}:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ${CONTAINER_PREFIX:-erp}-api
+    restart: unless-stopped
+    # The client env file supplies DB creds, auth secrets, SMTP, admin, branding.
+    env_file: [.env]
+    environment:
+      # Containerized infra — reach Postgres/Redis by service name, fixed API port.
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      APP_PORT: '3100'
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [erpnet]
+
+  web:
+    image: ${IMAGE_FRONTEND:-erp-frontend}:${IMAGE_TAG:-latest}
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    container_name: ${CONTAINER_PREFIX:-erp}-web
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_healthy }
+    # Only the web tier is published; the host nginx (TLS) proxies this port.
+    ports:
+      - '${WEB_HTTP_PORT:-8080}:80'
+    networks: [erpnet]
+
+networks:
+  erpnet:
+    name: ${COMPOSE_PROJECT_NAME:-erp}-net
+
+volumes:
+  pgdata:
+    name: ${COMPOSE_PROJECT_NAME:-erp}-pgdata
+  redisdata:
+    name: ${COMPOSE_PROJECT_NAME:-erp}-redisdata

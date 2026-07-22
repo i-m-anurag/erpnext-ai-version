@@ -113,6 +113,17 @@ function flatten(c: AppConfig): Record<string, string | number | boolean> {
     env[`MODULE_${name.toUpperCase()}`] = enabled;
   }
 
+  // Container-deployment orchestration (optional) → compose interpolation vars.
+  if (c.deploy) {
+    env.COMPOSE_PROJECT_NAME = c.deploy.composeProject;
+    env.CONTAINER_PREFIX = c.deploy.containerPrefix;
+    env.WEB_HTTP_PORT = c.deploy.webPort;
+    env.IMAGE_TAG = c.deploy.imageTag;
+    env.IMAGE_BACKEND = c.deploy.imageBackend;
+    env.IMAGE_FRONTEND = c.deploy.imageFrontend;
+    env.MIGRATE_ON_START = c.deploy.migrateOnStart;
+  }
+
   return env;
 }
 

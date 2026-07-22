@@ -101,6 +101,28 @@ export const ConfigSchema = z.object({
 
   /** Layer-1 config: which modules this deployment runs (feature toggles). */
   modules: z.record(z.string(), z.boolean()),
+
+  /**
+   * Container-deployment orchestration (optional; only used by the Docker deploy).
+   * Keeps the whole per-client deployment describable in one validated config file,
+   * so nothing about a client is hand-authored. Ignored by the dev tsx run.
+   */
+  deploy: z
+    .object({
+      /** compose project name — scopes network + volumes (e.g. "erp-acme"). */
+      composeProject: z.string(),
+      /** container-name prefix (e.g. "erp-acme" → erp-acme-api). */
+      containerPrefix: z.string(),
+      /** host port the web container publishes; UNIQUE per client on the host. */
+      webPort: z.number().int().positive(),
+      /** image tag to run (git SHA or "latest"). */
+      imageTag: z.string().default('latest'),
+      imageBackend: z.string().default('erp-backend'),
+      imageFrontend: z.string().default('erp-frontend'),
+      /** run migrate+seed+sync:schema on container start. */
+      migrateOnStart: z.boolean().default(true),
+    })
+    .optional(),
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;
