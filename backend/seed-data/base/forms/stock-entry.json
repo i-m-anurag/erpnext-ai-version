@@ -1,0 +1,50 @@
+{
+  "slug": "stock-entry",
+  "version": 1,
+  "title": "Stock Entry",
+  "layout": "two-column",
+  "fields": [
+    { "key": "seNumber", "type": "text", "label": "Entry No.", "auto": true, "placeholder": "Auto-generated on save", "inList": true },
+    { "key": "date", "type": "date", "label": "Posting Date", "required": true, "defaultValue": "$today", "inList": true },
+    {
+      "key": "stockEntryType",
+      "type": "master-lookup",
+      "label": "Purpose",
+      "required": true,
+      "defaultValue": "Material Receipt",
+      "inList": true,
+      "optionsSource": { "master": "stock-entry-type" }
+    },
+    { "key": "company", "type": "master-lookup", "label": "Company", "required": true, "optionsSource": { "master": "company" } },
+    { "key": "postingTime", "type": "time", "label": "Posting Time", "editable": false, "defaultValue": "$nowTime" },
+    {
+      "key": "itemsSection",
+      "type": "group",
+      "label": "Items",
+      "collapsible": false,
+      "layout": "two-column",
+      "fields": [
+        {
+          "key": "items",
+          "type": "table",
+          "label": "Items",
+          "required": true,
+          "minRows": 1,
+          "maxRows": 100,
+          "columns": [
+            { "key": "item", "type": "master-lookup", "label": "Item", "required": true, "optionsSource": { "master": "item" } },
+            { "key": "quantity", "type": "number", "label": "Quantity", "required": true, "validators": { "min": 0 } },
+            { "key": "sourceWarehouse", "type": "master-lookup", "label": "Source Warehouse", "optionsSource": { "master": "warehouse" } },
+            { "key": "targetWarehouse", "type": "master-lookup", "label": "Target Warehouse", "optionsSource": { "master": "warehouse" } },
+            { "key": "uom", "type": "master-lookup", "label": "UOM", "optionsSource": { "master": "uom" } },
+            { "key": "rate", "type": "number", "label": "Rate", "validators": { "min": 0 } },
+            { "key": "amount", "type": "number", "label": "Amount", "readOnly": true, "calculate": { "expression": "quantity * rate", "precision": 2 } },
+            { "key": "remarks", "type": "text", "label": "Remarks" }
+          ]
+        },
+        { "key": "totalQuantity", "type": "number", "label": "Total Quantity", "readOnly": true, "calculate": { "expression": "sum(items.quantity)", "precision": 3 } }
+      ]
+    },
+    { "key": "remarks", "type": "textarea", "label": "Remarks" }
+  ]
+}

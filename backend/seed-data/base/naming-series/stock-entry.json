@@ -1,0 +1,1 @@
+{ "slug": "stock-entry", "pattern": "STE-{YYYY}-{#####}", "reset": "yearly" }
