@@ -124,6 +124,23 @@ export class DocumentService {
     for (const [srcField, tgtField] of Object.entries(step.map)) {
       if (source[srcField] !== undefined) out[tgtField] = source[srcField];
     }
+    // Carry line items across, translating column names. Unmapped target columns are
+    // left blank on purpose — e.g. the receiving warehouse is chosen on the Receipt,
+    // not inherited from the Order.
+    const lm = step.lineMap;
+    if (lm) {
+      const rows = source[lm.from];
+      if (Array.isArray(rows)) {
+        out[lm.to] = rows.map((row) => {
+          const r = row as Record<string, unknown>;
+          const mapped: Record<string, unknown> = {};
+          for (const [srcCol, tgtCol] of Object.entries(lm.columns)) {
+            if (r[srcCol] !== undefined) mapped[tgtCol] = r[srcCol];
+          }
+          return mapped;
+        });
+      }
+    }
     return out;
   }
 

@@ -1,0 +1,9 @@
+{
+  "slug": "purchase-receipt",
+  "name": "Purchase Receipt",
+  "kind": "document",
+  "managedBy": "ui",
+  "editable": true,
+  "formSlug": "purchase-receipt",
+  "codeField": "prNumber"
+}

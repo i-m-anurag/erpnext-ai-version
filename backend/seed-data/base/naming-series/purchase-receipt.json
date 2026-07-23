@@ -1,0 +1,1 @@
+{ "slug": "purchase-receipt", "pattern": "PR-{YYYY}-{#####}", "reset": "yearly" }

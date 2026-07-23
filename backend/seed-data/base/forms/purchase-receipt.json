@@ -1,0 +1,45 @@
+{
+  "slug": "purchase-receipt",
+  "version": 1,
+  "title": "Purchase Receipt",
+  "layout": "two-column",
+  "fields": [
+    { "key": "prNumber", "type": "text", "label": "Receipt No.", "auto": true, "placeholder": "Auto-generated on save", "inList": true },
+    { "key": "date", "type": "date", "label": "Posting Date", "required": true, "defaultValue": "$today", "inList": true },
+    { "key": "supplier", "type": "master-lookup", "label": "Supplier", "required": true, "inList": true, "optionsSource": { "master": "supplier" } },
+    { "key": "company", "type": "master-lookup", "label": "Company", "required": true, "optionsSource": { "master": "company" } },
+    { "key": "postingTime", "type": "time", "label": "Posting Time", "editable": false, "defaultValue": "$nowTime" },
+    { "key": "purchaseOrder", "type": "text", "label": "Purchase Order", "editable": false, "inList": true },
+    { "key": "supplierDeliveryNote", "type": "text", "label": "Supplier Delivery Note" },
+    {
+      "key": "itemsSection",
+      "type": "group",
+      "label": "Items Received",
+      "collapsible": false,
+      "layout": "two-column",
+      "fields": [
+        {
+          "key": "items",
+          "type": "table",
+          "label": "Items",
+          "required": true,
+          "minRows": 1,
+          "maxRows": 100,
+          "columns": [
+            { "key": "item", "type": "master-lookup", "label": "Item", "required": true, "optionsSource": { "master": "item" } },
+            { "key": "quantity", "type": "number", "label": "Accepted Qty", "required": true, "validators": { "min": 0 } },
+            { "key": "rejectedQuantity", "type": "number", "label": "Rejected Qty", "validators": { "min": 0 } },
+            { "key": "warehouse", "type": "master-lookup", "label": "Warehouse", "required": true, "optionsSource": { "master": "warehouse" } },
+            { "key": "uom", "type": "master-lookup", "label": "UOM", "optionsSource": { "master": "uom" } },
+            { "key": "rate", "type": "number", "label": "Rate", "required": true, "validators": { "min": 0 } },
+            { "key": "amount", "type": "number", "label": "Amount", "readOnly": true, "calculate": { "expression": "quantity * rate", "precision": 2 } },
+            { "key": "remarks", "type": "text", "label": "Remarks" }
+          ]
+        },
+        { "key": "totalQuantity", "type": "number", "label": "Total Quantity", "readOnly": true, "calculate": { "expression": "sum(items.quantity)", "precision": 3 } },
+        { "key": "totalAmount", "type": "number", "label": "Total Amount", "readOnly": true, "calculate": { "expression": "sum(items.amount)", "precision": 2 } }
+      ]
+    },
+    { "key": "remarks", "type": "textarea", "label": "Remarks" }
+  ]
+}

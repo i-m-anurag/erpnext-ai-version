@@ -55,6 +55,7 @@
       }
     },
     { "key": "dueDate", "type": "date", "label": "Due Date" },
+    { "key": "purchaseReceipt", "type": "text", "label": "Purchase Receipt", "editable": false, "inList": true },
     {
       "key": "supplierInvoice",
       "type": "group",
