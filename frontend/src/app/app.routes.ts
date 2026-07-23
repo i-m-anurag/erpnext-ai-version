@@ -104,6 +104,36 @@ export const routes: Routes = [
         ],
       },
       {
+        // Inventory module — stock reports. Declared before the generic m/:slug route
+        // so these specific subs win; the doctype lists fall through to the generic
+        // workspace via the `:sub` route below.
+        path: 'm/inventory',
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'stock' },
+          {
+            path: 'stock',
+            loadComponent: () =>
+              import('./features/inventory/stock-levels.component').then((m) => m.StockLevelsComponent),
+          },
+          {
+            path: 'movements',
+            loadComponent: () =>
+              import('./features/inventory/stock-ledger.component').then((m) => m.StockLedgerComponent),
+          },
+          {
+            path: ':sub/:id',
+            data: { slug: 'inventory' },
+            loadComponent: () => import('./features/views/record-view.component').then((m) => m.RecordViewComponent),
+          },
+          {
+            path: ':sub',
+            data: { slug: 'inventory' },
+            loadComponent: () =>
+              import('./features/module-workspace/module-workspace.component').then((m) => m.ModuleWorkspaceComponent),
+          },
+        ],
+      },
+      {
         // Finance module — Chart of Accounts + ledger reports. Declared before the
         // generic m/:slug route so these specific subs win.
         path: 'm/finance',

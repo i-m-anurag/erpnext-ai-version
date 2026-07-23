@@ -14,6 +14,7 @@ import { buildDocumentRouter } from './modules/document/index.js';
 import { buildNamingRouter } from './modules/naming/index.js';
 import { buildAccountRouter } from './modules/accounts/index.js';
 import { buildLedgerRouter } from './modules/ledger/index.js';
+import { buildStockRouter } from './modules/stock/index.js';
 
 /**
  * Central route registration. As modules land (auth, permission, ...), each
@@ -93,4 +94,9 @@ export function registerRoutes(app: Express): void {
 
   // Financial ledger reports (General Ledger, Trial Balance). Gated by auth.
   app.use('/api/ledger', buildLedgerRouter());
+
+  // Stock ledger reads (balances, movement history). Gated by the inventory module.
+  if (isModuleEnabled('inventory')) {
+    app.use('/api/stock', buildStockRouter());
+  }
 }
