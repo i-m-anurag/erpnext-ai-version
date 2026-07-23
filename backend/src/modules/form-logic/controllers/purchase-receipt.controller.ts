@@ -1,4 +1,5 @@
 import { stockLedgerService, type StockMovementLine } from '../../stock/stock-ledger.service.js';
+import { stockGlService } from '../../stock/stock-gl.service.js';
 import { BadRequestError } from '../../../shared/errors.js';
 import type { FormController } from '../form-controller.js';
 
@@ -19,10 +20,14 @@ const linesOf = (v: unknown): ReceiptLine[] => (Array.isArray(v) ? (v as Receipt
  * Purchase Receipt — goods physically arriving from a supplier. This is the document
  * that brings stock IN (the Purchase Invoice that follows only bills for it).
  *
- * On submit it records one stock movement per line via the stock ledger, inside the
- * document's own transaction, so the receipt and the stock it created commit together.
- * The financial posting (Dr Stock In Hand / Cr Stock Received But Not Billed) is added
- * in the perpetual-inventory phase and will be derived from the movement's value.
+ * On submit it records one stock movement per line via the stock ledger, then posts the
+ * money side of the same event — Dr Stock In Hand, Cr Stock Received But Not Billed.
+ * Both happen inside the document's own transaction, so the receipt, the stock it
+ * created and the accounting for it commit together or not at all.
+ *
+ * SRBNB is a holding account: the goods are ours and owed for, but the supplier has not
+ * invoiced yet. The Purchase Invoice that follows debits SRBNB back to nil and credits
+ * the supplier, so nothing is counted twice.
  */
 export const purchaseReceiptController: FormController = {
   /** Validate the lines and reject a frozen-period posting BEFORE anything persists. */
@@ -39,7 +44,7 @@ export const purchaseReceiptController: FormController = {
     await stockLedgerService.assertNotFrozen((ctx.input['date'] as string | undefined) ?? today());
   },
 
-  /** Move the stock in, on the document's transaction (atomic with the save). */
+  /** Move the stock in and post its value, on the document's transaction. */
   async afterSave(doc, tx) {
     if (doc.status === 'draft') return;
     const lines: StockMovementLine[] = linesOf(doc.data['items']).map((l, idx) => ({
@@ -52,14 +57,14 @@ export const purchaseReceiptController: FormController = {
     }));
     if (lines.length === 0) return;
 
-    await stockLedgerService.post(
-      {
-        voucherType: doc.slug,
-        voucherNo: doc.code,
-        postingDate: (doc.data['date'] as string | undefined) ?? today(),
-        lines,
-      },
+    const postingDate = (doc.data['date'] as string | undefined) ?? today();
+    const moved = await stockLedgerService.post(
+      { voucherType: doc.slug, voucherNo: doc.code, postingDate, lines },
       tx?.manager,
     );
+    // Already posted (a re-save of a submitted receipt) — the GL is already right too.
+    if (!moved.posted) return;
+
+    await stockGlService.postMovement(doc, moved.totalValueDifference, postingDate, tx?.manager);
   },
 };

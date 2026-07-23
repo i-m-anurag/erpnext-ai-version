@@ -25,6 +25,14 @@ export interface StockLedgerRow {
   voucherNo: string;
 }
 
+export interface StockReconciliation {
+  stockLedgerValue: string;
+  generalLedgerValue: string;
+  difference: string;
+  inSync: boolean;
+  unpostedVouchers: { voucherType: string; voucherNo: string; stockValueDifference: string }[];
+}
+
 /** Stock ledger reads — on-hand balances and movement history. */
 @Injectable({ providedIn: 'root' })
 export class StockApiService {
@@ -41,6 +49,11 @@ export class StockApiService {
     return this.http
       .get<{ rows: StockLedgerRow[] }>(`/api/stock/ledger${qs ? '?' + qs : ''}`)
       .pipe(map((r) => r.rows));
+  }
+
+  /** Does the stock ledger agree with the Stock In Hand account? */
+  reconciliation(): Observable<StockReconciliation> {
+    return this.http.get<StockReconciliation>('/api/stock/reconciliation');
   }
 
   /** The movements one document produced (record "Stock Entries" panel). */

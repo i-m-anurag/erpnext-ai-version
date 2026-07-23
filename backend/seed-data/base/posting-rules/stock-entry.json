@@ -1,0 +1,23 @@
+{
+  "voucherType": "stock-entry",
+  "cases": [
+    {
+      "when": { "field": "stockEntryType", "equals": "Material Receipt" },
+      "lines": [
+        { "account": "stock-in-hand", "side": "debit", "amountSource": "stockValue" },
+        { "account": "stock-adjustment", "side": "credit", "amountSource": "stockValue" }
+      ]
+    },
+    {
+      "when": { "field": "stockEntryType", "equals": "Material Issue" },
+      "lines": [
+        { "account": "stock-adjustment", "side": "debit", "amountSource": "stockValue" },
+        { "account": "stock-in-hand", "side": "credit", "amountSource": "stockValue" }
+      ]
+    },
+    {
+      "when": { "field": "stockEntryType", "equals": "Material Transfer" },
+      "lines": []
+    }
+  ]
+}

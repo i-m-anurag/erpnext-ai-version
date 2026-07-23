@@ -70,12 +70,60 @@ describe('payment-entry posting rule (integration)', () => {
     ).rejects.toThrow(/missing account in field "accountPaidFrom"/i);
   });
 
-  it('purchase-invoice still maps to Purchase Expenses / Creditors with the supplier', async () => {
+  it('a standalone purchase-invoice maps to Purchase Expenses / Creditors with the supplier', async () => {
     const rule = getPostingRule('purchase-invoice')!;
     const v = await buildVoucher(rule, doc({ grandTotal: 3000, supplier: 'Acme Supplies' }), DATE);
     expect(v.lines).toEqual([
       { account: 'purchase-expenses', debit: 3000, credit: 0, party: null },
       { account: 'creditors', debit: 0, credit: 3000, party: 'Acme Supplies' },
+    ]);
+  });
+
+  it('an invoice for a receipt clears Stock Received But Not Billed, not expenses', async () => {
+    const rule = getPostingRule('purchase-invoice')!;
+    const v = await buildVoucher(
+      rule,
+      doc({ grandTotal: 3000, supplier: 'Acme Supplies', purchaseReceipt: 'PR-2026-00001' }),
+      DATE,
+    );
+    expect(v.lines).toEqual([
+      { account: 'stock-received-not-billed', debit: 3000, credit: 0, party: null },
+      { account: 'creditors', debit: 0, credit: 3000, party: 'Acme Supplies' },
+    ]);
+  });
+
+  it('treats a blank receipt link as absent, so an empty string does not clear SRBNB', async () => {
+    const rule = getPostingRule('purchase-invoice')!;
+    const v = await buildVoucher(rule, doc({ grandTotal: 3000, supplier: 'Acme', purchaseReceipt: '  ' }), DATE);
+    expect(v.lines[0]!.account).toBe('purchase-expenses');
+  });
+
+  it('takes a line amount from amountSource when the document has no such field', async () => {
+    const rule = getPostingRule('purchase-receipt')!;
+    const v = await buildVoucher(rule, doc({ supplier: 'Acme Supplies' }), DATE, { stockValue: 25000 });
+    expect(v.lines).toEqual([
+      { account: 'stock-in-hand', debit: 25000, credit: 0, party: null },
+      { account: 'stock-received-not-billed', debit: 0, credit: 25000, party: null },
+    ]);
+  });
+
+  it('refuses to post an amountSource line when the caller supplied no such value', async () => {
+    const rule = getPostingRule('purchase-receipt')!;
+    await expect(buildVoucher(rule, doc({ supplier: 'Acme' }), DATE)).rejects.toThrow(/amountSource "stockValue"/i);
+  });
+
+  it('a Material Transfer selects a case with no lines, so it posts nothing', async () => {
+    const rule = getPostingRule('stock-entry')!;
+    const v = await buildVoucher(rule, doc({ stockEntryType: 'Material Transfer' }), DATE, { stockValue: 0 });
+    expect(v.lines).toEqual([]);
+  });
+
+  it('a Material Issue reverses the receipt direction for the same computed value', async () => {
+    const rule = getPostingRule('stock-entry')!;
+    const v = await buildVoucher(rule, doc({ stockEntryType: 'Material Issue' }), DATE, { stockValue: 900 });
+    expect(v.lines).toEqual([
+      { account: 'stock-adjustment', debit: 900, credit: 0, party: null },
+      { account: 'stock-in-hand', debit: 0, credit: 900, party: null },
     ]);
   });
 });

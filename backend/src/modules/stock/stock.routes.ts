@@ -25,6 +25,11 @@ export function buildStockRouter(): Router {
     });
   }));
 
+  /** Does the stock ledger agree with the Stock In Hand account? */
+  router.get('/reconciliation', asyncHandler(async (_req: Request, res: Response) => {
+    res.json(await stockReportService.reconciliation());
+  }));
+
   /** The stock a single document moved (for a record's "Stock Entries" panel). */
   router.get('/voucher/:type/:no', asyncHandler(async (req: Request, res: Response) => {
     res.json({ entries: await stockLedgerService.forVoucher(String(req.params.type), String(req.params.no)) });

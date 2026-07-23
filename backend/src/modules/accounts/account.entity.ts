@@ -6,7 +6,17 @@ export type RootType = 'Asset' | 'Liability' | 'Income' | 'Expense' | 'Equity';
 
 /** Semantic role of a leaf account — lets posting rules resolve accounts by role
  *  (e.g. "the Payable account") rather than a hard-coded code. Null for plain accounts. */
-export type AccountType = 'Payable' | 'Receivable' | 'Cash' | 'Bank' | 'Stock' | 'Tax' | 'Cost of Goods Sold' | null;
+export type AccountType =
+  | 'Payable'
+  | 'Receivable'
+  | 'Cash'
+  | 'Bank'
+  | 'Stock'
+  | 'Stock Received But Not Billed'
+  | 'Stock Adjustment'
+  | 'Tax'
+  | 'Cost of Goods Sold'
+  | null;
 
 /**
  * A node in the Chart of Accounts (single company). Group nodes (`isGroup`) are

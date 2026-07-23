@@ -1,4 +1,5 @@
 import { stockLedgerService, type StockMovementLine } from '../../stock/stock-ledger.service.js';
+import { stockGlService } from '../../stock/stock-gl.service.js';
 import { BadRequestError } from '../../../shared/errors.js';
 import type { FormController } from '../form-controller.js';
 
@@ -98,14 +99,15 @@ export const stockEntryController: FormController = {
       }
     }
 
-    await stockLedgerService.post(
-      {
-        voucherType: doc.slug,
-        voucherNo: doc.code,
-        postingDate: (doc.data['date'] as string | undefined) ?? today(),
-        lines,
-      },
+    const postingDate = (doc.data['date'] as string | undefined) ?? today();
+    const moved = await stockLedgerService.post(
+      { voucherType: doc.slug, voucherNo: doc.code, postingDate, lines },
       tx?.manager,
     );
+    if (!moved.posted) return;
+
+    // Receipt and Issue change what the company owns, so they hit the GL; a Transfer
+    // nets to zero value and its rule has no lines, so it posts nothing.
+    await stockGlService.postMovement(doc, moved.totalValueDifference, postingDate, tx?.manager);
   },
 };
