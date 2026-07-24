@@ -207,6 +207,105 @@ export class StockLedgerService {
     return manager ? run(manager) : AppDataSource.transaction(run);
   }
 
+  /**
+   * Undo a voucher's stock movements by posting equal-and-opposite ones under
+   * `<voucherNo>-REV`. The original rows are never touched — this ledger is
+   * append-only, so a correction is a new entry, exactly as in the GL.
+   *
+   * Each reversal line negates BOTH the quantity and the value of the row it undoes,
+   * rather than re-deriving a value from the current moving average. That is what keeps
+   * the two ledgers reversible by the same amount: the GL reversal swaps the original
+   * debit and credit, so if the stock side reversed a different figure the books would
+   * drift the moment a rate changed.
+   *
+   * Negating the stored value is also the arithmetically right answer. Receive 40 @ ₹25
+   * then 40 @ ₹35 (80 units, ₹2,400, average ₹30); reversing the first leaves 40 units
+   * at ₹1,400 — the second receipt, valued at its own ₹35. The average repairs itself.
+   *
+   * Reversing goods that have since been issued fails the negative-stock guard, which is
+   * the correct outcome: you cannot un-receive what you no longer have.
+   */
+  async reverse(
+    voucherType: string,
+    voucherNo: string,
+    postingDate: Date | string,
+    manager?: EntityManager,
+  ): Promise<{ posted: boolean; lines: number; totalValueDifference: string }> {
+    await this.assertNotFrozen(postingDate);
+
+    const run = async (db: EntityManager): Promise<{ posted: boolean; lines: number; totalValueDifference: string }> => {
+      const revNo = `${voucherNo}-REV`;
+      await db.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`sle|${voucherType}|${revNo}`]);
+
+      const already = (await db.query(
+        `SELECT 1 FROM stock_ledger_entry WHERE voucher_type=$1 AND voucher_no=$2 LIMIT 1`,
+        [voucherType, revNo],
+      )) as unknown[];
+      if (already.length > 0) return { posted: false, lines: 0, totalValueDifference: '0.000000' };
+
+      const originals = (await db.query(
+        `SELECT item_code, warehouse, actual_qty, stock_value_difference, voucher_detail_no
+           FROM stock_ledger_entry
+          WHERE voucher_type=$1 AND voucher_no=$2
+          ORDER BY seq DESC`, // unwind in reverse, so a transfer's legs undo in order
+        [voucherType, voucherNo],
+      )) as Record<string, unknown>[];
+      if (originals.length === 0) return { posted: false, lines: 0, totalValueDifference: '0.000000' };
+
+      let total = new Decimal(0);
+      for (const o of originals) {
+        const itemCode = String(o.item_code);
+        const warehouse = String(o.warehouse);
+        await this.assertNotBackDated(itemCode, warehouse, postingDate, db);
+
+        const prev = await this.balance(itemCode, warehouse, db);
+        const qty = d(o.actual_qty as string).negated();
+        const valueDiff = d(o.stock_value_difference as string).negated();
+        const newQty = prev.qty.plus(qty);
+
+        if (newQty.lt(0)) {
+          throw new BadRequestError(
+            `cannot reverse ${voucherNo}: ${itemCode} @ ${warehouse} has ${prev.qty.toFixed(2)}, ` +
+              `reversing needs ${qty.abs().toFixed(2)} — the stock has already moved on`,
+          );
+        }
+
+        const newValue = prev.stockValue.plus(valueDiff);
+        const newRate = newQty.isZero() ? new Decimal(0) : newValue.dividedBy(newQty);
+        const unitRate = qty.isZero() ? new Decimal(0) : valueDiff.abs().dividedBy(qty.abs());
+
+        await db.query(
+          `INSERT INTO stock_ledger_entry
+             (posting_date, item_code, warehouse, actual_qty, incoming_rate, outgoing_rate,
+              qty_after_transaction, valuation_rate, stock_value, stock_value_difference,
+              voucher_type, voucher_no, voucher_detail_no, remarks)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+          [
+            postingDate,
+            itemCode,
+            warehouse,
+            round6(qty),
+            qty.gt(0) ? round6(unitRate) : null,
+            qty.lt(0) ? round6(unitRate) : null,
+            round6(newQty),
+            round6(newRate),
+            round6(newValue),
+            round6(valueDiff),
+            voucherType,
+            revNo,
+            (o.voucher_detail_no as string | null) ?? null,
+            `Reversal of ${voucherNo}`,
+          ],
+        );
+        total = total.plus(valueDiff);
+      }
+
+      return { posted: true, lines: originals.length, totalValueDifference: round6(total) };
+    };
+
+    return manager ? run(manager) : AppDataSource.transaction(run);
+  }
+
   /** Every movement of one voucher (for a document's "Stock Entries" panel). */
   async forVoucher(voucherType: string, voucherNo: string): Promise<Record<string, unknown>[]> {
     return (await AppDataSource.query(

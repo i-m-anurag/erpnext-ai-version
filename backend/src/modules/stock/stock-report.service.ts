@@ -64,6 +64,39 @@ export class StockReportService {
     return { rows: mapped, totalValue: total.toFixed(6) };
   }
 
+  /** Map a stock_ledger_entry row to the API shape. One place, so every endpoint
+   *  that returns movements returns the SAME field names. */
+  private toRow(r: Record<string, unknown>): StockLedgerRow {
+    return {
+      postingDate: String(r.posting_date),
+      itemCode: String(r.item_code),
+      warehouse: String(r.warehouse),
+      actualQty: String(r.actual_qty),
+      incomingRate: (r.incoming_rate as string) ?? null,
+      outgoingRate: (r.outgoing_rate as string) ?? null,
+      qtyAfterTransaction: String(r.qty_after_transaction),
+      valuationRate: String(r.valuation_rate),
+      stockValue: String(r.stock_value),
+      stockValueDifference: String(r.stock_value_difference),
+      voucherType: String(r.voucher_type),
+      voucherNo: String(r.voucher_no),
+    };
+  }
+
+  /** The movements one document produced, in the same shape as `ledger()`. */
+  async forVoucher(voucherType: string, voucherNo: string): Promise<StockLedgerRow[]> {
+    const rows = (await AppDataSource.query(
+      `SELECT posting_date, item_code, warehouse, actual_qty, incoming_rate, outgoing_rate,
+              qty_after_transaction, valuation_rate, stock_value, stock_value_difference,
+              voucher_type, voucher_no
+         FROM stock_ledger_entry
+        WHERE voucher_type = $1 AND voucher_no = $2
+        ORDER BY seq`,
+      [voucherType, voucherNo],
+    )) as Record<string, unknown>[];
+    return rows.map((r) => this.toRow(r));
+  }
+
   /** Movement history, newest first, optionally narrowed to an item and/or warehouse. */
   async ledger(opts: { itemCode?: string; warehouse?: string; limit?: number } = {}): Promise<StockLedgerRow[]> {
     const conds: string[] = [];
@@ -89,20 +122,7 @@ export class StockReportService {
       params,
     )) as Record<string, unknown>[];
 
-    return rows.map((r) => ({
-      postingDate: String(r.posting_date),
-      itemCode: String(r.item_code),
-      warehouse: String(r.warehouse),
-      actualQty: String(r.actual_qty),
-      incomingRate: (r.incoming_rate as string) ?? null,
-      outgoingRate: (r.outgoing_rate as string) ?? null,
-      qtyAfterTransaction: String(r.qty_after_transaction),
-      valuationRate: String(r.valuation_rate),
-      stockValue: String(r.stock_value),
-      stockValueDifference: String(r.stock_value_difference),
-      voucherType: String(r.voucher_type),
-      voucherNo: String(r.voucher_no),
-    }));
+    return rows.map((r) => this.toRow(r));
   }
 
   /**

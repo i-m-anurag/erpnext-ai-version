@@ -1,7 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { asyncHandler } from '../../shared/async-handler.js';
 import { requireAuth } from '../auth/index.js';
-import { stockLedgerService } from './stock-ledger.service.js';
 import { stockReportService } from './stock-report.service.js';
 
 /** Stock reads: on-hand balances, movement history, and a voucher's movements. */
@@ -30,9 +29,9 @@ export function buildStockRouter(): Router {
     res.json(await stockReportService.reconciliation());
   }));
 
-  /** The stock a single document moved (for a record's "Stock Entries" panel). */
+  /** The stock a single document moved (for a record's "Posted entries" panel). */
   router.get('/voucher/:type/:no', asyncHandler(async (req: Request, res: Response) => {
-    res.json({ entries: await stockLedgerService.forVoucher(String(req.params.type), String(req.params.no)) });
+    res.json({ entries: await stockReportService.forVoucher(String(req.params.type), String(req.params.no)) });
   }));
 
   return router;

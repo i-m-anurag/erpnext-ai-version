@@ -4,8 +4,26 @@
     {
       "name": "erp-frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "start", "--", "--port", "4300"],
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "start",
+        "--",
+        "--port",
+        "4300"
+      ],
       "port": 4300
+    },
+    {
+      "name": "erp-backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "backend",
+        "run",
+        "dev"
+      ],
+      "port": 3100
     }
   ]
 }
