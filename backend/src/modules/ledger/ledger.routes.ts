@@ -65,13 +65,22 @@ export function buildLedgerRouter(): Router {
     const voucherType = String(body.voucherType ?? '');
     const voucherNo = String(body.voucherNo ?? '');
     if (!voucherType || !voucherNo) throw new BadRequestError('voucherType and voucherNo are required');
-    const result = await documentCancelService.cancel(voucherType, voucherNo, new Date());
-    // Best-effort: reflect the cancellation on the source document (documents only).
-    try {
-      const doc = await documentDataService.getByCode(voucherType, voucherNo);
+
+    // Look the document up first — both to reflect the cancellation on it and to date
+    // the reversal. `doc` is null for a voucher that is not a document (a raw GL entry).
+    const doc = await documentDataService.getByCode(voucherType, voucherNo).catch(() => null);
+
+    // The stock ledger forbids back-dating, so a reversal can't predate the movement it
+    // undoes. Reverse on the LATER of today and the document's own date: today for a
+    // normal document, the document's date for a future-dated one (which today would
+    // otherwise fail to reverse at all).
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const docDate = doc?.data?.['date'] ? String(doc.data['date']).slice(0, 10) : todayStr;
+    const reversalDate = docDate > todayStr ? docDate : todayStr;
+
+    const result = await documentCancelService.cancel(voucherType, voucherNo, reversalDate);
+    if (doc) {
       await documentDataService.setState(voucherType, doc.id, 'Cancelled');
-    } catch {
-      /* not a document / no state column — ignore */
     }
     res.json(result);
   }));

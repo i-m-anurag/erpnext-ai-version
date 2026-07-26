@@ -43,7 +43,7 @@ const qty = (v: unknown): string => {
         <span class="text-muted">Stock ledger <span class="fw-semibold">{{ money(r.stockLedgerValue) }}</span></span>
         <span class="text-muted">Stock In Hand <span class="fw-semibold">{{ money(r.generalLedgerValue) }}</span></span>
         @if (!r.inSync) {
-          <span>Difference <span class="fw-semibold">{{ money(r.difference) }}</span></span>
+          <span>Difference <span class="fw-semibold">{{ signed(r.difference) }}</span></span>
           @if (r.unpostedVouchers.length) {
             <span>· not posted to the GL: {{ unpostedList(r) }}</span>
           }
@@ -95,6 +95,14 @@ export class StockLevelsComponent {
   /** Zero is a real figure here, not a blank — ₹0.00 is what "in sync" looks like. */
   protected money(v: string): string {
     return inr(v) || '₹0.00';
+  }
+
+  /** Signed amount — the difference's sign says WHICH ledger is larger, so it must
+   *  survive (inr() drops it via Math.abs). Negative = books exceed the stock ledger. */
+  protected signed(v: string): string {
+    const n = Number(v);
+    if (!n) return '₹0.00';
+    return (n < 0 ? '−' : '+') + (inr(v) || '₹0.00');
   }
 
   /** The first few offending vouchers; the report is a prompt to investigate, not a list. */

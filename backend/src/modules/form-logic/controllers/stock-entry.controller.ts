@@ -5,6 +5,13 @@ import type { FormController } from '../form-controller.js';
 
 const today = (): string => new Date().toISOString().slice(0, 10);
 
+/** A finite number or NaN, so `num(x) > 0` is false for '', 'abc' and null alike —
+ *  `Number('abc') <= 0` is false (NaN), which would let junk past a naive guard. */
+const num = (v: unknown): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+};
+
 /** The three movements a Stock Entry can express. */
 const RECEIPT = 'Material Receipt';
 const ISSUE = 'Material Issue';
@@ -24,11 +31,11 @@ const linesOf = (v: unknown): EntryLine[] => (Array.isArray(v) ? (v as EntryLine
 /** Which warehouses a purpose requires — the difference between the three types. */
 function validateLine(purpose: string, l: EntryLine): void {
   if (!l.item) throw new BadRequestError('every stock entry line needs an item');
-  if (Number(l.quantity ?? 0) <= 0) throw new BadRequestError(`${l.item}: quantity must be above zero`);
+  if (!(num(l.quantity) > 0)) throw new BadRequestError(`${l.item}: quantity must be above zero`);
 
   if (purpose === RECEIPT) {
     if (!l.targetWarehouse) throw new BadRequestError(`${l.item}: a Material Receipt needs a target warehouse`);
-    if (Number(l.rate ?? 0) <= 0) throw new BadRequestError(`${l.item}: a Material Receipt needs a rate above zero`);
+    if (!(num(l.rate) > 0)) throw new BadRequestError(`${l.item}: a Material Receipt needs a rate above zero`);
   } else if (purpose === ISSUE) {
     if (!l.sourceWarehouse) throw new BadRequestError(`${l.item}: a Material Issue needs a source warehouse`);
   } else if (purpose === TRANSFER) {

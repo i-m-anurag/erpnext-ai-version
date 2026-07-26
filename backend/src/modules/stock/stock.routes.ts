@@ -15,11 +15,14 @@ export function buildStockRouter(): Router {
 
   /** Movement history, optionally narrowed by item and/or warehouse. */
   router.get('/ledger', asyncHandler(async (req: Request, res: Response) => {
+    // A non-numeric ?limit must fall back to the default, not reach SQL as NaN (which
+    // Postgres rejects with a 500). Number.isFinite catches '', 'abc' and Infinity.
+    const rawLimit = Number(req.query.limit);
     res.json({
       rows: await stockReportService.ledger({
         itemCode: req.query.item ? String(req.query.item) : undefined,
         warehouse: req.query.warehouse ? String(req.query.warehouse) : undefined,
-        limit: req.query.limit ? Number(req.query.limit) : undefined,
+        limit: Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : undefined,
       }),
     });
   }));

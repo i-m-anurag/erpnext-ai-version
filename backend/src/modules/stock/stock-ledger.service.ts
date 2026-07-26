@@ -42,6 +42,19 @@ const ZERO_BALANCE: StockBalance = { qty: new Decimal(0), valuationRate: new Dec
 const round6 = (v: Decimal): string => v.toDecimalPlaces(6, Decimal.ROUND_HALF_UP).toFixed(6);
 
 /**
+ * Take a transaction-scoped advisory lock on each distinct (item, warehouse) a
+ * movement touches, in sorted order. Sorting is the deadlock guard: two posts that
+ * both touch pairs A and B acquire them in the same order, so neither can hold A
+ * while waiting on the other's B.
+ */
+async function lockItemWarehouses(db: Pick<EntityManager, 'query'>, keys: string[]): Promise<void> {
+  const distinct = [...new Set(keys)].sort();
+  for (const k of distinct) {
+    await db.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`sle-iw|${k}`]);
+  }
+}
+
+/**
  * The stock ledger — the inventory sibling of `ledgerService`.
  *
  * Deliberate simplifications versus ERPNext, each removing a whole class of bugs:
@@ -139,6 +152,13 @@ export class StockLedgerService {
       await db.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [
         `sle|${movement.voucherType}|${movement.voucherNo}`,
       ]);
+      // AND serialise every post touching the same (item, warehouse), whatever its
+      // voucher — otherwise two receipts of one item could both read the same prior
+      // balance and one update is lost, silently corrupting the running balance and
+      // valuation. Locks are taken in a stable sorted order so two multi-item posts
+      // can't deadlock by grabbing the same pair in opposite order.
+      await lockItemWarehouses(db, movement.lines.map((l) => `${l.itemCode}|${l.warehouse}`));
+
       const seen = (await db.query(
         `SELECT 1 FROM stock_ledger_entry WHERE voucher_type=$1 AND voucher_no=$2 LIMIT 1`,
         [movement.voucherType, movement.voucherNo],
@@ -251,6 +271,11 @@ export class StockLedgerService {
         [voucherType, voucherNo],
       )) as Record<string, unknown>[];
       if (originals.length === 0) return { posted: false, lines: 0, totalValueDifference: '0.000000' };
+
+      // Same cross-voucher serialisation as post(): a reversal reads current balances
+      // to compute the new running rate, so it must not race another movement of the
+      // same (item, warehouse).
+      await lockItemWarehouses(db, originals.map((o) => `${String(o.item_code)}|${String(o.warehouse)}`));
 
       let total = new Decimal(0);
       for (const o of originals) {
