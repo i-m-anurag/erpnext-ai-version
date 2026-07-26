@@ -93,15 +93,16 @@ export const stockEntryController: FormController = {
           qty: -qty, detailNo, remarks: l.remarks ?? null,
         });
       } else if (purpose === TRANSFER) {
-        // Value must survive the move: receive at the source's current rate.
-        const src = await stockLedgerService.balance(String(l.item), String(l.sourceWarehouse));
+        // Value must survive the move: the target receives at the source's rate. The
+        // stock ledger resolves that rate inside its lock, so it can't shift between
+        // deciding it and applying it (and an emptied source can't lend a zero rate).
         lines.push({
           itemCode: String(l.item), warehouse: String(l.sourceWarehouse),
           qty: -qty, detailNo, remarks: l.remarks ?? null,
         });
         lines.push({
           itemCode: String(l.item), warehouse: String(l.targetWarehouse),
-          qty, rate: src.valuationRate.toString(), detailNo, remarks: l.remarks ?? null,
+          qty, rateFromWarehouse: String(l.sourceWarehouse), detailNo, remarks: l.remarks ?? null,
         });
       }
     }

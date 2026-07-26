@@ -87,6 +87,31 @@ describe('stock entry — receipt / issue / transfer (integration)', () => {
     expect(Number(net[0].n)).toBe(2000); // only the receipt added value
   });
 
+  it('transferring ALL of a warehouse still values the target at the real rate, not zero', async () => {
+    // The rate the target inherits is read before the source is emptied and inside the
+    // post lock. Moving the whole balance out must not leave the target valued at the
+    // zero rate an emptied source would otherwise report.
+    await masterService.createData('stock-entry', entry('Material Receipt', [
+      { item: ITEM, quantity: 50, targetWarehouse: A, uom: 'EA', rate: 20 },
+    ]));
+    await masterService.createData('stock-entry', entry('Material Transfer', [
+      { item: ITEM, quantity: 50, sourceWarehouse: A, targetWarehouse: B, uom: 'EA' },
+    ]));
+
+    const a = await stockLedgerService.balance(ITEM, A);
+    const b = await stockLedgerService.balance(ITEM, B);
+    expect(a.qty.toNumber()).toBe(0);
+    expect(b.qty.toNumber()).toBe(50);
+    expect(b.valuationRate.toNumber()).toBe(20); // NOT 0
+    expect(b.stockValue.toNumber()).toBe(1000);
+
+    const net = await AppDataSource.query(
+      `SELECT COALESCE(SUM(stock_value_difference),0)::float AS n FROM stock_ledger_entry WHERE item_code=$1`,
+      [ITEM],
+    );
+    expect(Number(net[0].n)).toBe(1000); // the transfer created no value
+  });
+
   it('rejects the warehouse combinations each purpose forbids', async () => {
     await expect(
       masterService.createData('stock-entry', entry('Material Receipt', [

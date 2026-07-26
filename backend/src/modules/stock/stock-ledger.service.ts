@@ -15,6 +15,14 @@ export interface StockMovementLine {
   warehouse: string;
   qty: number | string;
   rate?: number | string;
+  /**
+   * For an incoming leg (qty > 0), value it at another warehouse's CURRENT rate
+   * instead of a fixed `rate`. A transfer uses this: the target receives at the
+   * source's rate, resolved inside the post lock before any leg moves, so the value
+   * can't change between deciding the rate and applying it (and an emptied source
+   * can't leave the target valued at zero).
+   */
+  rateFromWarehouse?: string | null;
   detailNo?: string | null;
   remarks?: string | null;
 }
@@ -140,7 +148,9 @@ export class StockLedgerService {
       if (!l.itemCode) throw new BadRequestError('stock movement line is missing an item');
       if (!l.warehouse) throw new BadRequestError(`stock movement for ${l.itemCode} is missing a warehouse`);
       if (d(l.qty).isZero()) throw new BadRequestError(`stock movement for ${l.itemCode} has zero quantity`);
-      if (d(l.qty).gt(0) && d(l.rate).lte(0)) {
+      // An incoming leg needs a rate — unless it inherits one from another warehouse,
+      // in which case the rate is resolved inside the lock, not supplied here.
+      if (d(l.qty).gt(0) && !l.rateFromWarehouse && d(l.rate).lte(0)) {
         throw new BadRequestError(`receiving ${l.itemCode} requires a rate greater than zero`);
       }
     }
@@ -156,14 +166,36 @@ export class StockLedgerService {
       // voucher — otherwise two receipts of one item could both read the same prior
       // balance and one update is lost, silently corrupting the running balance and
       // valuation. Locks are taken in a stable sorted order so two multi-item posts
-      // can't deadlock by grabbing the same pair in opposite order.
-      await lockItemWarehouses(db, movement.lines.map((l) => `${l.itemCode}|${l.warehouse}`));
+      // can't deadlock by grabbing the same pair in opposite order. A `rateFromWarehouse`
+      // reference is locked too, so the rate it lends can't shift under us.
+      await lockItemWarehouses(
+        db,
+        movement.lines.flatMap((l) =>
+          l.rateFromWarehouse
+            ? [`${l.itemCode}|${l.warehouse}`, `${l.itemCode}|${l.rateFromWarehouse}`]
+            : [`${l.itemCode}|${l.warehouse}`],
+        ),
+      );
 
       const seen = (await db.query(
         `SELECT 1 FROM stock_ledger_entry WHERE voucher_type=$1 AND voucher_no=$2 LIMIT 1`,
         [movement.voucherType, movement.voucherNo],
       )) as unknown[];
       if (seen.length > 0) return { posted: false, lines: 0, totalValueDifference: '0.000000' };
+
+      // Resolve every "value at another warehouse's rate" reference NOW — inside the
+      // lock, before any leg mutates a balance. Reading it later would see the rate the
+      // issue leg leaves behind (zero, once the source is emptied); reading it in the
+      // controller (as before) left a gap for a concurrent post to change it.
+      const inheritedRate = new Map<string, Decimal>();
+      for (const line of movement.lines) {
+        if (d(line.qty).gt(0) && line.rateFromWarehouse) {
+          const key = `${line.itemCode}|${line.rateFromWarehouse}`;
+          if (!inheritedRate.has(key)) {
+            inheritedRate.set(key, (await this.balance(line.itemCode, line.rateFromWarehouse, db)).valuationRate);
+          }
+        }
+      }
 
       let total = new Decimal(0);
       for (const line of movement.lines) {
@@ -180,11 +212,17 @@ export class StockLedgerService {
           );
         }
 
+        // The incoming unit cost: the line's own rate, or one inherited from another
+        // warehouse (a transfer's target takes the source's rate, fixed inside the lock).
+        const incomingRate = line.rateFromWarehouse
+          ? (inheritedRate.get(`${line.itemCode}|${line.rateFromWarehouse}`) ?? new Decimal(0))
+          : d(line.rate);
+
         // Moving average: a receipt blends the incoming cost into the running rate;
         // an issue leaves the rate untouched and simply reduces quantity.
         let newRate: Decimal;
         if (qty.gt(0)) {
-          const inValue = qty.times(d(line.rate));
+          const inValue = qty.times(incomingRate);
           newRate = newQty.isZero() ? new Decimal(0) : prev.stockValue.plus(inValue).dividedBy(newQty);
         } else {
           newRate = prev.valuationRate;
@@ -206,7 +244,7 @@ export class StockLedgerService {
             line.itemCode,
             line.warehouse,
             round6(qty),
-            qty.gt(0) ? round6(d(line.rate)) : null,
+            qty.gt(0) ? round6(incomingRate) : null,
             outgoingRate ? round6(outgoingRate) : null,
             round6(newQty),
             round6(newRate),
