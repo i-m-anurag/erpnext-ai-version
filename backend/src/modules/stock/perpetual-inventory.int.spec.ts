@@ -76,6 +76,9 @@ const receipt = (qty: number, rate: number) => ({
   date: '2026-08-01',
   supplier: 'Acme Supplies',
   company: 'IQ-SMART',
+  purpose: 'PURCHASE',
+  currency: 'INR',
+  supplierDeliveryNote: 'DN-TEST',
   items: [{ item: ITEM, quantity: qty, warehouse: WH, uom: 'EA', rate }],
 });
 

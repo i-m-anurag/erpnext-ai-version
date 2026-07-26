@@ -56,9 +56,11 @@ Coupling lives in **`seed-data/base/posting-rules/purchase-receipt.json`** and
 |---------------------|------------|------------------------------------------------------|
 | `items`             | controller | one stock movement per row                           |
 | `items[].item`      | controller | what moved (stock ledger `item_code`)                |
-| `items[].quantity`  | controller | how much moved — must be above zero                  |
-| `items[].warehouse` | controller | where it moved to — required, stock needs a location |
-| `items[].rate`      | controller | valuation of the incoming stock                      |
+| `items[].quantity`  | controller | accepted qty — how much moved into `warehouse`, must be above zero |
+| `items[].warehouse` | controller | where accepted stock goes — required, stock needs a location |
+| `items[].rejectedQuantity` | controller | rejected qty — a SECOND movement into `rejectedWarehouse` |
+| `items[].rejectedWarehouse` | controller | where rejected stock goes — required when `rejectedQuantity` > 0 |
+| `items[].rate`      | controller | valuation of the incoming stock (both accepted and rejected) |
 | `date`              | controller | posting date for BOTH the stock and GL entries       |
 
 The GL amount is **not** read from a field: it is the stock ledger's own
