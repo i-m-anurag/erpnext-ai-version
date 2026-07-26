@@ -26,13 +26,74 @@ Coupling lives in **`seed-data/base/posting-rules/purchase-invoice.json`** and
 | `items[].quantity`   | controller                   | `totalAmount = Σ (quantity × rate)`         |
 | `items[].rate`       | controller                   | `totalAmount = Σ (quantity × rate)`         |
 | `additionalDiscountAmount` | controller             | `grandTotal = totalAmount − discount`       |
+| `purchaseReceipt`    | posting rule (case `isSet`)  | decides WHICH account is debited — see below |
 
-Also required (not form fields): the account codes **`purchase-expenses`** and
-**`creditors`** in the posting rule must exist in the Chart of Accounts.
+**`purchaseReceipt` changes the accounting.** If it is set, the goods already came in
+on a Purchase Receipt, which debited Stock In Hand and credited Stock Received But Not
+Billed; the invoice then debits **`stock-received-not-billed`** to clear that holding
+account. If it is blank, nothing has been received into stock, so the invoice debits
+**`purchase-expenses`** as before. Blank strings count as absent.
+
+Renaming or failing to populate this field does not error — it silently posts to
+expenses instead of clearing SRBNB, leaving a permanent balance in the holding
+account. Watch this one.
+
+Also required (not form fields): the account codes **`purchase-expenses`**,
+**`creditors`** and **`stock-received-not-billed`** must exist in the Chart of Accounts.
 
 Safe to rename: `piNumber` label, `postingTime`, `dueDate`, `isPaid`, `purpose`,
 `company`, `currency`, `priceList`, `items[].item`, `items[].warehouse`, `items[].uom`,
 and anything under `supplierInvoice` / `accountingDimensions` / `additionalDiscount`.
+
+---
+
+## Purchase Receipt — `purchase-receipt`
+
+Coupling lives in **`seed-data/base/posting-rules/purchase-receipt.json`** and
+**`src/modules/form-logic/controllers/purchase-receipt.controller.ts`**.
+
+| Field key           | Read by    | Why it matters                                       |
+|---------------------|------------|------------------------------------------------------|
+| `items`             | controller | one stock movement per row                           |
+| `items[].item`      | controller | what moved (stock ledger `item_code`)                |
+| `items[].quantity`  | controller | accepted qty — how much moved into `warehouse`, must be above zero |
+| `items[].warehouse` | controller | where accepted stock goes — required, stock needs a location |
+| `items[].rejectedQuantity` | controller | rejected qty — a SECOND movement into `rejectedWarehouse` |
+| `items[].rejectedWarehouse` | controller | where rejected stock goes — required when `rejectedQuantity` > 0 |
+| `items[].rate`      | controller | valuation of the incoming stock (both accepted and rejected) |
+| `date`              | controller | posting date for BOTH the stock and GL entries       |
+
+The GL amount is **not** read from a field: it is the stock ledger's own
+`stock_value_difference`, handed to the rule as `stockValue`. Renaming a total on the
+form cannot desynchronise stock from the books.
+
+Posts Dr `stock-in-hand` / Cr `stock-received-not-billed`.
+
+---
+
+## Stock Entry — `stock-entry`
+
+Coupling lives in **`seed-data/base/posting-rules/stock-entry.json`** and
+**`src/modules/form-logic/controllers/stock-entry.controller.ts`**.
+
+| Field key                 | Read by                     | Why it matters                          |
+|---------------------------|-----------------------------|-----------------------------------------|
+| `stockEntryType`          | controller + rule (`cases`) | picks the movement AND the posting      |
+| `items[].item`            | controller                  | what moved                              |
+| `items[].quantity`        | controller                  | always positive; direction comes from the type |
+| `items[].sourceWarehouse` | controller                  | required for Issue and Transfer         |
+| `items[].targetWarehouse` | controller                  | required for Receipt and Transfer       |
+| `items[].rate`            | controller                  | required for Receipt only                |
+
+`stockEntryType` values are load-bearing strings that must match the
+`stock-entry-type` master exactly: **`Material Receipt`**, **`Material Issue`**,
+**`Material Transfer`**. A value no case covers is rejected rather than posted blindly.
+
+| Type              | Stock            | General Ledger                                  |
+|-------------------|------------------|-------------------------------------------------|
+| Material Receipt  | +qty at `rate`   | Dr `stock-in-hand` / Cr `stock-adjustment`      |
+| Material Issue    | −qty at valuation | Dr `stock-adjustment` / Cr `stock-in-hand`     |
+| Material Transfer | −source, +target | none — value is preserved, so nothing is posted |
 
 ---
 
@@ -93,8 +154,11 @@ this way:
 |---------------|-----------------------------------------|------------------------------------------|
 | Account roles | `Payable`, `Receivable` (also `Cash`, `Bank`) | resolved from the CoA by posting rules |
 | Account codes | `purchase-expenses`, `creditors`        | Purchase Invoice posting rule            |
+| Account codes | `stock-in-hand`, `stock-received-not-billed`, `stock-adjustment` | stock posting rules |
+| Account code  | `stock-in-hand`                         | the SL↔GL reconciliation report compares against this |
 | Account code  | `retained-earnings`                     | year-end close sweep                     |
 | Payment types | `PAY`, `RECEIVE`                        | `payment-entry-type` master + rule cases |
+| Stock entry types | `Material Receipt`, `Material Issue`, `Material Transfer` | `stock-entry-type` master + rule cases |
 
 ---
 

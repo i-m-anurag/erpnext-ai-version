@@ -59,7 +59,7 @@
     "communication": true,
     "org": true,
     "workflow": false,
-    "inventory": false,
+    "inventory": true,
     "ledger": false
   }
 }

@@ -15,6 +15,7 @@ import {
 import { WorkflowApiService, type WorkflowStatus } from '../../core/api/workflow.api.service';
 import { DocumentApiService, type CreateOption, type RelatedDoc } from '../../core/api/document.api.service';
 import { LedgerApiService, type GlVoucherEntry } from '../../core/api/ledger.api.service';
+import { StockApiService, type StockLedgerRow } from '../../core/api/stock.api.service';
 import { NotificationService } from '../../core/notify/notification.service';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
 import { routeForMaster, type ResolvedView } from '../../core/config/view-configs';
@@ -133,10 +134,12 @@ const KIND_ICON: Record<TimelineKind, string> = {
       </div>
 
       <div class="iq-record__side">
-        @if (glEntries().length) {
+        <!-- One Reverse control for the whole document: it may have moved stock, money,
+             or both, and cancelling has to undo every ledger it touched. -->
+        @if (posted()) {
           <div class="erp-card p-3">
             <div class="d-flex align-items-center justify-content-between mb-2">
-              <div class="fw-semibold">Accounting Entries</div>
+              <div class="fw-semibold">Posted entries</div>
               @if (recordState() !== 'Cancelled') {
                 <button class="btn btn-xs btn-light text-danger" [disabled]="reversing()" (click)="reverseEntry()">
                   <i class="ph ph-arrow-u-up-left"></i> Reverse
@@ -145,14 +148,35 @@ const KIND_ICON: Record<TimelineKind, string> = {
                 <span class="iq-badge iq-badge--danger">Cancelled</span>
               }
             </div>
-            <table class="iq-gl">
-              <thead><tr><th>Account</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr></thead>
-              <tbody>
-                @for (e of glEntries(); track $index) {
-                  <tr><td>{{ e.account }}</td><td class="text-end">{{ glAmt(e.debit) }}</td><td class="text-end">{{ glAmt(e.credit) }}</td></tr>
-                }
-              </tbody>
-            </table>
+
+            @if (glEntries().length) {
+              <div class="text-muted small mb-1">Accounting</div>
+              <table class="iq-gl">
+                <thead><tr><th>Account</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr></thead>
+                <tbody>
+                  @for (e of glEntries(); track $index) {
+                    <tr><td>{{ e.account }}</td><td class="text-end">{{ glAmt(e.debit) }}</td><td class="text-end">{{ glAmt(e.credit) }}</td></tr>
+                  }
+                </tbody>
+              </table>
+            }
+
+            @if (stockEntries().length) {
+              <div class="text-muted small mb-1" [class.mt-3]="glEntries().length">Stock</div>
+              <table class="iq-gl">
+                <thead><tr><th>Item</th><th>Warehouse</th><th class="text-end">Qty</th><th class="text-end">Value</th></tr></thead>
+                <tbody>
+                  @for (e of stockEntries(); track $index) {
+                    <tr>
+                      <td>{{ e.itemCode }}</td>
+                      <td>{{ e.warehouse }}</td>
+                      <td class="text-end">{{ glAmt(e.actualQty) }}</td>
+                      <td class="text-end">{{ glAmt(e.stockValueDifference) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
           </div>
         }
         @if (related().length) {
@@ -258,6 +282,7 @@ export class RecordViewComponent {
   private readonly workflowApi = inject(WorkflowApiService);
   private readonly documents = inject(DocumentApiService);
   private readonly ledger = inject(LedgerApiService);
+  private readonly stock = inject(StockApiService);
   private readonly notify = inject(NotificationService);
   private readonly router = inject(Router);
   private readonly formCmp = viewChild(DynamicFormComponent);
@@ -278,7 +303,10 @@ export class RecordViewComponent {
 
   protected readonly related = signal<RelatedDoc[]>([]);
   protected readonly glEntries = signal<GlVoucherEntry[]>([]);
+  protected readonly stockEntries = signal<StockLedgerRow[]>([]);
   protected readonly reversing = signal(false);
+  /** Has this document posted anything that could need reversing? */
+  protected readonly posted = computed(() => this.glEntries().length > 0 || this.stockEntries().length > 0);
   protected readonly createOptions = signal<CreateOption[]>([]);
   /** The full record (incl. line-items) for the edit form. The list payload omits
    *  children for speed, so an existing record is loaded on its own here. */
@@ -362,13 +390,17 @@ export class RecordViewComponent {
     });
   }
 
-  /** GL entries this record posted (shown in the Accounting Entries panel). */
+  /** What this record posted, in both ledgers (shown in the Posted entries panel). */
   private loadGlEntries(): void {
     const entity = this.entityType();
     if (!entity || !this.canComment()) return;
     this.ledger.voucherEntries(entity, this.recordId()).subscribe({
       next: (e) => this.glEntries.set(e),
       error: () => this.glEntries.set([]),
+    });
+    this.stock.voucherEntries(entity, this.recordId()).subscribe({
+      next: (e) => this.stockEntries.set(e),
+      error: () => this.stockEntries.set([]), // inventory module off, or not a stock document
     });
   }
   protected glAmt(v: string): string {
@@ -380,12 +412,12 @@ export class RecordViewComponent {
   protected reverseEntry(): void {
     const entity = this.entityType();
     if (!entity || this.reversing()) return;
-    if (!confirm('Reverse the accounting entries for this document? This posts an equal-and-opposite entry and marks it Cancelled.')) return;
+    if (!confirm('Reverse this document? Everything it posted — accounting and stock — is undone with an equal-and-opposite entry, and the document is marked Cancelled.')) return;
     this.reversing.set(true);
     this.ledger.reverse(entity, this.recordId()).subscribe({
       next: () => {
         this.reversing.set(false);
-        this.notify.success('Entry reversed');
+        this.notify.success('Document reversed');
         this.recordState.set('Cancelled');
         this.loadGlEntries();
       },

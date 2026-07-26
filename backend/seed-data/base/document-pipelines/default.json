@@ -6,16 +6,68 @@
       "to": "purchase-order",
       "label": "Create Purchase Order",
       "relation": "po_from_requisition",
+      "when": { "field": "materialRequestType", "in": ["Purchase"] },
       "codePrefix": "PO-2026-",
-      "map": { "vendor": "vendor", "notes": "notes" }
+      "map": { "vendor": "vendor", "notes": "notes" },
+      "lineMap": {
+        "from": "items",
+        "to": "lines",
+        "columns": { "item": "item", "qty": "qty" }
+      }
+    },
+    {
+      "from": "requisition",
+      "to": "stock-entry",
+      "label": "Create Stock Entry",
+      "relation": "stock_entry_from_requisition",
+      "when": { "field": "materialRequestType", "in": ["Material Issue", "Material Transfer"] },
+      "codePrefix": "STE-2026-",
+      "map": { "materialRequestType": "stockEntryType", "notes": "remarks" },
+      "lineMap": {
+        "from": "items",
+        "to": "items",
+        "columns": { "item": "item", "qty": "quantity" }
+      }
     },
     {
       "from": "purchase-order",
+      "to": "purchase-receipt",
+      "label": "Create Purchase Receipt",
+      "relation": "receipt_from_po",
+      "codePrefix": "PR-2026-",
+      "map": { "vendor": "supplier", "poNumber": "purchaseOrder", "notes": "remarks" },
+      "lineMap": {
+        "from": "lines",
+        "to": "items",
+        "columns": { "item": "item", "qty": "quantity", "rate": "rate", "remarks": "remarks" }
+      }
+    },
+    {
+      "from": "purchase-receipt",
       "to": "purchase-invoice",
       "label": "Create Purchase Invoice",
-      "relation": "pi_against_po",
+      "relation": "invoice_from_receipt",
       "codePrefix": "PINV-2026-",
-      "map": { "vendor": "vendor", "poNumber": "poRef", "lines": "lines", "notes": "notes" }
+      "map": { "supplier": "supplier", "company": "company", "prNumber": "purchaseReceipt" },
+      "lineMap": {
+        "from": "items",
+        "to": "items",
+        "columns": {
+          "item": "item",
+          "quantity": "quantity",
+          "warehouse": "warehouse",
+          "uom": "uom",
+          "rate": "rate"
+        }
+      }
+    },
+    {
+      "from": "purchase-invoice",
+      "to": "payment-entry",
+      "label": "Create Payment",
+      "relation": "payment_from_invoice",
+      "codePrefix": "PAY-2026-",
+      "map": { "supplier": "party", "company": "company", "grandTotal": "amount" }
     }
   ]
 }

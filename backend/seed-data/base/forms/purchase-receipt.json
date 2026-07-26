@@ -1,0 +1,85 @@
+{
+  "slug": "purchase-receipt",
+  "version": 2,
+  "title": "Purchase Receipt",
+  "layout": "two-column",
+  "fields": [
+    { "key": "prNumber", "type": "text", "label": "PR Number", "auto": true, "placeholder": "Auto-generated on save", "inList": true },
+    { "key": "date", "type": "date", "label": "Posting Date", "required": true, "inList": true, "defaultValue": "$today" },
+    { "key": "company", "type": "master-lookup", "label": "Company", "required": true, "lockWhenFromParent": true, "optionsSource": { "master": "company" } },
+    { "key": "supplier", "type": "master-lookup", "label": "Supplier", "required": true, "inList": true, "lockWhenFromParent": true, "optionsSource": { "master": "supplier" } },
+    { "key": "purpose", "type": "master-lookup", "label": "Purpose", "required": true, "defaultValue": "PURCHASE", "lockWhenFromParent": true, "optionsSource": { "master": "purpose" } },
+    { "key": "postingTime", "type": "time", "label": "Posting Time", "required": true, "defaultValue": "$nowTime" },
+    { "key": "purchaseOrder", "type": "text", "label": "Purchase Order", "editable": false, "inList": true },
+    { "key": "isReturn", "type": "checkbox", "label": "Is Return" },
+    { "key": "supplierDeliveryNote", "type": "text", "label": "Supplier Delivery Note", "required": true, "validators": { "maxLength": 120 } },
+    {
+      "key": "currencyAndPriceList",
+      "type": "group",
+      "label": "Currency and Price List",
+      "collapsible": true,
+      "layout": "two-column",
+      "fields": [
+        { "key": "currency", "type": "master-lookup", "label": "Currency", "required": true, "defaultValue": "INR", "lockWhenFromParent": true, "optionsSource": { "master": "currency" } }
+      ]
+    },
+    {
+      "key": "itemsSection",
+      "type": "group",
+      "label": "Items",
+      "collapsible": false,
+      "layout": "single-column",
+      "fields": [
+        {
+          "key": "items",
+          "type": "table",
+          "label": "Items",
+          "required": true,
+          "minRows": 1,
+          "maxRows": 100,
+          "columns": [
+            { "key": "item", "type": "master-lookup", "label": "Item", "required": true, "lockWhenFromParent": true, "optionsSource": { "master": "item" } },
+            { "key": "quantity", "type": "number", "label": "Accepted Qty", "required": true, "validators": { "min": 0, "custom": [ { "type": "integerIf", "field": "uom", "equals": ["NOS","EA","BOX","CARTON","DOZEN","BAG","ROLL","SET","PAIR","PACK"] } ] } },
+            { "key": "rejectedQuantity", "type": "number", "label": "Rejected Qty", "validators": { "min": 0, "custom": [ { "type": "integerIf", "field": "uom", "equals": ["NOS","EA","BOX","CARTON","DOZEN","BAG","ROLL","SET","PAIR","PACK"] } ] } },
+            { "key": "warehouse", "type": "master-lookup", "label": "Warehouse", "required": true, "optionsSource": { "master": "warehouse" } },
+            { "key": "rejectedWarehouse", "type": "master-lookup", "label": "Rejected Warehouse", "optionsSource": { "master": "warehouse" }, "validators": { "custom": [ { "type": "requiredIf", "field": "rejectedQuantity", "operator": ">", "value": 0 } ] } },
+            { "key": "uom", "type": "master-lookup", "label": "UOM", "required": true, "lockWhenFromParent": true, "optionsSource": { "master": "uom" } },
+            { "key": "rate", "type": "number", "label": "Rate", "required": true, "validators": { "min": 0 } },
+            { "key": "amount", "type": "number", "label": "Amount", "readOnly": true, "calculate": { "expression": "quantity * rate", "precision": 2 } },
+            { "key": "remarks", "type": "text", "label": "Remarks" },
+            { "key": "billedQty", "type": "number", "label": "Billed Qty", "readOnly": true, "hidden": true, "validators": { "min": 0 } }
+          ]
+        },
+        { "key": "totalQuantity", "type": "number", "label": "Total Quantity", "readOnly": true, "calculate": { "expression": "sum(items.quantity)", "precision": 3 } },
+        { "key": "totalAmount", "type": "number", "label": "Total Amount", "readOnly": true, "inList": true, "calculate": { "expression": "sum(items.amount)", "precision": 2 } }
+      ]
+    },
+    {
+      "key": "additionalDiscount",
+      "type": "group",
+      "label": "Additional Discount",
+      "collapsible": true,
+      "layout": "two-column",
+      "fields": [
+        { "key": "applyAdditionalDiscountOn", "type": "master-lookup", "label": "Apply Additional Discount On", "optionsSource": { "master": "apply-additional-discount-on" } },
+        { "key": "additionalDiscountPercentage", "type": "number", "label": "Additional Discount Percentage", "defaultValue": 0, "validators": { "min": 0, "max": 100 } },
+        { "key": "additionalDiscountAmount", "type": "number", "label": "Additional Discount Amount", "readOnly": true, "inList": true, "calculate": { "expression": "(additionalDiscountPercentage / 100) * totalAmount", "precision": 2 } }
+      ]
+    },
+    {
+      "key": "totals",
+      "type": "group",
+      "label": "Totals",
+      "collapsible": false,
+      "layout": "two-column",
+      "fields": [
+        { "key": "grandTotal", "type": "number", "label": "Grand Total", "readOnly": true, "calculate": { "expression": "totalAmount - additionalDiscountAmount", "precision": 2 } },
+        { "key": "disableRoundedTotal", "type": "checkbox", "label": "Disable Rounded Total" },
+        { "key": "roundingAdjustment", "type": "number", "label": "Rounding Adjustment", "readOnly": true, "visibleWhen": { "field": "disableRoundedTotal", "equals": false }, "calculate": { "expression": "round(grandTotal,0) - grandTotal", "precision": 2 } },
+        { "key": "roundedTotal", "type": "number", "label": "Rounded Total", "readOnly": true, "visibleWhen": { "field": "disableRoundedTotal", "equals": false }, "calculate": { "expression": "grandTotal + roundingAdjustment", "precision": 2 } }
+      ]
+    },
+    { "key": "remarks", "type": "textarea", "label": "Remarks" },
+    { "key": "approvalState", "type": "text", "label": "Approval State", "readOnly": true, "hidden": true }
+  ]
+}

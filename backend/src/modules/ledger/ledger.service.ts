@@ -116,7 +116,12 @@ export class LedgerService {
   }
 
   /** Reverse a posted voucher by posting equal-and-opposite entries under `<no>-REV`. */
-  async reverse(voucherType: string, voucherNo: string, postingDate: Date | string): Promise<{ posted: boolean }> {
+  async reverse(
+    voucherType: string,
+    voucherNo: string,
+    postingDate: Date | string,
+    manager?: EntityManager,
+  ): Promise<{ posted: boolean }> {
     const rows = await this.repo.find({ where: { voucherType, voucherNo } });
     if (rows.length === 0) throw new BadRequestError(`nothing to reverse for ${voucherType} ${voucherNo}`);
     const lines: PostingLine[] = rows.map((r) => ({
@@ -126,7 +131,7 @@ export class LedgerService {
       party: r.party,
       remarks: `Reversal of ${voucherNo}`,
     }));
-    const res = await this.post({ voucherType, voucherNo: `${voucherNo}-REV`, postingDate, lines });
+    const res = await this.post({ voucherType, voucherNo: `${voucherNo}-REV`, postingDate, lines }, manager);
     return { posted: res.posted };
   }
 

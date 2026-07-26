@@ -23,14 +23,27 @@ export interface PostingRuleLine {
   side: 'debit' | 'credit';
   /** Field holding this line's amount; defaults to the rule-level `amountField`. */
   amountField?: string;
+  /**
+   * Take the amount from a value the caller computed instead of a document field —
+   * the key into `buildVoucher`'s `computed` map. Stock documents need this: the
+   * value of a Material Issue is its moving-average valuation, which the ledger
+   * works out at posting time and the document never stores.
+   */
+  amountSource?: string;
   /** Field holding the party code for this line. */
   partyField?: string;
   /** Use the rule-level `partyField` for this line. */
   withParty?: boolean;
 }
 
+/**
+ * A case matches on one field, either by value (`equals`) or by presence (`isSet`).
+ * Presence is what lets a Purchase Invoice ask "did this come from a receipt?" —
+ * the answer decides whether it clears Stock Received But Not Billed or expenses
+ * the purchase directly.
+ */
 export interface PostingRuleCase {
-  when: { field: string; equals: unknown };
+  when: { field: string; equals?: unknown; isSet?: boolean };
   lines: PostingRuleLine[];
 }
 
@@ -57,10 +70,22 @@ export function getPostingRule(voucherType: string): PostingRule | undefined {
   return registry.get(voucherType);
 }
 
+/** Is a document field populated? Blank strings count as absent, not as a value. */
+function isSet(v: unknown): boolean {
+  return v !== undefined && v !== null && String(v).trim() !== '';
+}
+
+/** Does this case's condition hold for the document? */
+function caseMatches(c: PostingRuleCase, data: Record<string, unknown>): boolean {
+  const value = data[c.when.field];
+  if (c.when.isSet !== undefined) return isSet(value) === c.when.isSet;
+  return value === c.when.equals;
+}
+
 /** The lines that apply to this document — the flat set, or the matching case. */
 function selectLines(rule: PostingRule, data: Record<string, unknown>): PostingRuleLine[] {
   if (rule.cases?.length) {
-    const hit = rule.cases.find((c) => data[c.when.field] === c.when.equals);
+    const hit = rule.cases.find((c) => caseMatches(c, data));
     if (!hit) {
       throw new BadRequestError(
         `no posting rule case matches ${rule.voucherType}.${rule.cases[0]!.when.field} = ${String(
@@ -85,21 +110,39 @@ async function resolveAccount(rl: PostingRuleLine, data: Record<string, unknown>
   throw new Error('posting rule line needs one of: account, accountField, accountRole');
 }
 
+/** A line's amount: a caller-computed value if it names one, else a document field. */
+function amountFor(
+  rule: PostingRule,
+  rl: PostingRuleLine,
+  data: Record<string, unknown>,
+  computed: Record<string, number | string>,
+): number {
+  if (rl.amountSource) {
+    if (!(rl.amountSource in computed)) {
+      throw new Error(`posting rule ${rule.voucherType} wants amountSource "${rl.amountSource}", which was not supplied`);
+    }
+    return Number(computed[rl.amountSource] ?? 0);
+  }
+  const amountField = rl.amountField ?? rule.amountField;
+  if (!amountField) throw new Error(`posting rule ${rule.voucherType} has no amountField`);
+  return Number(data[amountField] ?? 0);
+}
+
 /**
  * Build a balanced voucher from a posted document using its rule. Reads each line's
- * amount (and party) off the document data; lines with a zero amount are dropped so
- * an empty invoice posts nothing.
+ * amount (and party) off the document data — or, for an `amountSource` line, off the
+ * `computed` values the caller worked out (stock valuation). Lines with a zero amount
+ * are dropped so an empty invoice posts nothing.
  */
 export async function buildVoucher(
   rule: PostingRule,
   doc: { code: string; data: Record<string, unknown> },
   postingDate: Date | string,
+  computed: Record<string, number | string> = {},
 ): Promise<Voucher> {
   const lines: PostingLine[] = [];
   for (const rl of selectLines(rule, doc.data)) {
-    const amountField = rl.amountField ?? rule.amountField;
-    if (!amountField) throw new Error(`posting rule ${rule.voucherType} has no amountField`);
-    const amount = Number(doc.data[amountField] ?? 0);
+    const amount = amountFor(rule, rl, doc.data, computed);
     if (!amount) continue;
     const partyField = rl.partyField ?? (rl.withParty ? rule.partyField : undefined);
     lines.push({

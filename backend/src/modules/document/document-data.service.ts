@@ -134,6 +134,34 @@ export class DocumentDataService {
     await AppDataSource.query(`UPDATE ${ident(c.table)} SET ${sets.join(', ')} WHERE "id"=$${params.length}`, params);
   }
 
+  /**
+   * Replace one child table's rows for a document, on a caller's transaction and
+   * without validation. Line items are child rows, so persistWorkflow can't touch them;
+   * this is the guard-free path a workflow write-back needs — e.g. a Stock Entry
+   * crediting fulfilled quantity back onto its Material Request's lines, atomically.
+   */
+  async setTableRows(
+    slug: string,
+    parentId: string,
+    tableKey: string,
+    rows: Record<string, unknown>[],
+    db: Queryable = AppDataSource,
+  ): Promise<void> {
+    const c = await this.ctx(slug);
+    const tf = c.tables.find((t) => t.key === tableKey);
+    if (!tf) throw new Error(`no line-item table "${tableKey}" on ${slug}`);
+    const child = `${c.table}__${tableKey.toLowerCase()}`;
+    await db.query(`DELETE FROM ${ident(child)} WHERE "parent_id"=$1`, [parentId]);
+    const cols = (tf.columns ?? []).map((cc) => cc.key);
+    let idx = 0;
+    for (const r of rows) {
+      const names = ['"parent_id"', '"idx"', ...cols.map(ident)];
+      const placeholders = ['$1', '$2', ...cols.map((_, i) => `$${i + 3}`)];
+      const params = [parentId, idx++, ...cols.map((k) => r[k] ?? null)];
+      await db.query(`INSERT INTO ${ident(child)} (${names.join(', ')}) VALUES (${placeholders.join(', ')})`, params);
+    }
+  }
+
   /** Validated create (user submit) → status 'active'. `db` runs the writes on a
    *  caller's transaction (so the document + its GL posting are atomic). */
   create(slug: string, input: Record<string, unknown>, db: Queryable = AppDataSource): Promise<DocumentRow> {

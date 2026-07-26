@@ -1,27 +1,136 @@
 {
   "slug": "default",
   "accounts": [
-    { "code": "assets", "name": "Assets", "rootType": "Asset", "isGroup": true },
-    { "code": "current-assets", "name": "Current Assets", "parentCode": "assets", "rootType": "Asset", "isGroup": true },
-    { "code": "cash", "name": "Cash", "parentCode": "current-assets", "rootType": "Asset", "accountType": "Cash" },
-    { "code": "bank", "name": "Bank", "parentCode": "current-assets", "rootType": "Asset", "accountType": "Bank" },
-    { "code": "debtors", "name": "Debtors (Accounts Receivable)", "parentCode": "current-assets", "rootType": "Asset", "accountType": "Receivable" },
-    { "code": "stock-in-hand", "name": "Stock In Hand", "parentCode": "current-assets", "rootType": "Asset", "accountType": "Stock" },
-
-    { "code": "liabilities", "name": "Liabilities", "rootType": "Liability", "isGroup": true },
-    { "code": "current-liabilities", "name": "Current Liabilities", "parentCode": "liabilities", "rootType": "Liability", "isGroup": true },
-    { "code": "creditors", "name": "Creditors (Accounts Payable)", "parentCode": "current-liabilities", "rootType": "Liability", "accountType": "Payable" },
-    { "code": "tax-payable", "name": "Tax Payable", "parentCode": "current-liabilities", "rootType": "Liability", "accountType": "Tax" },
-
-    { "code": "income", "name": "Income", "rootType": "Income", "isGroup": true },
-    { "code": "sales", "name": "Sales", "parentCode": "income", "rootType": "Income" },
-
-    { "code": "expenses", "name": "Expenses", "rootType": "Expense", "isGroup": true },
-    { "code": "purchase-expenses", "name": "Purchase Expenses", "parentCode": "expenses", "rootType": "Expense" },
-    { "code": "cogs", "name": "Cost of Goods Sold", "parentCode": "expenses", "rootType": "Expense", "accountType": "Cost of Goods Sold" },
-
-    { "code": "equity", "name": "Equity", "rootType": "Equity", "isGroup": true },
-    { "code": "capital", "name": "Capital", "parentCode": "equity", "rootType": "Equity" },
-    { "code": "retained-earnings", "name": "Retained Earnings", "parentCode": "equity", "rootType": "Equity" }
+    {
+      "code": "assets",
+      "name": "Assets",
+      "rootType": "Asset",
+      "isGroup": true
+    },
+    {
+      "code": "current-assets",
+      "name": "Current Assets",
+      "parentCode": "assets",
+      "rootType": "Asset",
+      "isGroup": true
+    },
+    {
+      "code": "cash",
+      "name": "Cash",
+      "parentCode": "current-assets",
+      "rootType": "Asset",
+      "accountType": "Cash"
+    },
+    {
+      "code": "bank",
+      "name": "Bank",
+      "parentCode": "current-assets",
+      "rootType": "Asset",
+      "accountType": "Bank"
+    },
+    {
+      "code": "debtors",
+      "name": "Debtors (Accounts Receivable)",
+      "parentCode": "current-assets",
+      "rootType": "Asset",
+      "accountType": "Receivable"
+    },
+    {
+      "code": "stock-in-hand",
+      "name": "Stock In Hand",
+      "parentCode": "current-assets",
+      "rootType": "Asset",
+      "accountType": "Stock"
+    },
+    {
+      "code": "liabilities",
+      "name": "Liabilities",
+      "rootType": "Liability",
+      "isGroup": true
+    },
+    {
+      "code": "current-liabilities",
+      "name": "Current Liabilities",
+      "parentCode": "liabilities",
+      "rootType": "Liability",
+      "isGroup": true
+    },
+    {
+      "code": "creditors",
+      "name": "Creditors (Accounts Payable)",
+      "parentCode": "current-liabilities",
+      "rootType": "Liability",
+      "accountType": "Payable"
+    },
+    {
+      "code": "tax-payable",
+      "name": "Tax Payable",
+      "parentCode": "current-liabilities",
+      "rootType": "Liability",
+      "accountType": "Tax"
+    },
+    {
+      "code": "stock-received-not-billed",
+      "name": "Stock Received But Not Billed",
+      "parentCode": "current-liabilities",
+      "rootType": "Liability",
+      "accountType": "Stock Received But Not Billed"
+    },
+    {
+      "code": "income",
+      "name": "Income",
+      "rootType": "Income",
+      "isGroup": true
+    },
+    {
+      "code": "sales",
+      "name": "Sales",
+      "parentCode": "income",
+      "rootType": "Income"
+    },
+    {
+      "code": "expenses",
+      "name": "Expenses",
+      "rootType": "Expense",
+      "isGroup": true
+    },
+    {
+      "code": "purchase-expenses",
+      "name": "Purchase Expenses",
+      "parentCode": "expenses",
+      "rootType": "Expense"
+    },
+    {
+      "code": "cogs",
+      "name": "Cost of Goods Sold",
+      "parentCode": "expenses",
+      "rootType": "Expense",
+      "accountType": "Cost of Goods Sold"
+    },
+    {
+      "code": "stock-adjustment",
+      "name": "Stock Adjustment",
+      "parentCode": "expenses",
+      "rootType": "Expense",
+      "accountType": "Stock Adjustment"
+    },
+    {
+      "code": "equity",
+      "name": "Equity",
+      "rootType": "Equity",
+      "isGroup": true
+    },
+    {
+      "code": "capital",
+      "name": "Capital",
+      "parentCode": "equity",
+      "rootType": "Equity"
+    },
+    {
+      "code": "retained-earnings",
+      "name": "Retained Earnings",
+      "parentCode": "equity",
+      "rootType": "Equity"
+    }
   ]
 }

@@ -1,0 +1,9 @@
+{
+  "slug": "stock-entry",
+  "name": "Stock Entry",
+  "kind": "document",
+  "managedBy": "ui",
+  "editable": true,
+  "formSlug": "stock-entry",
+  "codeField": "seNumber"
+}

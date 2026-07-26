@@ -14,6 +14,7 @@ import { DocumentLink } from '../modules/document/document-link.entity.js';
 import { Account } from '../modules/accounts/account.entity.js';
 import { GlEntry } from '../modules/ledger/gl-entry.entity.js';
 import { LedgerSettings } from '../modules/ledger/ledger-settings.entity.js';
+import { StockLedgerEntry } from '../modules/stock/stock-ledger-entry.entity.js';
 import { FiscalYear } from '../modules/ledger/fiscal-year.entity.js';
 
 /**
@@ -38,5 +39,6 @@ export const entities = [
   Account,
   GlEntry,
   LedgerSettings,
+  StockLedgerEntry,
   FiscalYear,
 ];

@@ -1,0 +1,7 @@
+{
+  "voucherType": "purchase-receipt",
+  "lines": [
+    { "account": "stock-in-hand", "side": "debit", "amountSource": "stockValue" },
+    { "account": "stock-received-not-billed", "side": "credit", "amountSource": "stockValue" }
+  ]
+}

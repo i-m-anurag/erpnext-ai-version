@@ -1,0 +1,11 @@
+{
+  "slug": "stock-entry-type",
+  "name": "Stock Entry Type",
+  "managedBy": "seeded",
+  "editable": false,
+  "data": [
+    { "code": "Material Receipt", "name": "Material Receipt" },
+    { "code": "Material Issue", "name": "Material Issue" },
+    { "code": "Material Transfer", "name": "Material Transfer" }
+  ]
+}

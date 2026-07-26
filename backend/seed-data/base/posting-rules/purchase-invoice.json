@@ -2,8 +2,20 @@
   "voucherType": "purchase-invoice",
   "amountField": "grandTotal",
   "partyField": "supplier",
-  "lines": [
-    { "account": "purchase-expenses", "side": "debit" },
-    { "account": "creditors", "side": "credit", "withParty": true }
+  "cases": [
+    {
+      "when": { "field": "purchaseReceipt", "isSet": true },
+      "lines": [
+        { "account": "stock-received-not-billed", "side": "debit" },
+        { "account": "creditors", "side": "credit", "withParty": true }
+      ]
+    },
+    {
+      "when": { "field": "purchaseReceipt", "isSet": false },
+      "lines": [
+        { "account": "purchase-expenses", "side": "debit" },
+        { "account": "creditors", "side": "credit", "withParty": true }
+      ]
+    }
   ]
 }
