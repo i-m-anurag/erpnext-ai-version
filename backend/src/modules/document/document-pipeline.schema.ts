@@ -12,6 +12,13 @@ export const pipelineStepSchema = z.object({
   to: z.string().min(1),
   label: z.string().min(1),
   relation: z.string().min(1),
+  /**
+   * Offer this step only when a source field holds one of these values. Lets one
+   * document branch by purpose — a Material Request goes to a Purchase Order when it
+   * is a Purchase, and to a Stock Entry when it is an Issue or Transfer. Absent → the
+   * step always applies.
+   */
+  when: z.object({ field: z.string().min(1), in: z.array(z.string()).min(1) }).optional(),
   /** prefix for the generated code of the new document, e.g. "PINV-2026-" */
   codePrefix: z.string().default(''),
   /** sourceField → targetField copy map (top-level scalar fields) */

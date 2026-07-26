@@ -5,7 +5,7 @@
   "layout": "two-column",
   "fields": [
     { "key": "reqNumber", "type": "text", "label": "Requisition No.", "auto": true, "placeholder": "Auto-generated on save" },
-    { "key": "materialRequestType", "type": "select", "label": "Purpose", "options": [
+    { "key": "materialRequestType", "type": "select", "label": "Purpose", "required": true, "defaultValue": "Purchase", "options": [
       { "value": "Purchase", "label": "Purchase" },
       { "value": "Material Issue", "label": "Material Issue" },
       { "value": "Material Transfer", "label": "Material Transfer" }

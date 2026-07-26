@@ -46,8 +46,16 @@ export class DocumentService {
    */
   async createOptions(fromMaster: string, fromCode?: string): Promise<CreateOption[]> {
     const pl = await this.pipeline();
-    const steps = pl.steps.filter((s) => s.from === fromMaster);
+    let steps = pl.steps.filter((s) => s.from === fromMaster);
     if (steps.length === 0) return [];
+
+    // Drop steps whose `when` condition the source record doesn't meet (e.g. only
+    // offer "Create Stock Entry" for an Issue/Transfer request, "Create PO" for a
+    // Purchase). Load the source once, and only if some step actually branches.
+    if (fromCode && steps.some((s) => s.when)) {
+      const data = await this.sourceData(fromMaster, fromCode).catch(() => null);
+      if (data) steps = steps.filter((s) => this.stepApplies(s, data));
+    }
 
     // existing down-links from this record, keyed by target master → first code.
     const down = fromCode ? await this.linkRepo.find({ where: { fromMaster, fromCode } }) : [];
@@ -86,18 +94,14 @@ export class DocumentService {
     const step = pl.steps.find((s) => s.from === fromMaster && s.to === toMaster);
     if (!step) throw new BadRequestError(`no pipeline step ${fromMaster} → ${toMaster}`);
 
-    const fromReg = await this.registry.findOne({ slug: fromMaster });
     const targetReg = await this.registry.findOne({ slug: toMaster });
     if (!targetReg) throw new NotFoundError(`master not found: ${toMaster}`);
 
-    // Source data — from the document table or master_data depending on kind.
-    let sourceData: Record<string, unknown>;
-    if (fromReg?.kind === 'document') {
-      sourceData = (await documentDataService.getByCode(fromMaster, fromCode)).data;
-    } else {
-      const source = await this.data.findOne({ masterSlug: fromMaster, code: fromCode });
-      if (!source) throw new NotFoundError('source document not found');
-      sourceData = source.data;
+    const sourceData = await this.sourceData(fromMaster, fromCode);
+    // Enforce the step's `when` on the write path too, so a Stock Entry can't be
+    // created from a Purchase request (or a PO from an Issue request) via direct API.
+    if (!this.stepApplies(step, sourceData)) {
+      throw new BadRequestError(`${fromMaster} ${fromCode} does not qualify for "${step.label}"`);
     }
 
     const mapped = this.mapFields(step, sourceData);
@@ -117,6 +121,23 @@ export class DocumentService {
     await activityService.addTimeline(fromMaster, fromCode, 'created', `Created ${targetReg.name} ${code}`, actorUserId);
     await activityService.addTimeline(toMaster, code, 'created', `Created from ${fromMaster} ${fromCode}`, actorUserId);
     return { master: toMaster, code };
+  }
+
+  /** Does the source record satisfy the step's `when` gate? No gate → always yes. */
+  private stepApplies(step: PipelineStep, source: Record<string, unknown>): boolean {
+    if (!step.when) return true;
+    return step.when.in.includes(String(source[step.when.field] ?? ''));
+  }
+
+  /** The source record's data, from the document table or master_data by kind. */
+  private async sourceData(fromMaster: string, fromCode: string): Promise<Record<string, unknown>> {
+    const fromReg = await this.registry.findOne({ slug: fromMaster });
+    if (fromReg?.kind === 'document') {
+      return (await documentDataService.getByCode(fromMaster, fromCode)).data;
+    }
+    const source = await this.data.findOne({ masterSlug: fromMaster, code: fromCode });
+    if (!source) throw new NotFoundError('source document not found');
+    return source.data;
   }
 
   private mapFields(step: PipelineStep, source: Record<string, unknown>): Record<string, unknown> {

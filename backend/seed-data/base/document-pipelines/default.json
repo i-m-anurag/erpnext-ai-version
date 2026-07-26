@@ -6,12 +6,27 @@
       "to": "purchase-order",
       "label": "Create Purchase Order",
       "relation": "po_from_requisition",
+      "when": { "field": "materialRequestType", "in": ["Purchase"] },
       "codePrefix": "PO-2026-",
       "map": { "vendor": "vendor", "notes": "notes" },
       "lineMap": {
         "from": "items",
         "to": "lines",
         "columns": { "item": "item", "qty": "qty" }
+      }
+    },
+    {
+      "from": "requisition",
+      "to": "stock-entry",
+      "label": "Create Stock Entry",
+      "relation": "stock_entry_from_requisition",
+      "when": { "field": "materialRequestType", "in": ["Material Issue", "Material Transfer"] },
+      "codePrefix": "STE-2026-",
+      "map": { "materialRequestType": "stockEntryType", "notes": "remarks" },
+      "lineMap": {
+        "from": "items",
+        "to": "items",
+        "columns": { "item": "item", "qty": "quantity" }
       }
     },
     {

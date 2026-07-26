@@ -1,7 +1,10 @@
+import type { EntityManager } from 'typeorm';
 import { stockLedgerService, type StockMovementLine } from '../../stock/stock-ledger.service.js';
 import { stockGlService } from '../../stock/stock-gl.service.js';
+import { documentDataService } from '../../document/document-data.service.js';
 import { BadRequestError } from '../../../shared/errors.js';
-import type { FormController } from '../form-controller.js';
+import type { FormController, FormDoc } from '../form-controller.js';
+import { requisitionController } from './requisition.controller.js';
 
 const today = (): string => new Date().toISOString().slice(0, 10);
 
@@ -48,6 +51,61 @@ function validateLine(purpose: string, l: EntryLine): void {
   } else {
     throw new BadRequestError(`unknown stock entry purpose: ${purpose}`);
   }
+}
+
+/** Which requisition line-quantity a stock purpose fulfils. */
+const FULFILS: Record<string, 'issuedQty' | 'transferredQty'> = {
+  [ISSUE]: 'issuedQty',
+  [TRANSFER]: 'transferredQty',
+};
+
+interface ReqLine {
+  item?: string;
+  qty?: unknown;
+  issuedQty?: unknown;
+  transferredQty?: unknown;
+  [k: string]: unknown;
+}
+
+/**
+ * Advance the Material Request this Stock Entry was created from. Without this, an
+ * Issue/Transfer request would sit at "Pending" forever even after its stock moved —
+ * so bump the fulfilled quantity on each matching request line and let the requisition
+ * controller re-derive the status (→ Issued / Transferred). Runs on the Stock Entry's
+ * own transaction, so the request and the movement advance together.
+ */
+async function advanceParentRequisition(doc: FormDoc, purpose: string, mgr: EntityManager): Promise<void> {
+  const field = FULFILS[purpose];
+  if (!field) return; // a Material Receipt fulfils no request
+
+  const links = (await mgr.query(
+    `SELECT from_code FROM document_links
+      WHERE to_master='stock-entry' AND to_code=$1 AND from_master='requisition' LIMIT 1`,
+    [doc.code],
+  )) as { from_code: string }[];
+  const reqCode = links[0]?.from_code;
+  if (!reqCode) return; // a standalone Stock Entry, not raised from a request
+
+  const req = await documentDataService.getByCode('requisition', reqCode);
+  const reqLines = Array.isArray(req.data['items']) ? (req.data['items'] as ReqLine[]) : [];
+
+  // Sum this entry's moved quantity per item, then credit it to the matching request line.
+  const movedByItem = new Map<string, number>();
+  for (const l of linesOf(doc.data['items'])) {
+    const item = String(l.item ?? '');
+    movedByItem.set(item, (movedByItem.get(item) ?? 0) + (num(l.quantity) || 0));
+  }
+  for (const rl of reqLines) {
+    const moved = movedByItem.get(String(rl.item ?? ''));
+    if (moved) rl[field] = (num(rl[field]) || 0) + moved;
+  }
+
+  const updated: FormDoc = { ...req, slug: 'requisition', data: { ...req.data, items: reqLines } } as FormDoc;
+  const nextState = requisitionController.computeStatus?.(updated) ?? req.state;
+
+  // Line items are child rows; write them and the recomputed state on this transaction.
+  await documentDataService.setTableRows('requisition', req.id, 'items', reqLines, mgr);
+  await documentDataService.setState('requisition', req.id, nextState, mgr);
 }
 
 /**
@@ -117,5 +175,8 @@ export const stockEntryController: FormController = {
     // Receipt and Issue change what the company owns, so they hit the GL; a Transfer
     // nets to zero value and its rule has no lines, so it posts nothing.
     await stockGlService.postMovement(doc, moved.totalValueDifference, postingDate, tx?.manager);
+
+    // If this entry fulfils a Material Request, advance it on the same transaction.
+    if (tx?.manager) await advanceParentRequisition(doc, purpose, tx.manager);
   },
 };
