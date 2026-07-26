@@ -54,6 +54,10 @@ export interface FormController {
   /** React after the record (and any derived state) is persisted — side effects,
    *  linked-document updates, activity/timeline entries, notifications. */
   afterSave?(doc: FormDoc, tx?: AfterSaveCtx): void | Promise<void>;
+  /** React after the record is reversed/cancelled — the mirror of afterSave, for
+   *  undoing whatever it did to OTHER documents (afterSave's ledger effects are
+   *  reversed by the cancel path itself). Runs on the cancellation's transaction. */
+  afterReverse?(doc: FormDoc, tx?: AfterSaveCtx): void | Promise<void>;
 }
 
 const registry = new Map<string, FormController>();

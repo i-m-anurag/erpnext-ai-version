@@ -2,6 +2,10 @@ import { AppDataSource } from '../../db/data-source.js';
 import { BadRequestError } from '../../shared/errors.js';
 import { ledgerService } from '../ledger/ledger.service.js';
 import { stockLedgerService } from '../stock/stock-ledger.service.js';
+// The registry file only — never the controllers barrel — so this stays free of the
+// document ↔ form-logic import cycle (the controllers import back into this module).
+import { getFormController } from '../form-logic/form-controller.js';
+import { documentDataService } from './document-data.service.js';
 
 export interface CancelResult {
   /** Did anything actually reverse? False when the document was already cancelled. */
@@ -49,6 +53,20 @@ export const documentCancelService = {
       if (hasGl) {
         const r = await ledgerService.reverse(voucherType, voucherNo, postingDate, manager);
         glPosted = r.posted;
+      }
+
+      // Let the document's controller undo whatever it did to OTHER documents (e.g. a
+      // Stock Entry giving fulfilled quantity back to its Material Request). Only when
+      // this call actually reversed something — a second, idempotent cancel is a no-op.
+      const controller = getFormController(voucherType);
+      if ((stockPosted || glPosted) && controller?.afterReverse) {
+        const doc = await documentDataService.getByCode(voucherType, voucherNo).catch(() => null);
+        if (doc) {
+          await controller.afterReverse(
+            { slug: voucherType, id: doc.id, code: doc.code, data: doc.data, status: doc.status, state: doc.state },
+            { manager },
+          );
+        }
       }
 
       return { posted: stockPosted || glPosted, reversedGl: hasGl, reversedStock: hasStock };

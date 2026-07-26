@@ -68,13 +68,19 @@ interface ReqLine {
 }
 
 /**
- * Advance the Material Request this Stock Entry was created from. Without this, an
- * Issue/Transfer request would sit at "Pending" forever even after its stock moved —
- * so bump the fulfilled quantity on each matching request line and let the requisition
- * controller re-derive the status (→ Issued / Transferred). Runs on the Stock Entry's
- * own transaction, so the request and the movement advance together.
+ * Move the fulfilled quantity on the Material Request this Stock Entry was created from.
+ * `sign` is +1 when the entry is submitted (credit the request → Issued / Transferred)
+ * and −1 when it is cancelled (give the quantity back → Pending). Without the +1 an
+ * Issue/Transfer request would sit at Pending forever; without the −1 a cancelled
+ * fulfilment would leave it wrongly showing Issued. Runs on the Stock Entry's own
+ * transaction, so the request and the movement move together.
  */
-async function advanceParentRequisition(doc: FormDoc, purpose: string, mgr: EntityManager): Promise<void> {
+async function applyToParentRequisition(
+  doc: FormDoc,
+  purpose: string,
+  mgr: EntityManager,
+  sign: 1 | -1,
+): Promise<void> {
   const field = FULFILS[purpose];
   if (!field) return; // a Material Receipt fulfils no request
 
@@ -89,7 +95,7 @@ async function advanceParentRequisition(doc: FormDoc, purpose: string, mgr: Enti
   const req = await documentDataService.getByCode('requisition', reqCode);
   const reqLines = Array.isArray(req.data['items']) ? (req.data['items'] as ReqLine[]) : [];
 
-  // Sum this entry's moved quantity per item, then credit it to the matching request line.
+  // Sum this entry's moved quantity per item, then apply it to the matching request line.
   const movedByItem = new Map<string, number>();
   for (const l of linesOf(doc.data['items'])) {
     const item = String(l.item ?? '');
@@ -97,7 +103,8 @@ async function advanceParentRequisition(doc: FormDoc, purpose: string, mgr: Enti
   }
   for (const rl of reqLines) {
     const moved = movedByItem.get(String(rl.item ?? ''));
-    if (moved) rl[field] = (num(rl[field]) || 0) + moved;
+    // Never below zero — a give-back can't drive fulfilled quantity negative.
+    if (moved) rl[field] = Math.max(0, (num(rl[field]) || 0) + sign * moved);
   }
 
   const updated: FormDoc = { ...req, slug: 'requisition', data: { ...req.data, items: reqLines } } as FormDoc;
@@ -177,6 +184,13 @@ export const stockEntryController: FormController = {
     await stockGlService.postMovement(doc, moved.totalValueDifference, postingDate, tx?.manager);
 
     // If this entry fulfils a Material Request, advance it on the same transaction.
-    if (tx?.manager) await advanceParentRequisition(doc, purpose, tx.manager);
+    if (tx?.manager) await applyToParentRequisition(doc, purpose, tx.manager, 1);
+  },
+
+  /** Cancelled: give the fulfilled quantity back to the request (the stock and GL are
+   *  reversed by the cancel path itself). */
+  async afterReverse(doc, tx) {
+    const purpose = String(doc.data['stockEntryType'] ?? '');
+    if (tx?.manager) await applyToParentRequisition(doc, purpose, tx.manager, -1);
   },
 };

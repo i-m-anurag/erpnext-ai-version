@@ -11,6 +11,7 @@ import { registerFormControllers } from '../form-logic/index.js';
 import { masterService } from '../master/index.js';
 import { documentService } from '../document/document.service.js';
 import { documentDataService } from '../document/document-data.service.js';
+import { documentCancelService } from '../document/document-cancel.service.js';
 import { stockLedgerService } from './stock-ledger.service.js';
 
 /**
@@ -118,5 +119,25 @@ describe('Material Request fulfilment via Stock Entry (integration)', () => {
     const after = await documentDataService.getByCode('requisition', req.code);
     expect(after.state).toBe('Issued');
     expect(Number((after.data['items'] as Record<string, unknown>[])[0]!['issuedQty'])).toBe(12);
+  });
+
+  it('cancelling the fulfilling Stock Entry gives the quantity back and reopens the request', async () => {
+    await seedStock(50, 20);
+    const req = await masterService.createData('requisition', request('Material Issue'));
+    const next = await documentService.createNext('requisition', req.code, 'stock-entry', ADMIN);
+    const draft = await documentDataService.getByCode('stock-entry', next.code);
+    const se = await masterService.updateData('stock-entry', draft.id, {
+      ...draft.data, company: 'IQ-SMART',
+      items: [{ item: ITEM, quantity: 12, sourceWarehouse: WH, uom: 'EA' }],
+    });
+    expect((await documentDataService.getByCode('requisition', req.code)).state).toBe('Issued');
+
+    // cancel the Stock Entry — stock returns AND the request drops back to Pending
+    await documentCancelService.cancel('stock-entry', se.code, '2026-07-27');
+
+    expect((await stockLedgerService.balance(ITEM, WH)).qty.toNumber()).toBe(50); // 38 → 50 again
+    const reopened = await documentDataService.getByCode('requisition', req.code);
+    expect(reopened.state).toBe('Pending');
+    expect(Number((reopened.data['items'] as Record<string, unknown>[])[0]!['issuedQty'])).toBe(0);
   });
 });
