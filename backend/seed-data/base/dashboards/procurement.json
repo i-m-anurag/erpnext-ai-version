@@ -1,0 +1,24 @@
+{
+  "slug": "procurement",
+  "widgets": [
+    { "type": "stat", "title": "Requisitions", "span": 1, "source": { "kind": "count", "master": "requisition" } },
+    {
+      "type": "stat", "title": "Purchase orders", "span": 1,
+      "source": { "kind": "count", "master": "purchase-order", "dateField": "poDate" }
+    },
+    { "type": "stat", "title": "Receipts", "span": 1, "source": { "kind": "count", "master": "purchase-receipt" } },
+    { "type": "stat", "title": "Invoices", "span": 1, "source": { "kind": "count", "master": "purchase-invoice" } },
+    {
+      "type": "chart", "title": "Purchase orders by vendor", "span": 2, "chart": "bar",
+      "source": { "kind": "groupCount", "master": "purchase-order", "groupBy": "vendor" }
+    },
+    {
+      "type": "chart", "title": "Requests by purpose", "span": 2, "chart": "pie",
+      "source": { "kind": "groupCount", "master": "requisition", "groupBy": "materialRequestType" }
+    },
+    {
+      "type": "table", "title": "Recent purchase orders", "span": 4,
+      "source": { "kind": "recent", "master": "purchase-order", "limit": 8, "columns": ["vendor", "poDate"] }
+    }
+  ]
+}

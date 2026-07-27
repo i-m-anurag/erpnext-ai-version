@@ -1,0 +1,24 @@
+{
+  "slug": "finance",
+  "widgets": [
+    {
+      "type": "stat", "title": "Purchase invoices", "span": 1,
+      "source": { "kind": "count", "master": "purchase-invoice", "dateField": "date" }
+    },
+    { "type": "stat", "title": "Payments", "span": 1, "source": { "kind": "count", "master": "payment-entry", "dateField": "date" } },
+    { "type": "stat", "title": "Journal entries", "span": 1, "source": { "kind": "count", "master": "journal-entry" } },
+    { "type": "stat", "title": "Suppliers", "span": 1, "source": { "kind": "count", "master": "supplier" } },
+    {
+      "type": "chart", "title": "Payments by type", "span": 2, "chart": "pie",
+      "source": { "kind": "groupCount", "master": "payment-entry", "groupBy": "paymentType" }
+    },
+    {
+      "type": "chart", "title": "Invoices (last 30 days)", "span": 2, "chart": "line",
+      "source": { "kind": "timeSeries", "master": "purchase-invoice", "dateField": "date", "bucket": "day", "periods": 30 }
+    },
+    {
+      "type": "table", "title": "Recent payments", "span": 4,
+      "source": { "kind": "recent", "master": "payment-entry", "limit": 8, "columns": ["party", "paymentType", "amount", "date"] }
+    }
+  ]
+}

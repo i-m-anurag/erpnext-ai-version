@@ -15,7 +15,7 @@
     },
     {
       "type": "table", "title": "Recent purchase receipts", "span": 4,
-      "source": { "kind": "recent", "master": "purchase-receipt", "limit": 8, "columns": ["prNumber", "supplier", "date"] }
+      "source": { "kind": "recent", "master": "purchase-receipt", "limit": 8, "columns": ["supplier", "date"] }
     }
   ]
 }
