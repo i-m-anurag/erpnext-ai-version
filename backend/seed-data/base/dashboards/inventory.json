@@ -1,0 +1,21 @@
+{
+  "slug": "inventory",
+  "widgets": [
+    { "type": "stat", "title": "Items", "span": 1, "source": { "kind": "count", "master": "item" } },
+    { "type": "stat", "title": "Stock entries", "span": 1, "source": { "kind": "count", "master": "stock-entry" } },
+    { "type": "stat", "title": "Purchase receipts", "span": 1, "source": { "kind": "count", "master": "purchase-receipt" } },
+    { "type": "stat", "title": "Warehouses", "span": 1, "source": { "kind": "count", "master": "warehouse" } },
+    {
+      "type": "chart", "title": "Receipts by supplier", "span": 2, "chart": "bar",
+      "source": { "kind": "groupCount", "master": "purchase-receipt", "groupBy": "supplier", "limit": 8 }
+    },
+    {
+      "type": "chart", "title": "Stock entries (last 30 days)", "span": 2, "chart": "line",
+      "source": { "kind": "timeSeries", "master": "stock-entry", "dateField": "date", "bucket": "day", "periods": 30 }
+    },
+    {
+      "type": "table", "title": "Recent purchase receipts", "span": 4,
+      "source": { "kind": "recent", "master": "purchase-receipt", "limit": 8, "columns": ["prNumber", "supplier", "date"] }
+    }
+  ]
+}
