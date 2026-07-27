@@ -4,6 +4,7 @@ import { AgGridAngular } from 'ag-grid-angular';
 import { type CellClickedEvent, type ColDef, type ValueFormatterParams, themeQuartz } from 'ag-grid-community';
 import { StockApiService, type StockLedgerRow } from '../../core/api/stock.api.service';
 import { routeForMaster } from '../../core/config/view-configs';
+import { formatDateTime } from '../../core/util/format';
 
 function inr(v: unknown): string {
   const n = Number(v);
@@ -43,9 +44,8 @@ export class StockLedgerComponent {
   protected readonly defaultColDef: ColDef = { sortable: true, filter: true, resizable: true, flex: 1 };
   protected readonly colDefs: ColDef<StockLedgerRow>[] = [
     {
-      headerName: 'Date', field: 'postingDate', minWidth: 130,
-      valueFormatter: (p: ValueFormatterParams) =>
-        p.value ? new Date(String(p.value)).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+      headerName: 'Date', field: 'postingDate', minWidth: 160,
+      valueFormatter: (p: ValueFormatterParams) => formatDateTime(p.value),
     },
     { headerName: 'Item', field: 'itemCode', minWidth: 140 },
     { headerName: 'Warehouse', field: 'warehouse', minWidth: 140 },

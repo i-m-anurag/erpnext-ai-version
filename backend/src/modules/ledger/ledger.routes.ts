@@ -22,6 +22,12 @@ export function buildLedgerRouter(): Router {
     res.json(await ledgerReportService.generalLedger(account, from, to));
   }));
 
+  router.get('/day-book', asyncHandler(async (req: Request, res: Response) => {
+    const from = req.query.from ? String(req.query.from) : undefined;
+    const to = req.query.to ? String(req.query.to) : undefined;
+    res.json(await ledgerReportService.dayBook(from, to));
+  }));
+
   router.get('/trial-balance', asyncHandler(async (_req: Request, res: Response) => {
     res.json(await ledgerReportService.trialBalance());
   }));

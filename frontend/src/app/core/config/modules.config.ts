@@ -19,7 +19,15 @@ export interface ErpModule {
   subModules: SubModule[];
 }
 
-export const MODULES: ErpModule[] = [
+/**
+ * Modules shown in the launcher and navigation. The others below are defined but not
+ * yet functional, so they're hidden until their backends land — flip a slug into this
+ * set to bring one back. `findModule` still resolves every definition, so a bookmarked
+ * URL to a hidden module won't crash.
+ */
+const ENABLED_MODULE_SLUGS = new Set(['inventory', 'finance', 'procurement', 'admin']);
+
+const ALL_MODULES: ErpModule[] = [
   {
     slug: 'hr',
     name: 'HR',
@@ -180,6 +188,10 @@ export const MODULES: ErpModule[] = [
   },
 ];
 
+/** Modules to show in the launcher + navigation (enabled only). */
+export const MODULES: ErpModule[] = ALL_MODULES.filter((m) => ENABLED_MODULE_SLUGS.has(m.slug));
+
+/** Resolve any module by slug — including hidden ones, so a direct URL still works. */
 export function findModule(slug: string): ErpModule | undefined {
-  return MODULES.find((m) => m.slug === slug);
+  return ALL_MODULES.find((m) => m.slug === slug);
 }

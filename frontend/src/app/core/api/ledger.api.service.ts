@@ -12,6 +12,18 @@ export interface GlReportRow {
   credit: string;
   balance: string;
 }
+export interface DayBookRow {
+  postingDate: string;
+  account: string;
+  accountName: string;
+  voucherType: string;
+  voucherNo: string;
+  party: string | null;
+  against: string | null;
+  debit: string;
+  credit: string;
+}
+
 export interface GeneralLedger {
   rows: GlReportRow[];
   opening: string;
@@ -41,6 +53,14 @@ export class LedgerApiService {
     if (from) url += `&from=${encodeURIComponent(from)}`;
     if (to) url += `&to=${encodeURIComponent(to)}`;
     return this.http.get<GeneralLedger>(url);
+  }
+
+  /** Every posting across all accounts for a date range (no account filter). */
+  dayBook(from?: string, to?: string): Observable<{ rows: DayBookRow[] }> {
+    const qs = [from ? `from=${encodeURIComponent(from)}` : '', to ? `to=${encodeURIComponent(to)}` : '']
+      .filter(Boolean)
+      .join('&');
+    return this.http.get<{ rows: DayBookRow[] }>(`/api/ledger/day-book${qs ? '?' + qs : ''}`);
   }
 
   trialBalance(): Observable<TrialBalance> {

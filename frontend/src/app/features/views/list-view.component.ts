@@ -4,6 +4,7 @@ import { AgGridAngular } from 'ag-grid-angular';
 import { type ColDef, type RowClickedEvent, themeQuartz } from 'ag-grid-community';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
 import type { ListColumn, ResolvedView } from '../../core/config/view-configs';
+import { badgeHtml, formatDateTime, lifecycleTone, stateTone } from '../../core/util/format';
 
 /** Maps a value to a status-chip class (mock heuristic). */
 function chipClass(value: unknown): string {
@@ -12,6 +13,11 @@ function chipClass(value: unknown): string {
   if (['pending', 'draft', 'inactive', 'on hold'].includes(v)) return 'iq-chip--warn';
   return 'iq-chip--info';
 }
+
+/** Row keys holding the master-row lifecycle status and business state (set by the
+ *  resolver, prefixed so they can't collide with a form field named status/state). */
+const ROW_STATUS = '__rowStatus';
+const ROW_STATE = '__rowState';
 
 /**
  * Generic List/Table view. Resolves a ViewConfig for the given module/sub from
@@ -78,17 +84,35 @@ export class ListViewComponent {
     });
   }
 
-  protected readonly colDefs = computed<ColDef[]>(() =>
-    (this.config()?.columns ?? []).map((c: ListColumn) => {
+  protected readonly colDefs = computed<ColDef[]>(() => {
+    const cfg = this.config();
+    const cols: ColDef[] = (cfg?.columns ?? []).map((c: ListColumn) => {
       const def: ColDef = { headerName: c.label, field: c.key, flex: 1, sortable: true, filter: true, resizable: true };
       if (c.kind === 'mono') def.cellClass = 'iq-mono';
+      if (c.kind === 'date') { def.valueFormatter = (p) => formatDateTime(p.value); def.minWidth = 175; }
       if (c.kind === 'chip') {
         def.cellRenderer = (p: { value: unknown }) =>
           `<span class="iq-chip ${chipClass(p.value)}">${p.value ?? ''}</span>`;
       }
       return def;
-    }),
-  );
+    });
+
+    // Status + state badges, appended for backend-backed views (mocks have neither).
+    // State only when at least one row carries one — masters have no business state.
+    if (cfg?.backed) {
+      cols.push({
+        headerName: 'Status', field: ROW_STATUS, minWidth: 120, sortable: true, filter: true, resizable: true,
+        cellRenderer: (p: { value: unknown }) => badgeHtml(p.value, lifecycleTone(p.value)),
+      });
+      if ((cfg.rows ?? []).some((r) => (r as Record<string, unknown>)[ROW_STATE])) {
+        cols.push({
+          headerName: 'State', field: ROW_STATE, minWidth: 130, sortable: true, filter: true, resizable: true,
+          cellRenderer: (p: { value: unknown }) => badgeHtml(p.value, stateTone(p.value)),
+        });
+      }
+    }
+    return cols;
+  });
 
   protected open(e: RowClickedEvent): void {
     const cfg = this.config();

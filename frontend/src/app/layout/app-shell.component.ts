@@ -18,11 +18,17 @@ import { findModule, MODULES } from '../core/config/modules.config';
   selector: 'erp-app-shell',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <div class="erp-shell">
+    <div class="erp-shell" [class.is-collapsed]="collapsed()">
       <aside class="erp-sidebar">
         <div class="erp-sidebar__brand">
           <img [src]="branding.logoUrl()" [alt]="branding.productName()" height="26" />
           <span>{{ branding.productName() }}</span>
+          <button
+            type="button" class="erp-sidebar__toggle" (click)="toggleCollapse()"
+            [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+          >
+            <i class="ph" [class.ph-sidebar-simple]="!collapsed()" [class.ph-sidebar]="collapsed()"></i>
+          </button>
         </div>
 
         <nav class="erp-sidebar__nav">
@@ -88,6 +94,14 @@ export class AppShellComponent {
   protected readonly modules = MODULES;
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+
+  /** Sidebar collapse — persisted so it sticks across navigations and reloads. */
+  protected readonly collapsed = signal<boolean>(localStorage.getItem('erp.sidebarCollapsed') === '1');
+  protected toggleCollapse(): void {
+    const next = !this.collapsed();
+    this.collapsed.set(next);
+    localStorage.setItem('erp.sidebarCollapsed', next ? '1' : '0');
+  }
 
   private readonly url = signal(this.router.url);
   protected readonly activeModule = computed(() => {
