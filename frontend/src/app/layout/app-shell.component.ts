@@ -42,8 +42,7 @@ import { findModule, MODULES } from '../core/config/modules.config';
               <span>{{ mod.name }}</span>
             </div>
             @for (s of mod.subModules; track s.slug) {
-              <a class="erp-sidebar__link" [routerLink]="['/app/m', mod.slug, s.slug]" routerLinkActive="active"
-                 [title]="collapsed() ? s.name : null">
+              <a class="erp-sidebar__link" [routerLink]="['/app/m', mod.slug, s.slug]" routerLinkActive="active">
                 <i class="ph {{ s.icon }} erp-sidebar__icon"></i><span>{{ s.name }}</span>
               </a>
             }
@@ -51,13 +50,12 @@ import { findModule, MODULES } from '../core/config/modules.config';
           } @else {
             <!-- home: module list -->
             <a class="erp-sidebar__link" routerLink="/app/dashboard" routerLinkActive="active"
-               [routerLinkActiveOptions]="{ exact: true }" [title]="collapsed() ? 'Home' : null">
+               [routerLinkActiveOptions]="{ exact: true }">
               <i class="ph ph-house erp-sidebar__icon"></i><span>Home</span>
             </a>
             <div class="erp-sidebar__group">Modules</div>
             @for (m of modules; track m.slug) {
-              <a class="erp-sidebar__link" [routerLink]="['/app/m', m.slug]" routerLinkActive="active"
-                 [title]="collapsed() ? m.name : null">
+              <a class="erp-sidebar__link" [routerLink]="['/app/m', m.slug]" routerLinkActive="active">
                 <i class="ph {{ m.icon }} erp-sidebar__icon"></i><span>{{ m.name }}</span>
               </a>
             }

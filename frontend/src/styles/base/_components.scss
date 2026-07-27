@@ -144,22 +144,48 @@ body {
   padding: $erp-space-5;
 }
 
-/* ── Collapsed sidebar: icons only, labels hidden ───────────────────────────── */
+/* ── Collapsed sidebar: icons only, labels become hover tooltips ────────────── */
 .erp-shell.is-collapsed {
-  .erp-sidebar { width: 64px; }
+  // Overflow must be visible so the hover tooltip can escape the 64px rail; the
+  // collapsed nav is short, so we don't need the scroll here.
+  .erp-sidebar { width: 64px; overflow: visible; }
   .erp-sidebar__brand { padding: 0; justify-content: center; }
   .erp-sidebar__brand img,
   .erp-sidebar__brand > span,
-  .erp-sidebar__link > span,
-  .erp-sidebar__back > span,
   .erp-sidebar__module > span,
-  .erp-sidebar__ai > span,
   .erp-sidebar__group { display: none; }
   .erp-sidebar__link,
   .erp-sidebar__back,
   .erp-sidebar__module,
-  .erp-sidebar__ai { justify-content: center; }
+  .erp-sidebar__ai { justify-content: center; position: relative; }
   .erp-sidebar__toggle { margin: 0; }
+
+  // Hide each label, then reveal it as a floating pill to the right on hover.
+  .erp-sidebar__link > span,
+  .erp-sidebar__back > span,
+  .erp-sidebar__ai > span {
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    display: block;
+    padding: 4px 10px;
+    background: #1e293b;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1.3;
+    white-space: nowrap;
+    border-radius: $erp-radius-sm;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 100;
+    transition: opacity 0.1s ease;
+  }
+  .erp-sidebar__link:hover > span,
+  .erp-sidebar__back:hover > span,
+  .erp-sidebar__ai:hover > span { opacity: 1; }
 }
 
 // ── Sidebar group label + topbar user/icon ──────────────────────────────────
