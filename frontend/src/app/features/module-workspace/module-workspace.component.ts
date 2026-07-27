@@ -49,17 +49,9 @@ interface Kpi {
             }
           </div>
 
-          <div class="iq-mod__grid">
-            <div class="erp-card p-3">
-              <div class="fw-semibold mb-2">Activity trend</div>
-              <div class="iq-chart-placeholder">Chart placeholder</div>
-            </div>
-            <div class="erp-card p-3 iq-ai-panel">
-              <div class="iq-ai-panel__head"><i class="ph ph-sparkle"></i> AI Insights</div>
-              @for (ins of insights; track ins) {
-                <div class="iq-ai-panel__item"><i class="ph ph-lightbulb"></i><span>{{ ins }}</span></div>
-              }
-            </div>
+          <div class="erp-card p-3">
+            <div class="fw-semibold mb-2">Activity trend</div>
+            <div class="iq-chart-placeholder">Chart placeholder</div>
           </div>
 
           <div class="erp-card p-0 mt-3">
@@ -110,11 +102,6 @@ export class ModuleWorkspaceComponent {
     { label: 'Open items', value: '86', delta: '+12', up: true },
     { label: 'Pending approval', value: '7', delta: '-2', up: false },
     { label: 'This month', value: '₹4.2L', delta: '+8%', up: true },
-  ];
-  protected readonly insights = [
-    'Reorder 5 SKUs predicted to stock out in 14 days',
-    'Slow-moving stock detected in Warehouse B',
-    '3 transfers pending over SLA',
   ];
   protected readonly rows = [
     { date: '2026-06-07', ref: 'PO-2026-0042', desc: 'Purchase order created', status: 'Pending', statusClass: 'iq-chip--warn' },

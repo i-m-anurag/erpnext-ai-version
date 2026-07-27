@@ -14,6 +14,19 @@ export interface GlReportRow {
   balance: string;
 }
 
+/** One line of the Day Book — every posting across all accounts, no running balance. */
+export interface DayBookRow {
+  postingDate: string;
+  account: string;
+  accountName: string;
+  voucherType: string;
+  voucherNo: string;
+  party: string | null;
+  against: string | null;
+  debit: string;
+  credit: string;
+}
+
 /** One line of the Trial Balance — a leaf account's total debits and credits. */
 export interface TrialBalanceRow {
   account: string;
@@ -116,6 +129,43 @@ export class LedgerReportService {
       };
     });
     return { rows: mapped, opening: opening.toFixed(6), closing: bal.toFixed(6) };
+  }
+
+  /**
+   * Day Book — every posting across all accounts in a date range, newest first, with no
+   * account filter and no running balance. This is the "show me everything" ledger view;
+   * the account-scoped running balance lives in generalLedger above.
+   */
+  async dayBook(from?: string, to?: string): Promise<{ rows: DayBookRow[] }> {
+    const conds: string[] = [];
+    const params: unknown[] = [];
+    if (from) { params.push(from); conds.push(`g.posting_date::date >= $${params.length}`); }
+    if (to) { params.push(to); conds.push(`g.posting_date::date <= $${params.length}`); }
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+
+    const rows = (await AppDataSource.query(
+      `SELECT g.posting_date, g.account, a.name AS account_name, g.voucher_type, g.voucher_no,
+              g.party, g.against, g.debit, g.credit
+         FROM gl_entry g
+         LEFT JOIN account a ON a.code = g.account
+         ${where}
+        ORDER BY g.seq DESC`,
+      params,
+    )) as Record<string, unknown>[];
+
+    return {
+      rows: rows.map((r) => ({
+        postingDate: String(r.posting_date),
+        account: String(r.account),
+        accountName: (r.account_name as string) ?? String(r.account),
+        voucherType: String(r.voucher_type),
+        voucherNo: String(r.voucher_no),
+        party: (r.party as string) ?? null,
+        against: (r.against as string) ?? null,
+        debit: String(r.debit),
+        credit: String(r.credit),
+      })),
+    };
   }
 
   /** Trial Balance: per-account debit/credit totals + the grand totals (which must match). */

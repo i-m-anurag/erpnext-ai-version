@@ -51,7 +51,9 @@ export class ViewResolverService {
       idKey,
       form,
       columns: this.listColumns(form, idKey),
-      rows: rows.map((r) => ({ ...r.data })),
+      // Surface the master-row lifecycle status + business state alongside the form
+      // data, under reserved keys so they can't collide with a field named status/state.
+      rows: rows.map((r) => ({ ...r.data, __rowStatus: r.status, __rowState: r.state ?? '' })),
       panels: meta?.panels ?? { timeline: true, comments: true },
       workflow: meta?.workflow,
       backed: true,

@@ -3,6 +3,7 @@ import { AgGridAngular } from 'ag-grid-angular';
 import { type ColDef, type ICellRendererParams, themeQuartz } from 'ag-grid-community';
 import { FiscalYearApiService, type FiscalYear } from '../../core/api/fiscal-year.api.service';
 import { NotificationService } from '../../core/notify/notification.service';
+import { formatDateTime } from '../../core/util/format';
 
 /**
  * Fiscal Years — list the accounting years and close one. Closing posts a balanced
@@ -35,8 +36,8 @@ export class FiscalYearComponent {
   protected readonly colDefs: ColDef<FiscalYear>[] = [
     { headerName: 'Fiscal Year', field: 'name', minWidth: 140,
       cellRenderer: (p: ICellRendererParams<FiscalYear>) => `${p.value}${p.data?.isDefault ? ' <span style="color:var(--erp-text-muted);font-size:11px">· default</span>' : ''}` },
-    { headerName: 'Start', field: 'startDate', minWidth: 120 },
-    { headerName: 'End', field: 'endDate', minWidth: 120 },
+    { headerName: 'Start', field: 'startDate', minWidth: 160, valueFormatter: (p) => formatDateTime(p.value) },
+    { headerName: 'End', field: 'endDate', minWidth: 160, valueFormatter: (p) => formatDateTime(p.value) },
     {
       headerName: 'Status', field: 'closed', minWidth: 110,
       cellRenderer: (p: ICellRendererParams<FiscalYear>) =>

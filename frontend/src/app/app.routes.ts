@@ -121,6 +121,13 @@ export const routes: Routes = [
               import('./features/inventory/stock-ledger.component').then((m) => m.StockLedgerComponent),
           },
           {
+            // Warehouses ARE the warehouse master — reuse the master browser rather than
+            // maintain a separate mock, so Inventory and Admin edit the same records.
+            path: 'warehouses',
+            data: { slug: 'warehouse' },
+            loadComponent: () => import('./features/masters/master-detail.component').then((m) => m.MasterDetailComponent),
+          },
+          {
             path: ':sub/:id',
             data: { slug: 'inventory' },
             loadComponent: () => import('./features/views/record-view.component').then((m) => m.RecordViewComponent),

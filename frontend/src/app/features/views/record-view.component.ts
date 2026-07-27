@@ -93,6 +93,11 @@ const KIND_ICON: Record<TimelineKind, string> = {
             @if (a.icon) { <i class="ph {{ a.icon }}"></i> } {{ a.label }}
           </button>
         }
+        <button class="iq-record__rail-toggle ms-auto" (click)="toggleRail()"
+                [attr.aria-label]="railOpen() ? 'Hide side panel' : 'Show side panel'">
+          <i class="ph" [class.ph-sidebar]="railOpen()" [class.ph-sidebar-simple]="!railOpen()"></i>
+          {{ railOpen() ? 'Hide panel' : 'Show panel' }}
+        </button>
       </div>
     }
 
@@ -124,7 +129,7 @@ const KIND_ICON: Record<TimelineKind, string> = {
       }
     }
 
-    <div class="iq-record">
+    <div class="iq-record" [class.iq-record--full]="!railOpen()">
       <div class="iq-record__main erp-card p-4">
         @if (group(); as g) {
           <erp-dynamic-form [config]="cfg.form" [group]="g" />
@@ -257,12 +262,6 @@ const KIND_ICON: Record<TimelineKind, string> = {
     }
   `,
   styles: [`
-    .iq-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 500;
-      background: var(--erp-surface-alt); border: 1px solid var(--erp-border); color: var(--erp-text); }
-    .iq-badge--info { background: #e0f2fe; border-color: #7dd3fc; color: #075985; }
-    .iq-badge--success { background: #dcfce7; border-color: #86efac; color: #166534; }
-    .iq-badge--warn { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
-    .iq-badge--danger { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
     .btn-xs { padding: 2px 8px; font-size: 0.75rem; line-height: 1.3; }
     .iq-gl { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
     .iq-gl th { text-align: left; font-weight: 500; color: var(--erp-text-muted); padding: 2px 0; font-size: 0.72rem; text-transform: uppercase; }
@@ -311,6 +310,14 @@ export class RecordViewComponent {
   /** The full record (incl. line-items) for the edit form. The list payload omits
    *  children for speed, so an existing record is loaded on its own here. */
   private readonly recordRow = signal<Record<string, unknown> | undefined>(undefined);
+  /** Side-panel (info rail) open state — persisted, so a full-width form choice sticks. */
+  protected readonly railOpen = signal<boolean>(localStorage.getItem('erp.recordRailOpen') !== '0');
+  protected toggleRail(): void {
+    const next = !this.railOpen();
+    this.railOpen.set(next);
+    localStorage.setItem('erp.recordRailOpen', next ? '1' : '0');
+  }
+
   /** Lifecycle status + business state of the loaded record (always shown in the header). */
   protected readonly recordStatus = signal<string | undefined>(undefined);
   protected readonly recordState = signal<string | null>(null);
