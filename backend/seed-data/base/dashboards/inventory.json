@@ -1,10 +1,16 @@
 {
   "slug": "inventory",
   "widgets": [
-    { "type": "stat", "title": "Items", "span": 1, "source": { "kind": "count", "master": "item" } },
-    { "type": "stat", "title": "Stock entries", "span": 1, "source": { "kind": "count", "master": "stock-entry" } },
-    { "type": "stat", "title": "Purchase receipts", "span": 1, "source": { "kind": "count", "master": "purchase-receipt" } },
-    { "type": "stat", "title": "Warehouses", "span": 1, "source": { "kind": "count", "master": "warehouse" } },
+    { "type": "stat", "title": "Items", "span": 1, "icon": "ph-cube", "tone": "accent", "source": { "kind": "count", "master": "item" } },
+    {
+      "type": "stat", "title": "Stock entries", "span": 1, "icon": "ph-clipboard-text", "tone": "info",
+      "source": { "kind": "count", "master": "stock-entry", "dateField": "date" }
+    },
+    {
+      "type": "stat", "title": "Purchase receipts", "span": 1, "icon": "ph-package", "tone": "success",
+      "source": { "kind": "count", "master": "purchase-receipt", "dateField": "date" }
+    },
+    { "type": "stat", "title": "Warehouses", "span": 1, "icon": "ph-warehouse", "tone": "warning", "source": { "kind": "count", "master": "warehouse" } },
     {
       "type": "chart", "title": "Receipts by supplier", "span": 2, "chart": "bar",
       "source": { "kind": "groupCount", "master": "purchase-receipt", "groupBy": "supplier", "limit": 8 }

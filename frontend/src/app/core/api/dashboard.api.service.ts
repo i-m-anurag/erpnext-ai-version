@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import type { Observable } from 'rxjs';
 
-export interface StatData { value: number; delta?: number }
+export interface StatData { value: number; delta?: number; spark?: number[] }
 export interface SeriesPoint { label: string; value: number }
 export interface SeriesData { points: SeriesPoint[] }
 export interface TableData { columns: string[]; rows: Record<string, unknown>[] }
@@ -12,6 +12,10 @@ export interface DashboardWidget {
   title: string;
   span: number;
   chart?: 'bar' | 'line' | 'pie';
+  icon?: string;
+  tone?: 'accent' | 'success' | 'warning' | 'danger' | 'info';
+  /** The metric's target master, echoed back so a stat card can drill into its list. */
+  source?: { master?: string };
   data: StatData | SeriesData | TableData | null;
   error?: string;
 }

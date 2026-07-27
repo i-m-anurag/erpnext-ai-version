@@ -52,6 +52,10 @@ export const dashboardWidgetSchema = z.object({
   span: z.number().int().min(1).max(4).default(1),
   /** Chart flavour — required (and only used) when type = 'chart'. */
   chart: z.enum(['bar', 'line', 'pie']).optional(),
+  /** Phosphor icon class for a stat card, e.g. "ph-cube". */
+  icon: z.string().optional(),
+  /** Accent colour for a stat card's icon + sparkline. */
+  tone: z.enum(['accent', 'success', 'warning', 'danger', 'info']).default('accent'),
   source: metricSourceSchema,
 });
 

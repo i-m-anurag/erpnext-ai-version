@@ -6,7 +6,7 @@ import { BadRequestError, NotFoundError } from '../../shared/errors.js';
 import type { MetricSource } from './dashboard.schema.js';
 
 /** Widget data shapes the frontend renders. */
-export interface StatData { value: number; delta?: number }
+export interface StatData { value: number; delta?: number; spark?: number[] }
 export interface SeriesData { points: { label: string; value: number }[] }
 export interface TableData { columns: string[]; rows: Record<string, unknown>[] }
 export type WidgetData = StatData | SeriesData | TableData;
@@ -106,25 +106,46 @@ export class MetricsService {
     )) as { n: number }[];
     const value = Number(row?.n ?? 0);
 
-    // Momentum delta: new rows in the last 30 days vs the 30 before, as a %.
+    if (!s.dateField) return { value };
+
+    // With a date field, add the momentum delta (last 30 days vs the 30 before) and a
+    // 14-day daily spark series, so the card shows a trend, not just a number.
+    const dExpr = `(${this.fieldExpr(r, s.dateField)})::timestamptz`;
+    const [d] = (await AppDataSource.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE ${dExpr} >= now() - interval '30 days')::int AS cur,
+         COUNT(*) FILTER (WHERE ${dExpr} >= now() - interval '60 days'
+                            AND ${dExpr} < now() - interval '30 days')::int AS prev
+       FROM ${r.table} WHERE ${where}${filter}`,
+      [...params],
+    )) as { cur: number; prev: number }[];
+    const cur = Number(d?.cur ?? 0);
+    const prev = Number(d?.prev ?? 0);
     let delta: number | undefined;
-    if (s.dateField) {
-      const dExpr = `(${this.fieldExpr(r, s.dateField)})::timestamptz`;
-      const dp = [...params];
-      const [d] = (await AppDataSource.query(
-        `SELECT
-           COUNT(*) FILTER (WHERE ${dExpr} >= now() - interval '30 days')::int AS cur,
-           COUNT(*) FILTER (WHERE ${dExpr} >= now() - interval '60 days'
-                              AND ${dExpr} < now() - interval '30 days')::int AS prev
-         FROM ${r.table} WHERE ${where}${filter}`,
-        dp,
-      )) as { cur: number; prev: number }[];
-      const cur = Number(d?.cur ?? 0);
-      const prev = Number(d?.prev ?? 0);
-      if (prev > 0) delta = Math.round(((cur - prev) / prev) * 1000) / 10;
-      else if (cur > 0) delta = 100;
-    }
-    return delta === undefined ? { value } : { value, delta };
+    if (prev > 0) delta = Math.round(((cur - prev) / prev) * 1000) / 10;
+    else if (cur > 0) delta = 100;
+
+    // Zero-filled 14-day daily series. A CTE keeps the row-count query on its own
+    // table (natural column names, no join alias) and left-joins it onto the calendar.
+    const sparkRows = (await AppDataSource.query(
+      `WITH days AS (
+         SELECT generate_series(date_trunc('day', now()) - interval '13 days',
+                                date_trunc('day', now()), interval '1 day') AS d
+       ),
+       hits AS (
+         SELECT date_trunc('day', ${dExpr}) AS d, COUNT(*)::int AS n
+           FROM ${r.table}
+          WHERE ${where}${filter} AND ${dExpr} >= date_trunc('day', now()) - interval '13 days'
+          GROUP BY 1
+       )
+       SELECT COALESCE(hits.n, 0)::int AS n
+         FROM days LEFT JOIN hits ON hits.d = days.d
+        ORDER BY days.d`,
+      [...params],
+    )) as { n: number }[];
+    const spark = sparkRows.map((x) => Number(x.n));
+
+    return { value, ...(delta === undefined ? {} : { delta }), spark };
   }
 
   private async groupCount(r: Resolved, s: Extract<MetricSource, { kind: 'groupCount' }>): Promise<SeriesData> {
