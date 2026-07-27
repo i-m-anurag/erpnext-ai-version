@@ -37,10 +37,14 @@ const today = (): string => {
       </div>
       <div class="d-flex align-items-end gap-3 flex-wrap">
         <div>
-          <label class="erp-field__label form-label">Date</label>
-          <input type="date" class="form-control form-control-sm" [(ngModel)]="date" (ngModelChange)="load()" />
+          <label class="erp-field__label form-label">From</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="from" [max]="to || null" (ngModelChange)="load()" />
         </div>
-        <button class="btn btn-sm btn-outline-secondary" (click)="clearDate()">All dates</button>
+        <div>
+          <label class="erp-field__label form-label">To</label>
+          <input type="date" class="form-control form-control-sm" [(ngModel)]="to" [min]="from || null" (ngModelChange)="load()" />
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" (click)="clearRange()">All dates</button>
       </div>
     </div>
 
@@ -60,7 +64,8 @@ export class GeneralLedgerComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  protected date = today();
+  protected from = today();
+  protected to = today();
   protected readonly theme = themeQuartz;
   protected readonly rows = signal<DayBookRow[]>([]);
   private readonly accountFilter = this.route.snapshot.queryParamMap.get('account') ?? '';
@@ -90,21 +95,21 @@ export class GeneralLedgerComponent {
 
   constructor() {
     // A CoA drill-down passes ?account=CODE — show that account's full history (all dates).
-    if (this.accountFilter) this.date = '';
+    if (this.accountFilter) { this.from = ''; this.to = ''; }
     this.load();
   }
 
-  /** Load every posting for the chosen date (or all dates when the date is cleared). */
+  /** Load every posting in the From–To range (either bound optional; both empty = all). */
   protected load(): void {
-    const d = this.date || undefined;
-    this.ledger.dayBook(d, d).subscribe({
+    this.ledger.dayBook(this.from || undefined, this.to || undefined).subscribe({
       next: (r) => this.rows.set(r.rows),
       error: () => this.rows.set([]),
     });
   }
 
-  protected clearDate(): void {
-    this.date = '';
+  protected clearRange(): void {
+    this.from = '';
+    this.to = '';
     this.load();
   }
 
