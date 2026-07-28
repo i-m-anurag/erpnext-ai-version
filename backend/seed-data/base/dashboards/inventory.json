@@ -12,16 +12,16 @@
     },
     { "type": "stat", "title": "Warehouses", "span": 1, "icon": "ph-warehouse", "tone": "warning", "source": { "kind": "count", "master": "warehouse" } },
     {
-      "type": "chart", "title": "Receipts by supplier", "span": 2, "chart": "bar",
-      "source": { "kind": "groupCount", "master": "purchase-receipt", "groupBy": "supplier", "limit": 8 }
+      "type": "chart", "title": "Items by category", "span": 2, "chart": "pie",
+      "source": { "kind": "groupCount", "master": "item", "groupBy": "category" }
     },
     {
-      "type": "chart", "title": "Stock entries (last 30 days)", "span": 2, "chart": "line",
-      "source": { "kind": "timeSeries", "master": "stock-entry", "dateField": "date", "bucket": "day", "periods": 30 }
+      "type": "chart", "title": "Stock movements by type", "span": 2, "chart": "bar",
+      "source": { "kind": "groupCount", "master": "stock-entry", "groupBy": "stockEntryType" }
     },
     {
-      "type": "table", "title": "Recent purchase receipts", "span": 4,
-      "source": { "kind": "recent", "master": "purchase-receipt", "limit": 8, "columns": ["supplier", "date"] }
+      "type": "table", "title": "Recent stock entries", "span": 4,
+      "source": { "kind": "recent", "master": "stock-entry", "limit": 8, "columns": ["stockEntryType", "date"] }
     }
   ]
 }
