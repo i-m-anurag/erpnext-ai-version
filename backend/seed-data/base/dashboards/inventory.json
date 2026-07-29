@@ -12,12 +12,12 @@
     },
     { "type": "stat", "title": "Warehouses", "span": 1, "icon": "ph-warehouse", "tone": "warning", "source": { "kind": "count", "master": "warehouse" } },
     {
-      "type": "chart", "title": "Items by category", "span": 2, "chart": "pie",
-      "source": { "kind": "groupCount", "master": "item", "groupBy": "category" }
-    },
-    {
       "type": "chart", "title": "Stock movements by type", "span": 2, "chart": "bar",
       "source": { "kind": "groupCount", "master": "stock-entry", "groupBy": "stockEntryType" }
+    },
+    {
+      "type": "chart", "title": "Items by category", "span": 2, "chart": "pie",
+      "source": { "kind": "groupCount", "master": "item", "groupBy": "category" }
     },
     {
       "type": "table", "title": "Recent stock entries", "span": 4,

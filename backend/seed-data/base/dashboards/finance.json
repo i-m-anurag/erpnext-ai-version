@@ -12,12 +12,12 @@
     { "type": "stat", "title": "Journal entries", "span": 1, "icon": "ph-notebook", "tone": "info", "source": { "kind": "count", "master": "journal-entry" } },
     { "type": "stat", "title": "Suppliers", "span": 1, "icon": "ph-storefront", "tone": "warning", "source": { "kind": "count", "master": "supplier" } },
     {
-      "type": "chart", "title": "Payments by type", "span": 2, "chart": "pie",
-      "source": { "kind": "groupCount", "master": "payment-entry", "groupBy": "paymentType" }
-    },
-    {
       "type": "chart", "title": "Invoices (last 30 days)", "span": 2, "chart": "line",
       "source": { "kind": "timeSeries", "master": "purchase-invoice", "dateField": "date", "bucket": "day", "periods": 30 }
+    },
+    {
+      "type": "chart", "title": "Payments by type", "span": 2, "chart": "pie",
+      "source": { "kind": "groupCount", "master": "payment-entry", "groupBy": "paymentType" }
     },
     {
       "type": "table", "title": "Recent payments", "span": 4,
