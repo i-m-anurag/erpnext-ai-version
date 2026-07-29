@@ -64,7 +64,13 @@ function niceDate(v: unknown): string {
     @if (loading()) {
       <div class="erp-card p-4 text-muted"><i class="ph ph-circle-notch"></i> Loading dashboard…</div>
     } @else if (widgets().length === 0) {
-      <div class="erp-card p-4 text-muted">No dashboard configured for this module yet.</div>
+      <div class="erp-card">
+        <div class="iq-empty tall">
+          <div class="iq-empty__icon"><i class="ph ph-squares-four"></i></div>
+          <div class="iq-empty__title">No dashboard configured</div>
+          <div class="iq-empty__sub">This module doesn’t have a dashboard layout yet.</div>
+        </div>
+      </div>
     } @else {
       <div class="iq-dash">
 
@@ -103,9 +109,19 @@ function niceDate(v: unknown): string {
             @for (w of charts(); track $index) {
               <div class="erp-card iq-cc">
                 <div class="iq-cc__title">{{ w.title }}</div>
-                @if (w.error) { <div class="text-muted small mt-2">{{ w.error }}</div> }
-                @else if (asSeries(w).points.length === 0) { <div class="text-muted small py-4 text-center">No data</div> }
-                @else { <erp-chart-widget [kind]="w.chart ?? 'bar'" [points]="asSeries(w).points" /> }
+                @if (w.error) {
+                  <div class="iq-empty error">
+                    <div class="iq-empty__icon"><i class="ph ph-warning-circle"></i></div>
+                    <div class="iq-empty__title">Couldn’t load this widget</div>
+                    <div class="iq-empty__sub">{{ w.error }}</div>
+                  </div>
+                } @else if (asSeries(w).points.length === 0) {
+                  <div class="iq-empty">
+                    <div class="iq-empty__icon"><i class="ph {{ chartIcon(w) }}"></i></div>
+                    <div class="iq-empty__title">Nothing to chart</div>
+                    <div class="iq-empty__sub">{{ rangeHint() }}</div>
+                  </div>
+                } @else { <erp-chart-widget [kind]="w.chart ?? 'bar'" [points]="asSeries(w).points" /> }
               </div>
             }
           </div>
@@ -118,7 +134,11 @@ function niceDate(v: unknown): string {
               @if (drill(w)) { <a class="iq-tc__all" (click)="open(w)">View all →</a> }
             </div>
             @if (asTable(w).rows.length === 0) {
-              <div class="p-3 text-muted small">No recent records.</div>
+              <div class="iq-empty pad">
+                <div class="iq-empty__icon"><i class="ph ph-tray"></i></div>
+                <div class="iq-empty__title">No records yet</div>
+                <div class="iq-empty__sub">{{ rangeHint() }}</div>
+              </div>
             } @else {
               <table class="iq-tbl">
                 <thead>
@@ -189,6 +209,17 @@ function niceDate(v: unknown): string {
     .iq-tbl tbody tr:last-child td { border-bottom: 0; }
     .iq-tbl .num { text-align: right; }
     .iq-tbl td.ref { font-family: var(--erp-font-mono, ui-monospace); color: #4f46e5; }
+
+    /* Empty / error states — icon in a soft disc, title, muted hint */
+    .iq-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 5px; min-height: 150px; padding: 20px; }
+    .iq-empty.pad { min-height: 128px; }
+    .iq-empty.tall { min-height: 220px; }
+    .iq-empty__icon { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: #f2f2f6; color: #a6a6b2; font-size: 22px; margin-bottom: 3px; }
+    .iq-empty__title { font: 600 13.5px system-ui, sans-serif; color: #45454d; }
+    .iq-empty__sub { font: 12.5px system-ui, sans-serif; color: #9a9aa4; max-width: 30ch; }
+    .iq-empty.error .iq-empty__icon { background: #fef2f2; color: #ef4444; }
+    .iq-empty.error .iq-empty__title { color: #b91c1c; }
+    .iq-empty.error .iq-empty__sub { color: #c05a5a; }
   `],
 })
 export class ModuleDashboardComponent {
@@ -216,6 +247,17 @@ export class ModuleDashboardComponent {
         error: () => { this.widgets.set([]); this.loading.set(false); },
       });
     });
+  }
+
+  /** Empty-state icon that echoes the chart type. */
+  protected chartIcon(w: DashboardWidget): string {
+    return { bar: 'ph-chart-bar', line: 'ph-chart-line-up', pie: 'ph-chart-pie-slice' }[w.chart ?? 'bar'];
+  }
+  /** Context hint for empty charts/tables: nudge toward a wider range when one is active. */
+  protected rangeHint(): string {
+    return this.range() === 'all'
+      ? 'Records will appear here once there’s activity.'
+      : 'No activity in the selected range — try “All”.';
   }
 
   protected asSeries(w: DashboardWidget): SeriesData { return (w.data as SeriesData) ?? { points: [] }; }
