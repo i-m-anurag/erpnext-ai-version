@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import type { Observable } from 'rxjs';
 
 export interface StatData { value: number; delta?: number; spark?: number[] }
@@ -30,7 +30,9 @@ export interface ResolvedDashboard {
 export class DashboardApiService {
   private readonly http = inject(HttpClient);
 
-  forModule(module: string): Observable<ResolvedDashboard> {
-    return this.http.get<ResolvedDashboard>(`/api/dashboards/${encodeURIComponent(module)}`);
+  /** `from` is an optional YYYY-MM-DD "since" bound for the date-range filter. */
+  forModule(module: string, from?: string): Observable<ResolvedDashboard> {
+    const params = from ? new HttpParams().set('from', from) : undefined;
+    return this.http.get<ResolvedDashboard>(`/api/dashboards/${encodeURIComponent(module)}`, { params });
   }
 }

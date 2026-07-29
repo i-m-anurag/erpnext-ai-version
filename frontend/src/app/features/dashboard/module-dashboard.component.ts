@@ -14,6 +14,35 @@ import { ChartWidgetComponent } from './chart-widget.component';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const AMOUNT_KEYS = new Set(['amount', 'grandtotal', 'total', 'value', 'paidamount']);
 
+/** The dashboard date-range presets. Each resolves to a "since" date (or none = all-time). */
+type RangeKey = '7d' | '30d' | '90d' | 'qtd' | 'ytd' | 'all';
+const RANGES: { key: RangeKey; label: string }[] = [
+  { key: '7d', label: '7D' },
+  { key: '30d', label: '30D' },
+  { key: '90d', label: '90D' },
+  { key: 'qtd', label: 'QTD' },
+  { key: 'ytd', label: 'YTD' },
+  { key: 'all', label: 'All' },
+];
+
+/** Local Date → "YYYY-MM-DD" (no timezone shift). */
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Preset → the "since" date the API filters from; undefined for all-time. */
+function sinceFor(key: RangeKey): string | undefined {
+  const now = new Date();
+  switch (key) {
+    case '7d': return ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7));
+    case '30d': return ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30));
+    case '90d': return ymd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90));
+    case 'qtd': return ymd(new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1));
+    case 'ytd': return ymd(new Date(now.getFullYear(), 0, 1));
+    case 'all': return undefined;
+  }
+}
+
 /** ISO date → "01 Aug 2026" (UTC, so a date-only value doesn't shift a timezone). */
 function niceDate(v: unknown): string {
   const s = String(v ?? '');
@@ -38,6 +67,15 @@ function niceDate(v: unknown): string {
       <div class="erp-card p-4 text-muted">No dashboard configured for this module yet.</div>
     } @else {
       <div class="iq-dash">
+
+        <div class="iq-toolbar">
+          <div class="iq-range" role="tablist" aria-label="Date range">
+            @for (r of ranges; track r.key) {
+              <button type="button" class="iq-range__btn" role="tab" [class.on]="range() === r.key"
+                      [attr.aria-selected]="range() === r.key" (click)="range.set(r.key)">{{ r.label }}</button>
+            }
+          </div>
+        </div>
 
         @if (stats().length) {
           <div class="iq-stats" [style.grid-template-columns]="'repeat(' + stats().length + ', minmax(0, 1fr))'">
@@ -109,6 +147,13 @@ function niceDate(v: unknown): string {
   styles: [`
     .iq-dash { display: flex; flex-direction: column; gap: 18px; }
 
+    /* Date-range segmented control */
+    .iq-toolbar { display: flex; justify-content: flex-end; }
+    .iq-range { display: inline-flex; background: var(--erp-surface, #fff); border: 1px solid #e5e5ea; border-radius: 9px; padding: 3px; gap: 2px; }
+    .iq-range__btn { border: 0; background: transparent; cursor: pointer; padding: 5px 12px; border-radius: 6px; font: 600 12px system-ui, sans-serif; color: #6b6b76; transition: background 0.12s ease, color 0.12s ease; }
+    .iq-range__btn:hover { color: #17171a; }
+    .iq-range__btn.on { background: #eef0ff; color: #4f46e5; }
+
     /* Joined stat row — one card, cells divided by borders */
     .iq-stats { display: grid; background: var(--erp-surface); border: 1px solid #e9e9ec; border-radius: 10px; }
     @media (max-width: 820px) { .iq-stats { grid-template-columns: repeat(2, 1fr) !important; } }
@@ -151,6 +196,9 @@ export class ModuleDashboardComponent {
   private readonly api = inject(DashboardApiService);
   private readonly router = inject(Router);
 
+  protected readonly ranges = RANGES;
+  protected readonly range = signal<RangeKey>('30d');
+
   protected readonly widgets = signal<DashboardWidget[]>([]);
   protected readonly loading = signal(true);
 
@@ -161,8 +209,9 @@ export class ModuleDashboardComponent {
   constructor() {
     effect(() => {
       const mod = this.module();
+      const from = sinceFor(this.range());
       this.loading.set(true);
-      this.api.forModule(mod).subscribe({
+      this.api.forModule(mod, from).subscribe({
         next: (d) => { this.widgets.set(d.widgets); this.loading.set(false); },
         error: () => { this.widgets.set([]); this.loading.set(false); },
       });

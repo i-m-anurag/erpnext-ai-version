@@ -23,6 +23,8 @@ export const metricSourceSchema = z.discriminatedUnion('kind', [
     kind: z.literal('groupCount'),
     master: z.string().min(1),
     groupBy: z.string().min(1),
+    /** Field the dashboard date range filters on; omit to always count all-time. */
+    dateField: z.string().optional(),
     limit: z.number().int().positive().max(50).default(8),
   }),
   // A time bucketed series → [{ label, value }] over a date field.

@@ -10,7 +10,7 @@
     { "type": "stat", "title": "Invoices", "span": 1, "icon": "ph-file-text", "tone": "warning", "source": { "kind": "count", "master": "purchase-invoice" } },
     {
       "type": "chart", "title": "Purchase orders by vendor", "span": 2, "chart": "bar",
-      "source": { "kind": "groupCount", "master": "purchase-order", "groupBy": "vendor" }
+      "source": { "kind": "groupCount", "master": "purchase-order", "groupBy": "vendor", "dateField": "poDate" }
     },
     {
       "type": "chart", "title": "Requests by purpose", "span": 2, "chart": "pie",

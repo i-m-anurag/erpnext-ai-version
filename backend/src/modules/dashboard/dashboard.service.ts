@@ -20,7 +20,7 @@ export interface ResolvedDashboard {
  * failing the entire dashboard, so one bad config line can't blank the page.
  */
 export const dashboardService = {
-  async forModule(module: string): Promise<ResolvedDashboard> {
+  async forModule(module: string, from?: string): Promise<ResolvedDashboard> {
     // No dashboard configured for this module → an empty board, not an error.
     const resolved = await configResolver
       .resolve<Dashboard>(MODULE_DASHBOARD_RESOURCE_TYPE, module)
@@ -30,7 +30,7 @@ export const dashboardService = {
     const widgets = await Promise.all(
       definition.widgets.map(async (w): Promise<ResolvedWidget> => {
         try {
-          return { ...w, data: await metricsService.resolveSource(w.source) };
+          return { ...w, data: await metricsService.resolveSource(w.source, from) };
         } catch (err) {
           return { ...w, data: null, error: err instanceof Error ? err.message : 'failed to resolve' };
         }

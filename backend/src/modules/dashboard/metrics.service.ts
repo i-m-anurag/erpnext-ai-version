@@ -14,6 +14,7 @@ export type WidgetData = StatData | SeriesData | TableData;
 /** Columns the engine treats as real columns on BOTH master_data and doc tables. */
 const COMMON_COLUMNS = new Set(['status', 'state', 'code', 'createdAt', 'updatedAt']);
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 interface Resolved {
   slug: string;
@@ -83,26 +84,43 @@ export class MetricsService {
     return parts.length ? ` AND ${parts.join(' AND ')}` : '';
   }
 
-  async resolveSource(source: MetricSource): Promise<WidgetData> {
+  /**
+   * The dashboard date-range filter, applied as an open-ended "since" bound so
+   * future-dated documents stay visible. A no-op when there's no active range or
+   * the source has no date field to filter on.
+   */
+  private sinceFilter(r: Resolved, dateField: string | undefined, from: string | undefined, params: unknown[]): string {
+    if (!from || !dateField) return '';
+    if (!ISO_DATE.test(from)) throw new BadRequestError(`invalid date range: ${from}`);
+    params.push(from);
+    return ` AND (${this.fieldExpr(r, dateField)})::timestamptz >= $${params.length}::timestamptz`;
+  }
+
+  async resolveSource(source: MetricSource, from?: string): Promise<WidgetData> {
     const r = await this.resolve(source.master);
     switch (source.kind) {
       case 'count':
-        return this.count(r, source);
+        return this.count(r, source, from);
       case 'groupCount':
-        return this.groupCount(r, source);
+        return this.groupCount(r, source, from);
       case 'timeSeries':
-        return this.timeSeries(r, source);
+        return this.timeSeries(r, source, from);
       case 'recent':
         return this.recent(r, source);
     }
   }
 
-  private async count(r: Resolved, s: Extract<MetricSource, { kind: 'count' }>): Promise<StatData> {
+  private async count(r: Resolved, s: Extract<MetricSource, { kind: 'count' }>, from?: string): Promise<StatData> {
     const { where, params } = this.base(r);
-    const filter = this.applyWhere(r, s.where, params);
+    // The common (config `where`) filter applies to every query below; the date range
+    // only narrows the headline value — the delta/spark keep their own trailing windows
+    // (a 30-day range would otherwise zero out the prior-period comparison).
+    const common = this.applyWhere(r, s.where, params);
+    const valueParams = [...params];
+    const filter = common + this.sinceFilter(r, s.dateField, from, valueParams);
     const [row] = (await AppDataSource.query(
       `SELECT COUNT(*)::int AS n FROM ${r.table} WHERE ${where}${filter}`,
-      params,
+      valueParams,
     )) as { n: number }[];
     const value = Number(row?.n ?? 0);
 
@@ -116,7 +134,7 @@ export class MetricsService {
          COUNT(*) FILTER (WHERE ${dExpr} >= now() - interval '30 days')::int AS cur,
          COUNT(*) FILTER (WHERE ${dExpr} >= now() - interval '60 days'
                             AND ${dExpr} < now() - interval '30 days')::int AS prev
-       FROM ${r.table} WHERE ${where}${filter}`,
+       FROM ${r.table} WHERE ${where}${common}`,
       [...params],
     )) as { cur: number; prev: number }[];
     const cur = Number(d?.cur ?? 0);
@@ -135,7 +153,7 @@ export class MetricsService {
        hits AS (
          SELECT date_trunc('day', ${dExpr}) AS d, COUNT(*)::int AS n
            FROM ${r.table}
-          WHERE ${where}${filter} AND ${dExpr} >= date_trunc('day', now()) - interval '13 days'
+          WHERE ${where}${common} AND ${dExpr} >= date_trunc('day', now()) - interval '13 days'
           GROUP BY 1
        )
        SELECT COALESCE(hits.n, 0)::int AS n
@@ -148,28 +166,36 @@ export class MetricsService {
     return { value, ...(delta === undefined ? {} : { delta }), spark };
   }
 
-  private async groupCount(r: Resolved, s: Extract<MetricSource, { kind: 'groupCount' }>): Promise<SeriesData> {
+  private async groupCount(r: Resolved, s: Extract<MetricSource, { kind: 'groupCount' }>, from?: string): Promise<SeriesData> {
     const { where, params } = this.base(r);
     const expr = this.fieldExpr(r, s.groupBy);
+    const since = this.sinceFilter(r, s.dateField, from, params);
     params.push(s.limit);
     const rows = (await AppDataSource.query(
       `SELECT ${expr} AS label, COUNT(*)::int AS value
-         FROM ${r.table} WHERE ${where} AND ${expr} IS NOT NULL AND ${expr} <> ''
+         FROM ${r.table} WHERE ${where} AND ${expr} IS NOT NULL AND ${expr} <> ''${since}
         GROUP BY 1 ORDER BY value DESC LIMIT $${params.length}`,
       params,
     )) as { label: string; value: number }[];
     return { points: rows.map((x) => ({ label: String(x.label), value: Number(x.value) })) };
   }
 
-  private async timeSeries(r: Resolved, s: Extract<MetricSource, { kind: 'timeSeries' }>): Promise<SeriesData> {
+  private async timeSeries(r: Resolved, s: Extract<MetricSource, { kind: 'timeSeries' }>, from?: string): Promise<SeriesData> {
     const { where, params } = this.base(r);
     const dExpr = `(${this.fieldExpr(r, s.dateField)})::timestamptz`;
     // bucket + periods come from a bounded enum / validated number — safe to inline.
     const unit = s.bucket; // day | week | month
+    // An active range overrides the default lookback so the trend matches the picker.
+    let lower = `date_trunc('${unit}', now()) - make_interval(${unit}s => ${s.periods})`;
+    if (from) {
+      if (!ISO_DATE.test(from)) throw new BadRequestError(`invalid date range: ${from}`);
+      params.push(from);
+      lower = `date_trunc('${unit}', $${params.length}::timestamptz)`;
+    }
     const rows = (await AppDataSource.query(
       `SELECT to_char(date_trunc('${unit}', ${dExpr}), 'YYYY-MM-DD') AS label, COUNT(*)::int AS value
          FROM ${r.table}
-        WHERE ${where} AND ${dExpr} >= date_trunc('${unit}', now()) - make_interval(${unit}s => ${s.periods})
+        WHERE ${where} AND ${dExpr} >= ${lower}
         GROUP BY 1 ORDER BY 1`,
       params,
     )) as { label: string; value: number }[];

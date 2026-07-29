@@ -17,7 +17,7 @@
     },
     {
       "type": "chart", "title": "Payments by type", "span": 2, "chart": "pie",
-      "source": { "kind": "groupCount", "master": "payment-entry", "groupBy": "paymentType" }
+      "source": { "kind": "groupCount", "master": "payment-entry", "groupBy": "paymentType", "dateField": "date" }
     },
     {
       "type": "table", "title": "Recent payments", "span": 4,
