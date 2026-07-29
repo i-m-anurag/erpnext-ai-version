@@ -15,6 +15,7 @@ import { buildNamingRouter } from './modules/naming/index.js';
 import { buildAccountRouter } from './modules/accounts/index.js';
 import { buildLedgerRouter } from './modules/ledger/index.js';
 import { buildStockRouter } from './modules/stock/index.js';
+import { buildDashboardRouter } from './modules/dashboard/index.js';
 
 /**
  * Central route registration. As modules land (auth, permission, ...), each
@@ -99,4 +100,7 @@ export function registerRoutes(app: Express): void {
   if (isModuleEnabled('inventory')) {
     app.use('/api/stock', buildStockRouter());
   }
+
+  // Module dashboards — resolved widgets (config + metric data). Gated by auth.
+  app.use('/api/dashboards', buildDashboardRouter());
 }

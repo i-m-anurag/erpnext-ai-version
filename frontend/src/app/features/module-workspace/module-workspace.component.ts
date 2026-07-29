@@ -3,22 +3,16 @@ import { RouterLink } from '@angular/router';
 import { findModule, type SubModule } from '../../core/config/modules.config';
 import { hasView } from '../../core/config/view-configs';
 import { ListViewComponent } from '../views/list-view.component';
-
-interface Kpi {
-  label: string;
-  value: string;
-  delta: string;
-  up: boolean;
-}
+import { ModuleDashboardComponent } from '../dashboard/module-dashboard.component';
 
 /**
  * Module content area. The sub-module navigation lives in the shell sidebar now;
- * this component just renders the content for the active sub-module (full width).
- * Mock data; sub-modules will route to config-driven List/Record next.
+ * this component renders the content for the active sub-module: the config-driven
+ * dashboard, a config-driven List, or a placeholder for sub-modules not yet built.
  */
 @Component({
   selector: 'erp-module-workspace',
-  imports: [RouterLink, ListViewComponent],
+  imports: [RouterLink, ListViewComponent, ModuleDashboardComponent],
   template: `
     @if (module(); as mod) {
       @if (showList()) {
@@ -37,41 +31,7 @@ interface Kpi {
         </div>
 
         @if (sub() === 'dashboard') {
-          <div class="iq-kpis">
-            @for (k of kpis; track k.label) {
-              <div class="iq-kpi">
-                <div class="iq-kpi__label">{{ k.label }}</div>
-                <div class="iq-kpi__value">{{ k.value }}</div>
-                <div class="iq-kpi__delta" [class.up]="k.up" [class.down]="!k.up">
-                  <i class="ph" [class.ph-trend-up]="k.up" [class.ph-trend-down]="!k.up"></i> {{ k.delta }}
-                </div>
-              </div>
-            }
-          </div>
-
-          <div class="erp-card p-3">
-            <div class="fw-semibold mb-2">Activity trend</div>
-            <div class="iq-chart-placeholder">Chart placeholder</div>
-          </div>
-
-          <div class="erp-card p-0 mt-3">
-            <div class="p-3 fw-semibold border-bottom">Recent activity</div>
-            <table class="table table-hover mb-0 align-middle iq-table">
-              <thead>
-                <tr><th>Date</th><th>Reference</th><th>Description</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                @for (r of rows; track r.ref) {
-                  <tr>
-                    <td class="iq-mono">{{ r.date }}</td>
-                    <td class="iq-mono">{{ r.ref }}</td>
-                    <td>{{ r.desc }}</td>
-                    <td><span class="iq-chip" [class]="r.statusClass">{{ r.status }}</span></td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
+          <erp-module-dashboard [module]="slug()" />
         } @else {
           <div class="erp-card p-4 text-muted">
             <i class="ph ph-stack" style="font-size:1.4rem"></i>
@@ -97,16 +57,4 @@ export class ModuleWorkspaceComponent {
     return s?.name ?? 'Dashboard';
   });
 
-  protected readonly kpis: Kpi[] = [
-    { label: 'Records', value: '1,240', delta: '+3.2%', up: true },
-    { label: 'Open items', value: '86', delta: '+12', up: true },
-    { label: 'Pending approval', value: '7', delta: '-2', up: false },
-    { label: 'This month', value: '₹4.2L', delta: '+8%', up: true },
-  ];
-  protected readonly rows = [
-    { date: '2026-06-07', ref: 'PO-2026-0042', desc: 'Purchase order created', status: 'Pending', statusClass: 'iq-chip--warn' },
-    { date: '2026-06-06', ref: 'GRN-0188', desc: 'Goods received', status: 'Completed', statusClass: 'iq-chip--ok' },
-    { date: '2026-06-06', ref: 'TRF-0091', desc: 'Inter-branch transfer', status: 'In transit', statusClass: 'iq-chip--info' },
-    { date: '2026-06-05', ref: 'ADJ-0023', desc: 'Stock adjustment', status: 'Posted', statusClass: 'iq-chip--ok' },
-  ];
 }

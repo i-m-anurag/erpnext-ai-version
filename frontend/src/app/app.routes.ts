@@ -109,7 +109,7 @@ export const routes: Routes = [
         // workspace via the `:sub` route below.
         path: 'm/inventory',
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'stock' },
+          { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
           {
             path: 'stock',
             loadComponent: () =>
@@ -145,7 +145,7 @@ export const routes: Routes = [
         // generic m/:slug route so these specific subs win.
         path: 'm/finance',
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'chart-of-accounts' },
+          { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
           {
             path: 'chart-of-accounts',
             loadComponent: () =>

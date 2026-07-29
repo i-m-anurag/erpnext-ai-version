@@ -1,0 +1,27 @@
+{
+  "slug": "inventory",
+  "widgets": [
+    { "type": "stat", "title": "Items", "span": 1, "icon": "ph-cube", "tone": "accent", "source": { "kind": "count", "master": "item" } },
+    {
+      "type": "stat", "title": "Stock entries", "span": 1, "icon": "ph-clipboard-text", "tone": "info",
+      "source": { "kind": "count", "master": "stock-entry", "dateField": "date" }
+    },
+    {
+      "type": "stat", "title": "Purchase receipts", "span": 1, "icon": "ph-package", "tone": "success",
+      "source": { "kind": "count", "master": "purchase-receipt", "dateField": "date" }
+    },
+    { "type": "stat", "title": "Warehouses", "span": 1, "icon": "ph-warehouse", "tone": "warning", "source": { "kind": "count", "master": "warehouse" } },
+    {
+      "type": "chart", "title": "Stock movements by type", "span": 2, "chart": "bar",
+      "source": { "kind": "groupCount", "master": "stock-entry", "groupBy": "stockEntryType" }
+    },
+    {
+      "type": "chart", "title": "Items by category", "span": 2, "chart": "pie",
+      "source": { "kind": "groupCount", "master": "item", "groupBy": "category" }
+    },
+    {
+      "type": "table", "title": "Recent stock entries", "span": 4,
+      "source": { "kind": "recent", "master": "stock-entry", "limit": 8, "columns": ["stockEntryType", "date"] }
+    }
+  ]
+}
