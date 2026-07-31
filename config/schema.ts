@@ -79,6 +79,20 @@ export const ConfigSchema = z.object({
     .default({ logoUrl: '/branding/logo.svg' }),
 
   /**
+   * Collatio (AI document & email parser) integration. Surfaced via /api/meta so
+   * the SPA can deep-link a record to its Collatio reconciliation view. `appName`
+   * and `departmentId` are the tenant/department this deployment maps to in
+   * Collatio; leave `baseUrl` blank to disable the deep link entirely.
+   */
+  collatio: z
+    .object({
+      baseUrl: z.string().default(''),
+      appName: z.string().default(''),
+      departmentId: z.string().default(''),
+    })
+    .default({ baseUrl: '', appName: '', departmentId: '' }),
+
+  /**
    * This deployment's client. When set, the seeder applies client-specific
    * overrides from seed-data/clients/<clientSlug>/ on top of the shipped base.
    */

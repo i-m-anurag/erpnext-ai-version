@@ -77,6 +77,9 @@ export interface FormField {
   effects?: { checked?: { showFields?: string[] }; unchecked?: { showFields?: string[] } };
   /** Controls visibility as a column in the record list view (see resolver). */
   inList?: boolean;
+  /** Never rendered in the form UI, but still a real data field that persists and
+   *  round-trips (e.g. an externally-supplied id set by an integration). */
+  hidden?: boolean;
 }
 
 export const formFieldSchema: z.ZodType<FormField> = z.lazy(() =>
@@ -143,6 +146,8 @@ export const formFieldSchema: z.ZodType<FormField> = z.lazy(() =>
     auto: z.boolean().optional(),
     /** list-view column visibility (opt-out default / opt-in if any field sets true) */
     inList: z.boolean().optional(),
+    /** never rendered in the form UI, but persists + round-trips as a data field */
+    hidden: z.boolean().optional(),
   }),
 );
 

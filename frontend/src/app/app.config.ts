@@ -18,6 +18,7 @@ import { authInterceptor } from './core/auth/auth.interceptor';
 import { loaderInterceptor } from './core/loader/loader.interceptor';
 import { AuthService } from './core/auth/auth.service';
 import { BrandingService } from './core/branding/branding.service';
+import { CollatioService } from './core/collatio/collatio.service';
 import { CssMapService } from './dynamic-form/css-map.service';
 
 export const appConfig: ApplicationConfig = {
@@ -38,6 +39,8 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => inject(CssMapService).load()),
     // Load white-label branding (logo + product name) from the public /api/meta.
     provideAppInitializer(() => inject(BrandingService).load()),
+    // Load Collatio deep-link config (base URL + tenant) from the public /api/meta.
+    provideAppInitializer(() => inject(CollatioService).load()),
     // Silent session restore before routes activate: try /api/auth/refresh (the
     // httpOnly cookie persists reloads); on success, hydrate the token + profile.
     provideAppInitializer(() => inject(AuthService).restoreSession()),

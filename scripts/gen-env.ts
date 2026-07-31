@@ -106,6 +106,10 @@ function flatten(c: AppConfig): Record<string, string | number | boolean> {
 
     BRANDING_PRODUCT_NAME: c.branding.productName ?? '',
     BRANDING_LOGO_URL: c.branding.logoUrl,
+
+    COLLATIO_BASE_URL: c.collatio.baseUrl,
+    COLLATIO_APP_NAME: c.collatio.appName,
+    COLLATIO_DEPARTMENT_ID: c.collatio.departmentId,
   };
 
   // Module toggles → MODULE_<NAME>=true|false

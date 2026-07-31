@@ -64,6 +64,10 @@ const EnvSchema = z.object({
 
   BRANDING_PRODUCT_NAME: z.string().default(''),
   BRANDING_LOGO_URL: z.string().default('/branding/logo.svg'),
+
+  COLLATIO_BASE_URL: z.string().default(''),
+  COLLATIO_APP_NAME: z.string().default(''),
+  COLLATIO_DEPARTMENT_ID: z.string().default(''),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -143,6 +147,12 @@ export const env = {
   branding: {
     productName: e.BRANDING_PRODUCT_NAME || e.APP_NAME,
     logoUrl: e.BRANDING_LOGO_URL,
+  },
+  /** Collatio (AI document parser) deep-link config, surfaced via /api/meta. */
+  collatio: {
+    baseUrl: e.COLLATIO_BASE_URL,
+    appName: e.COLLATIO_APP_NAME,
+    departmentId: e.COLLATIO_DEPARTMENT_ID,
   },
   modules: readModules(),
 } as const;

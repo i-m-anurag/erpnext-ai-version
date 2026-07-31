@@ -31,11 +31,19 @@ export interface Branding {
   logoUrl: string;
 }
 
+/** Collatio (AI document parser) deep-link config from /api/meta. */
+export interface CollatioConfig {
+  baseUrl: string;
+  appName: string;
+  departmentId: string;
+}
+
 export interface MetaResponse {
   name: string;
   env: string;
   modules: Record<string, boolean>;
   branding?: Branding;
+  collatio?: CollatioConfig;
 }
 
 /** A resolved form definition (public or authed endpoint). */
@@ -74,6 +82,9 @@ export interface FormFieldDef {
    * The code field is always shown regardless.
    */
   inList?: boolean;
+  /** Never rendered in the form UI, but still a real data field that persists and
+   *  round-trips (e.g. an externally-supplied id set by an integration). */
+  hidden?: boolean;
   /** For type === 'table': the per-row column field definitions (a nested form). */
   columns?: FormFieldDef[];
   /** For type === 'group': the nested sub-fields. */

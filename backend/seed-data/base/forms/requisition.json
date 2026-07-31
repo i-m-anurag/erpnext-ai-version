@@ -1,10 +1,11 @@
 {
   "slug": "requisition",
-  "version": 2,
+  "version": 3,
   "title": "Material Request",
   "layout": "two-column",
   "fields": [
     { "key": "reqNumber", "type": "text", "label": "Requisition No.", "auto": true, "placeholder": "Auto-generated on save" },
+    { "key": "CollatioDocId", "type": "text", "label": "Collatio Document ID", "hidden": true, "inList": false },
     { "key": "materialRequestType", "type": "select", "label": "Purpose", "required": true, "defaultValue": "Purchase", "options": [
       { "value": "Purchase", "label": "Purchase" },
       { "value": "Material Issue", "label": "Material Issue" },

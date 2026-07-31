@@ -1,10 +1,11 @@
 {
   "slug": "purchase-invoice",
-  "version": 1,
+  "version": 2,
   "title": "Purchase Invoice",
   "layout": "two-column",
   "fields": [
     { "key": "piNumber", "type": "text", "label": "Invoice No.", "auto": true, "placeholder": "Auto-generated on save", "inList": true },
+    { "key": "CollatioDocId", "type": "text", "label": "Collatio Document ID", "hidden": true, "inList": false },
     { "key": "date", "type": "date", "label": "Date", "required": true, "editable": false, "defaultValue": "$today", "inList": true },
     {
       "key": "isPaid",
