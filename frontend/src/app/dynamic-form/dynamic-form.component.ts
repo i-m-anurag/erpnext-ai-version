@@ -147,6 +147,7 @@ export class DynamicFormComponent {
   }
 
   protected isVisible(field: FormFieldDef): boolean {
+    if (field.hidden) return false; // data-only field: kept in the model, never rendered
     const cond = field.visibleWhen;
     if (cond && this.group().get(cond.field)?.value !== cond.equals) return false;
 

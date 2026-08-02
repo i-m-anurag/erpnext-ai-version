@@ -17,6 +17,7 @@ import { DocumentApiService, type CreateOption, type RelatedDoc } from '../../co
 import { LedgerApiService, type GlVoucherEntry } from '../../core/api/ledger.api.service';
 import { StockApiService, type StockLedgerRow } from '../../core/api/stock.api.service';
 import { NotificationService } from '../../core/notify/notification.service';
+import { CollatioService } from '../../core/collatio/collatio.service';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
 import { routeForMaster, type ResolvedView } from '../../core/config/view-configs';
 import { flattenDataFields, type FormFieldDef } from '../../core/models/api.models';
@@ -139,6 +140,20 @@ const KIND_ICON: Record<TimelineKind, string> = {
       </div>
 
       <div class="iq-record__side">
+        <!-- Collatio (AI document & email parser) reconciliation deep-link, shown when
+             this record carries a CollatioDocId and Collatio is configured. -->
+        @if (collatioLink(); as url) {
+          <div class="erp-card p-3 iq-collatio">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="iq-collatio__icon"><i class="ph ph-file-magnifying-glass"></i></span>
+              <div class="fw-semibold">Document reconciliation</div>
+            </div>
+            <div class="text-muted small mb-3">Parsed and reconciled in Collatio, the AI document &amp; email parser.</div>
+            <a class="btn btn-sm btn-primary w-100" [href]="url" target="_blank" rel="noopener noreferrer">
+              <i class="ph ph-arrow-square-out"></i> View reconciliation in Collatio
+            </a>
+          </div>
+        }
         <!-- One Reverse control for the whole document: it may have moved stock, money,
              or both, and cancelling has to undo every ledger it touched. -->
         @if (posted()) {
@@ -266,6 +281,7 @@ const KIND_ICON: Record<TimelineKind, string> = {
     .iq-gl { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
     .iq-gl th { text-align: left; font-weight: 500; color: var(--erp-text-muted); padding: 2px 0; font-size: 0.72rem; text-transform: uppercase; }
     .iq-gl td { padding: 3px 0; border-top: 1px solid var(--erp-border); }
+    .iq-collatio__icon { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; background: var(--erp-ai-tint, #f2eff8); color: var(--erp-ai, #9f7af3); font-size: 16px; }
   `],
 })
 export class RecordViewComponent {
@@ -283,6 +299,7 @@ export class RecordViewComponent {
   private readonly ledger = inject(LedgerApiService);
   private readonly stock = inject(StockApiService);
   private readonly notify = inject(NotificationService);
+  private readonly collatio = inject(CollatioService);
   private readonly router = inject(Router);
   private readonly formCmp = viewChild(DynamicFormComponent);
 
@@ -342,6 +359,12 @@ export class RecordViewComponent {
     const fr = this.formRecord();
     return fr ? (getFormController(fr.slug)?.actions?.(fr) ?? []) : [];
   });
+
+  /** Deep link to this record's Collatio reconciliation, when it carries a
+   *  CollatioDocId and the deployment has Collatio configured (from /api/meta). */
+  protected readonly collatioLink = computed<string | null>(() =>
+    this.collatio.reconciliationUrl(this.recordRow()?.['CollatioDocId']),
+  );
 
   constructor() {
     effect(() => {

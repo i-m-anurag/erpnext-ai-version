@@ -44,6 +44,11 @@
     "productName": "IQ-SMART ERP",
     "logoUrl": "/branding/logo.svg"
   },
+  "collatio": {
+    "baseUrl": "https://app.collatio-hetzner-dev-three-eye.scryai.com",
+    "appName": "iq-smart-erp",
+    "departmentId": "default"
+  },
   "admin": {
     "username": "admin",
     "email": "admin@erp.local",
