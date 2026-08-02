@@ -1,0 +1,4 @@
+{
+  "slug": "purchase-invoice",
+  "threeWayMatch": { "enabled": true }
+}

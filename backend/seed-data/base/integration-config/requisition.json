@@ -1,0 +1,4 @@
+{
+  "slug": "requisition",
+  "collatioUpload": { "enabled": true, "docType": "requision" }
+}

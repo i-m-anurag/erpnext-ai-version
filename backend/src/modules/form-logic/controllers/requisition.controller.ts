@@ -20,11 +20,16 @@ interface Line {
  */
 export const requisitionController: FormController = {
   computeStatus(doc) {
+    const d = doc.data;
+    // A draft created from a Collatio document upload is still being OCR-extracted
+    // until it is reviewed and submitted — surface that instead of a plain "Draft".
+    if (doc.status === 'draft' && typeof d['collatioDocId'] === 'string' && d['collatioDocId']) {
+      return 'Extraction in progress';
+    }
     // Lifecycle statuses win first.
     if (doc.status === 'draft') return 'Draft';
     if (doc.status === 'archived') return 'Cancelled';
 
-    const d = doc.data;
     if (d['stopped'] === true) return 'Stopped';
 
     const lines = Array.isArray(d['items']) ? (d['items'] as Line[]) : [];

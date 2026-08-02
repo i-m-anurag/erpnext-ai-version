@@ -363,7 +363,7 @@ export class RecordViewComponent {
   /** Deep link to this record's Collatio reconciliation, when it carries a
    *  CollatioDocId and the deployment has Collatio configured (from /api/meta). */
   protected readonly collatioLink = computed<string | null>(() =>
-    this.collatio.reconciliationUrl(this.recordRow()?.['CollatioDocId']),
+    this.collatio.reconciliationUrl(this.recordRow()?.['collatioDocId']),
   );
 
   constructor() {

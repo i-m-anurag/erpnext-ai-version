@@ -49,6 +49,13 @@
     "appName": "iq-smart-erp",
     "departmentId": "default"
   },
+  "integrations": {
+    "collatio": {
+      "ocrBaseUrl": "http://10.1.0.28:8090",
+      "clientName": "erp",
+      "mock": true
+    }
+  },
   "admin": {
     "username": "admin",
     "email": "admin@erp.local",

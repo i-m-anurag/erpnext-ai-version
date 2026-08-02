@@ -49,6 +49,13 @@
     "appName": "",
     "departmentId": ""
   },
+  "integrations": {
+    "collatio": {
+      "ocrBaseUrl": "",
+      "clientName": "erp",
+      "mock": false
+    }
+  },
   "admin": {
     "username": "admin",
     "email": "admin@acme.example.com",
