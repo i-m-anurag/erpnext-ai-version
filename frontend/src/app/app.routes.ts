@@ -79,6 +79,13 @@ export const routes: Routes = [
               import('./features/workflow/workflow-editor.component').then((m) => m.WorkflowEditorComponent),
           },
           {
+            path: 'integrations',
+            canActivate: [permissionGuard],
+            data: { permission: 'integration:log.read', title: 'Integrations' },
+            loadComponent: () =>
+              import('./features/integration/integration-logs.component').then((m) => m.IntegrationLogsComponent),
+          },
+          {
             path: 'numbering',
             canActivate: [permissionGuard],
             data: { permission: 'config:config.read', title: 'Numbering' },

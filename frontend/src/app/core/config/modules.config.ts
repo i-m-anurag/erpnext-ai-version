@@ -182,6 +182,7 @@ const ALL_MODULES: ErpModule[] = [
       { slug: 'workflows', name: 'Workflows', icon: 'ph-flow-arrow' },
       { slug: 'numbering', name: 'Numbering', icon: 'ph-hash' },
       { slug: 'communication', name: 'Email Templates', icon: 'ph-envelope' },
+      { slug: 'integrations', name: 'Integrations', icon: 'ph-plugs-connected' },
       { slug: 'roles', name: 'Roles & Permissions', icon: 'ph-shield-check' },
       { slug: 'playground', name: 'Form Playground', icon: 'ph-flask' },
     ],

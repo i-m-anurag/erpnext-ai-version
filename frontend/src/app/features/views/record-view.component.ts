@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, input, signal, viewChild } from '@
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { BsModalService } from 'ngx-bootstrap/modal';
 import type { FormGroup } from '@angular/forms';
 import { DynamicFormComponent } from '../../dynamic-form/dynamic-form.component';
 import { FormBuilderService } from '../../dynamic-form/form-builder.service';
@@ -18,6 +19,8 @@ import { LedgerApiService, type GlVoucherEntry } from '../../core/api/ledger.api
 import { StockApiService, type StockLedgerRow } from '../../core/api/stock.api.service';
 import { NotificationService } from '../../core/notify/notification.service';
 import { CollatioService } from '../../core/collatio/collatio.service';
+import { IntegrationApiService } from '../../core/api/integration.api.service';
+import { ThreeWayMatchModalComponent } from '../integration/three-way-match-modal.component';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
 import { routeForMaster, type ResolvedView } from '../../core/config/view-configs';
 import { flattenDataFields, type FormFieldDef } from '../../core/models/api.models';
@@ -94,6 +97,12 @@ const KIND_ICON: Record<TimelineKind, string> = {
             @if (a.icon) { <i class="ph {{ a.icon }}"></i> } {{ a.label }}
           </button>
         }
+        @if (threeWayEnabled() && recordStatus() === 'active') {
+          <button class="btn btn-sm btn-light ms-2" [disabled]="matching()" (click)="runThreeWayMatch()">
+            <i class="ph-fill ph-sparkle" style="color:var(--erp-ai,#9f7af3)"></i>
+            {{ matching() ? 'Matching…' : 'Three-way match' }}
+          </button>
+        }
         <button class="iq-record__rail-toggle ms-auto" (click)="toggleRail()"
                 [attr.aria-label]="railOpen() ? 'Hide side panel' : 'Show side panel'">
           <i class="ph" [class.ph-sidebar]="railOpen()" [class.ph-sidebar-simple]="!railOpen()"></i>
@@ -152,6 +161,17 @@ const KIND_ICON: Record<TimelineKind, string> = {
             <a class="btn btn-sm btn-primary w-100" [href]="url" target="_blank" rel="noopener noreferrer">
               <i class="ph ph-arrow-square-out"></i> View reconciliation in Collatio
             </a>
+          </div>
+        }
+        <!-- The source document this record was created from (Collatio upload). -->
+        @if (uploadedDocName(); as docName) {
+          <div class="erp-card p-3">
+            <div class="fw-semibold mb-2">Uploaded document</div>
+            <div class="iq-updoc" (click)="openUploadedDocument()">
+              <i class="ph ph-file-text"></i>
+              <div class="iq-updoc__name">{{ docName }}</div>
+              <i class="ph" [class.ph-arrow-square-out]="!openingDoc()" [class.ph-circle-notch]="openingDoc()"></i>
+            </div>
           </div>
         }
         <!-- One Reverse control for the whole document: it may have moved stock, money,
@@ -282,6 +302,10 @@ const KIND_ICON: Record<TimelineKind, string> = {
     .iq-gl th { text-align: left; font-weight: 500; color: var(--erp-text-muted); padding: 2px 0; font-size: 0.72rem; text-transform: uppercase; }
     .iq-gl td { padding: 3px 0; border-top: 1px solid var(--erp-border); }
     .iq-collatio__icon { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; background: var(--erp-ai-tint, #f2eff8); color: var(--erp-ai, #9f7af3); font-size: 16px; }
+    .iq-updoc { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--erp-border, #eaeaea); border-radius: 8px; cursor: pointer; transition: background .12s, border-color .12s; }
+    .iq-updoc:hover { background: #fafafb; border-color: #d9d9e3; }
+    .iq-updoc__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; color: #17171a; }
+    .iq-updoc > .ph:first-child { color: #4f46e5; font-size: 1.1rem; }
   `],
 })
 export class RecordViewComponent {
@@ -300,7 +324,13 @@ export class RecordViewComponent {
   private readonly stock = inject(StockApiService);
   private readonly notify = inject(NotificationService);
   private readonly collatio = inject(CollatioService);
+  private readonly integrations = inject(IntegrationApiService);
+  private readonly modals = inject(BsModalService);
   private readonly router = inject(Router);
+
+  /** Whether this record's master has three-way match enabled (integration config). */
+  protected readonly threeWayEnabled = signal(false);
+  protected readonly matching = signal(false);
   private readonly formCmp = viewChild(DynamicFormComponent);
 
   protected readonly config = signal<ResolvedView | undefined>(undefined);
@@ -365,6 +395,15 @@ export class RecordViewComponent {
   protected readonly collatioLink = computed<string | null>(() =>
     this.collatio.reconciliationUrl(this.recordRow()?.['collatioDocId']),
   );
+  /** The uploaded source document's filename, when this record came from a Collatio upload. */
+  protected readonly uploadedDocName = computed<string | null>(() => {
+    const rec = this.recordRow();
+    const path = rec?.['collatioFilePath'];
+    if (typeof path !== 'string' || !path) return null;
+    const name = rec?.['collatioFileName'];
+    return typeof name === 'string' && name ? name : 'Uploaded document';
+  });
+  protected readonly openingDoc = signal(false);
 
   constructor() {
     effect(() => {
@@ -378,6 +417,7 @@ export class RecordViewComponent {
       this.glEntries.set([]);
       this.createOptions.set([]);
       this.loading.set(true);
+      this.threeWayEnabled.set(false);
       this.resolver.resolve(module, sub).subscribe({
         next: (cfg) => {
           this.config.set(cfg);
@@ -386,6 +426,12 @@ export class RecordViewComponent {
           this.loadWorkflow();
           this.loadDocLinks();
           this.loadGlEntries();
+          if (cfg?.backed && cfg.masterSlug) {
+            this.integrations.configFor(cfg.masterSlug).subscribe({
+              next: (ic) => this.threeWayEnabled.set(!!ic.threeWayMatch?.enabled),
+              error: () => this.threeWayEnabled.set(false),
+            });
+          }
         },
         error: () => this.loading.set(false),
       });
@@ -484,6 +530,42 @@ export class RecordViewComponent {
   }
   protected relationLabel(rel: string): string {
     return rel.replace(/_/g, ' ');
+  }
+
+  /** Run the Collatio three-way match for this invoice and show the results popup. */
+  protected runThreeWayMatch(): void {
+    if (this.matching()) return;
+    this.matching.set(true);
+    this.integrations.threeWayMatch(this.recordId()).subscribe({
+      next: (result) => {
+        this.matching.set(false);
+        this.modals.show(ThreeWayMatchModalComponent, {
+          class: 'modal-xl modal-dialog-centered',
+          initialState: { result },
+        });
+      },
+      error: (e: { error?: { error?: { message?: string } } }) => {
+        this.matching.set(false);
+        this.notify.error(e?.error?.error?.message ?? 'Three-way match failed');
+      },
+    });
+  }
+
+  /** Fetch the uploaded source document (auth header via interceptor) and open it. */
+  protected openUploadedDocument(): void {
+    const slug = this.config()?.masterSlug;
+    if (!slug || this.openingDoc()) return;
+    this.openingDoc.set(true);
+    this.integrations.documentBlob(slug, this.recordId()).subscribe({
+      next: (blob) => {
+        this.openingDoc.set(false);
+        window.open(URL.createObjectURL(blob), '_blank');
+      },
+      error: () => {
+        this.openingDoc.set(false);
+        this.notify.error('Could not open the document');
+      },
+    });
   }
 
   private loadWorkflow(): void {
