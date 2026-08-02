@@ -41,8 +41,8 @@ const ROW_STATE = '__rowState';
           <div class="iq-search"><i class="ph ph-magnifying-glass"></i><input placeholder="Search {{ cfg.title.toLowerCase() }}" /></div>
           <button class="btn btn-sm btn-ai"><i class="ph ph-sparkle"></i> Ask IQ</button>
           @if (collatioUpload()) {
-            <button class="btn btn-sm btn-light" (click)="openCollatio()">
-              <i class="ph-fill ph-sparkle" style="color:var(--erp-ai,#9f7af3)"></i> Create using Collatio
+            <button class="btn btn-sm btn-ai" (click)="openCollatio()">
+              <i class="ph-fill ph-file-arrow-up"></i> Create using Collatio
             </button>
           }
           <button class="btn btn-sm btn-primary" (click)="create()"><i class="ph ph-plus"></i> New</button>

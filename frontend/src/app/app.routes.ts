@@ -1,5 +1,11 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { authGuard, permissionGuard } from './core/auth/auth.guards';
+import { IntegrationSettingsService } from './core/integration/integration-settings.service';
+
+/** Blocks the integration-logs route when the deployment has the logs UI disabled. */
+const integrationLogsUiGuard = () =>
+  inject(IntegrationSettingsService).logsUiEnabled() ? true : inject(Router).createUrlTree(['/app/m/admin']);
 
 export const routes: Routes = [
   {
@@ -80,7 +86,7 @@ export const routes: Routes = [
           },
           {
             path: 'integrations',
-            canActivate: [permissionGuard],
+            canActivate: [permissionGuard, integrationLogsUiGuard],
             data: { permission: 'integration:log.read', title: 'Integrations' },
             loadComponent: () =>
               import('./features/integration/integration-logs.component').then((m) => m.IntegrationLogsComponent),

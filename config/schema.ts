@@ -107,8 +107,24 @@ export const ConfigSchema = z.object({
           mock: z.boolean().default(true),
         })
         .default({ ocrBaseUrl: '', clientName: 'erp', mock: true }),
+      /**
+       * Outbound-API audit log controls. `uiEnabled` shows/hides the Admin
+       * "Integrations" logs page. `archiveEnabled` moves entries older than
+       * `retentionDays` out of the live table into api_call_log_archive so the
+       * viewer stays clean (run periodically by the worker).
+       */
+      logs: z
+        .object({
+          uiEnabled: z.boolean().default(true),
+          archiveEnabled: z.boolean().default(true),
+          retentionDays: z.number().int().positive().default(30),
+        })
+        .default({ uiEnabled: true, archiveEnabled: true, retentionDays: 30 }),
     })
-    .default({ collatio: { ocrBaseUrl: '', clientName: 'erp', mock: true } }),
+    .default({
+      collatio: { ocrBaseUrl: '', clientName: 'erp', mock: true },
+      logs: { uiEnabled: true, archiveEnabled: true, retentionDays: 30 },
+    }),
 
   /**
    * This deployment's client. When set, the seeder applies client-specific

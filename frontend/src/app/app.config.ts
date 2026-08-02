@@ -19,6 +19,7 @@ import { loaderInterceptor } from './core/loader/loader.interceptor';
 import { AuthService } from './core/auth/auth.service';
 import { BrandingService } from './core/branding/branding.service';
 import { CollatioService } from './core/collatio/collatio.service';
+import { IntegrationSettingsService } from './core/integration/integration-settings.service';
 import { CssMapService } from './dynamic-form/css-map.service';
 
 export const appConfig: ApplicationConfig = {
@@ -41,6 +42,8 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => inject(BrandingService).load()),
     // Load Collatio deep-link config (base URL + tenant) from the public /api/meta.
     provideAppInitializer(() => inject(CollatioService).load()),
+    // Load integration UI settings (e.g. whether the logs page is shown).
+    provideAppInitializer(() => inject(IntegrationSettingsService).load()),
     // Silent session restore before routes activate: try /api/auth/refresh (the
     // httpOnly cookie persists reloads); on success, hydrate the token + profile.
     provideAppInitializer(() => inject(AuthService).restoreSession()),

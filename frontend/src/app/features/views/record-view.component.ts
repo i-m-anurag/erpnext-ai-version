@@ -98,8 +98,8 @@ const KIND_ICON: Record<TimelineKind, string> = {
           </button>
         }
         @if (threeWayEnabled() && recordStatus() === 'active') {
-          <button class="btn btn-sm btn-light ms-2" [disabled]="matching()" (click)="runThreeWayMatch()">
-            <i class="ph-fill ph-sparkle" style="color:var(--erp-ai,#9f7af3)"></i>
+          <button class="btn btn-sm btn-match ms-2" [disabled]="matching()" (click)="runThreeWayMatch()">
+            <i class="ph-fill" [class.ph-scales]="!matching()" [class.ph-circle-notch]="matching()"></i>
             {{ matching() ? 'Matching…' : 'Three-way match' }}
           </button>
         }
@@ -306,6 +306,8 @@ const KIND_ICON: Record<TimelineKind, string> = {
     .iq-updoc:hover { background: #fafafb; border-color: #d9d9e3; }
     .iq-updoc__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; color: #17171a; }
     .iq-updoc > .ph:first-child { color: #4f46e5; font-size: 1.1rem; }
+    .btn-match { background: var(--erp-accent-soft, #eef1fe); border: 1px solid transparent; color: var(--erp-accent, #5f79eb); font-weight: 600; }
+    .btn-match:hover { background: #e2e7fd; color: var(--erp-accent-hover, #4a63d8); }
   `],
 })
 export class RecordViewComponent {

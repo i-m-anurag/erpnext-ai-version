@@ -54,6 +54,11 @@
       "ocrBaseUrl": "http://10.1.0.28:8090",
       "clientName": "erp",
       "mock": true
+    },
+    "logs": {
+      "uiEnabled": true,
+      "archiveEnabled": true,
+      "retentionDays": 30
     }
   },
   "admin": {

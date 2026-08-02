@@ -25,24 +25,26 @@ import { formatDateTime } from '../../core/util/format';
         } @else if (logs().length === 0) {
           <div class="p-4 text-muted">No API calls logged yet.</div>
         } @else {
-          <table class="il-tbl">
-            <thead><tr><th>Time</th><th>Provider</th><th>Operation</th><th>Method</th><th class="num">Status</th><th class="num">ms</th></tr></thead>
-            <tbody>
-              @for (l of logs(); track l.id) {
-                <tr [class.on]="selected()?.id === l.id" (click)="select(l)">
-                  <td>{{ fmt(l.createdAt) }}</td>
-                  <td>{{ l.provider }}</td>
-                  <td>{{ l.operation }}</td>
-                  <td class="mono">{{ l.method }}</td>
-                  <td class="num">
-                    <span class="il-pill" [class.ok]="l.ok" [class.bad]="!l.ok">{{ l.respStatus ?? '—' }}</span>
-                    @if (l.mock) { <span class="il-pill mock">mock</span> }
-                  </td>
-                  <td class="num">{{ l.durationMs }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+          <div class="il-scroll">
+            <table class="il-tbl">
+              <thead><tr><th>Time</th><th>Provider</th><th>Operation</th><th>Method</th><th class="num">Status</th><th class="num">ms</th></tr></thead>
+              <tbody>
+                @for (l of logs(); track l.id) {
+                  <tr [class.on]="selected()?.id === l.id" (click)="select(l)">
+                    <td>{{ fmt(l.createdAt) }}</td>
+                    <td>{{ l.provider }}</td>
+                    <td>{{ l.operation }}</td>
+                    <td class="mono">{{ l.method }}</td>
+                    <td class="num">
+                      <span class="il-pill" [class.ok]="l.ok" [class.bad]="!l.ok">{{ l.respStatus ?? '—' }}</span>
+                      @if (l.mock) { <span class="il-pill mock">mock</span> }
+                    </td>
+                    <td class="num">{{ l.durationMs }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         }
       </div>
 
@@ -72,7 +74,10 @@ import { formatDateTime } from '../../core/util/format';
     .il-grid--detail { grid-template-columns: 1.4fr 1fr; }
     @media (max-width: 900px) { .il-grid--detail { grid-template-columns: 1fr; } }
     .il-list { overflow: hidden; }
+    /* The log table can hold many rows — scroll inside the card, header pinned. */
+    .il-scroll { max-height: calc(100vh - 210px); overflow-y: auto; }
     .il-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .il-tbl thead th { position: sticky; top: 0; z-index: 1; }
     .il-tbl th { text-align: left; padding: 10px 14px; background: #fafafb; border-bottom: 1px solid #eee; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: #8b8b96; }
     .il-tbl td { padding: 9px 14px; border-bottom: 1px solid #f4f4f6; color: #3f3f46; }
     .il-tbl tbody tr { cursor: pointer; } .il-tbl tbody tr:hover { background: #fafafb; } .il-tbl tbody tr.on { background: #eef1fe; }

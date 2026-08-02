@@ -16,7 +16,13 @@ uploaded for OCR, and invoices are reconciled via a three-way match.
   operation, method, url, request/response (capped), status, ok, durationMs,
   error, `mock`, correlationId, entity, actorUserId.
 - **Admin → Integrations** (`/app/m/admin/integrations`, perm `integration:log.read`)
-  lists the calls with a request/response detail drawer.
+  lists the calls (scrollable, newest first) with a request/response detail drawer.
+- **Log controls** (`integrations.logs` in config):
+  - `uiEnabled` — show/hide the Admin logs page (nav entry hidden + route guarded
+    when off; surfaced via `/api/meta` → `IntegrationSettingsService`).
+  - `archiveEnabled` + `retentionDays` — the worker moves entries older than
+    `retentionDays` from `api_call_log` into `api_call_log_archive` (on startup,
+    then daily), keeping the live table small.
 
 ## Config
 

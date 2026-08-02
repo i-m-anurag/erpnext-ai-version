@@ -4,7 +4,8 @@ import { filter } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
 import { AuthStore } from '../core/state/auth.store';
 import { BrandingService } from '../core/branding/branding.service';
-import { findModule, MODULES } from '../core/config/modules.config';
+import { IntegrationSettingsService } from '../core/integration/integration-settings.service';
+import { findModule, MODULES, type ErpModule, type SubModule } from '../core/config/modules.config';
 
 /**
  * Authenticated shell with ONE context-aware sidebar:
@@ -41,7 +42,7 @@ import { findModule, MODULES } from '../core/config/modules.config';
               <span class="erp-sidebar__module-icon"><i class="ph {{ mod.icon }}"></i></span>
               <span>{{ mod.name }}</span>
             </div>
-            @for (s of mod.subModules; track s.slug) {
+            @for (s of subModulesFor(mod); track s.slug) {
               <a class="erp-sidebar__link" [routerLink]="['/app/m', mod.slug, s.slug]" routerLinkActive="active">
                 <i class="ph {{ s.icon }} erp-sidebar__icon"></i><span>{{ s.name }}</span>
               </a>
@@ -91,7 +92,13 @@ import { findModule, MODULES } from '../core/config/modules.config';
 export class AppShellComponent {
   protected readonly store = inject(AuthStore);
   protected readonly branding = inject(BrandingService);
+  private readonly integrationSettings = inject(IntegrationSettingsService);
   protected readonly modules = MODULES;
+
+  /** Sub-modules for a module, hiding config-gated entries (e.g. the logs page). */
+  protected subModulesFor(mod: ErpModule): SubModule[] {
+    return mod.subModules.filter((s) => s.slug !== 'integrations' || this.integrationSettings.logsUiEnabled());
+  }
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 

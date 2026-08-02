@@ -54,6 +54,11 @@
       "ocrBaseUrl": "",
       "clientName": "erp",
       "mock": false
+    },
+    "logs": {
+      "uiEnabled": true,
+      "archiveEnabled": true,
+      "retentionDays": 30
     }
   },
   "admin": {

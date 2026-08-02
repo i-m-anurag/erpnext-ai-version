@@ -44,6 +44,7 @@ export interface MetaResponse {
   modules: Record<string, boolean>;
   branding?: Branding;
   collatio?: CollatioConfig;
+  integrations?: { logsUi: boolean };
 }
 
 /** A resolved form definition (public or authed endpoint). */
