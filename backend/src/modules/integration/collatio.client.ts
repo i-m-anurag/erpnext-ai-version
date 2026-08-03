@@ -47,10 +47,14 @@ export interface ThreeWayMatchResult {
 }
 
 export interface ThreeWayMatchPayload {
-  material_request: string;
+  requisition: string;
   purchase_receipt: string;
   purchase_order: string;
   purchase_invoice: string;
+  /** Collatio document ids of the source records, so Collatio can tie the match
+   *  back to the documents it already parsed. */
+  requisition_collatio_doc_id?: string;
+  purchase_invoice_collatio_doc_id?: string;
 }
 
 export interface UploadFile {
@@ -152,7 +156,7 @@ function mockMatch(p: ThreeWayMatchPayload): ThreeWayMatchResult {
   return {
     header: {
       invoice_no: p.purchase_invoice,
-      bill_no: p.material_request,
+      bill_no: p.requisition,
       match_date: '2026-06-09',
       po_no: p.purchase_order,
       gr_no: p.purchase_receipt,

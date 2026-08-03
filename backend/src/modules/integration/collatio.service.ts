@@ -160,7 +160,7 @@ export class CollatioService {
 
     const missing = [
       !invoice && 'Purchase Invoice',
-      !materialRequest && 'Material Request',
+      !materialRequest && 'Requisition',
       !purchaseOrder && 'Purchase Order',
       !purchaseReceipt && 'Purchase Receipt',
     ].filter(Boolean);
@@ -168,15 +168,32 @@ export class CollatioService {
       throw new BadRequestError(`Three-way match needs the linked ${missing.join(', ')}.`);
     }
 
+    // Include the Collatio document ids of the requisition and invoice records so
+    // Collatio can tie the reconcile back to the documents it parsed.
+    const [invoiceDocId, requisitionDocId] = await Promise.all([
+      this.collatioDocId('purchase-invoice', invoice),
+      this.collatioDocId('requisition', materialRequest),
+    ]);
+
     return collatioClient.validateAndReconcile(
       {
         purchase_invoice: invoice,
-        material_request: materialRequest,
+        requisition: materialRequest,
         purchase_order: purchaseOrder,
         purchase_receipt: purchaseReceipt,
+        requisition_collatio_doc_id: requisitionDocId,
+        purchase_invoice_collatio_doc_id: invoiceDocId,
       },
       { correlationId: invoice, entityType: 'purchase-invoice', entityId: invoice, actorUserId },
     );
+  }
+
+  /** The stored Collatio document id on a record, or '' if none / not found. */
+  private async collatioDocId(slug: string, code: string): Promise<string> {
+    if (!code) return '';
+    const row = await documentDataService.getByCode(slug, code).catch(() => null);
+    const id = row?.data['collatioDocId'];
+    return typeof id === 'string' ? id : '';
   }
 }
 
