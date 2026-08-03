@@ -13,12 +13,12 @@ import type { ThreeWayMatchResult } from '../../core/api/integration.api.service
   template: `
     @if (result; as r) {
       <div class="modal-header">
-        <h5 class="modal-title"><i class="ph-fill ph-sparkle text-ai"></i> Three-way match — {{ r.header.invoice_no }}</h5>
+        <h5 class="modal-title"><i class="ph ph-sparkle text-ai"></i> Three-way match — {{ r.header.invoice_no }}</h5>
         <button type="button" class="btn-close" (click)="modalRef.hide()"></button>
       </div>
       <div class="modal-body">
         <div class="tw-verdict" [class.ok]="r.header.approved" [class.bad]="!r.header.approved">
-          <i class="ph-fill" [class.ph-check-circle]="r.header.approved" [class.ph-x-circle]="!r.header.approved"></i>
+          <i class="ph" [class.ph-check-circle]="r.header.approved" [class.ph-x-circle]="!r.header.approved"></i>
           <div>
             <div class="tw-verdict__title">{{ r.header.overall_result }}</div>
             <div class="tw-verdict__sub">{{ r.header.supplier }} · matched {{ r.header.match_date }} · {{ r.header.ap_analyst }}</div>
@@ -76,7 +76,7 @@ import type { ThreeWayMatchResult } from '../../core/api/integration.api.service
             <div class="tw-h">Tolerances</div>
             @for (t of r.tolerances; track t.control) {
               <div class="tw-chk">
-                <i class="ph-fill" [class.ph-check-circle]="t.ok" [class.ph-warning-circle]="!t.ok" [class.ok]="t.ok" [class.bad]="!t.ok"></i>
+                <i class="ph" [class.ph-check-circle]="t.ok" [class.ph-warning-circle]="!t.ok" [class.ok]="t.ok" [class.bad]="!t.ok"></i>
                 <div><b>{{ t.control }}</b> <span class="text-muted">{{ t.setting }}</span></div>
                 <span class="tw-stat">{{ t.status }}</span>
               </div>
@@ -86,7 +86,7 @@ import type { ThreeWayMatchResult } from '../../core/api/integration.api.service
             <div class="tw-h">Checks</div>
             @for (c of r.checks; track c.control) {
               <div class="tw-chk">
-                <i class="ph-fill" [class.ph-check-circle]="c.ok" [class.ph-warning-circle]="!c.ok" [class.ok]="c.ok" [class.bad]="!c.ok"></i>
+                <i class="ph" [class.ph-check-circle]="c.ok" [class.ph-warning-circle]="!c.ok" [class.ok]="c.ok" [class.bad]="!c.ok"></i>
                 <div><b>{{ c.control }}</b> <span class="text-muted">{{ c.detail }}</span></div>
                 <span class="tw-stat">{{ c.status }}</span>
               </div>

@@ -13,7 +13,7 @@ import { IntegrationApiService, type CollatioUploadResult } from '../../core/api
   selector: 'erp-collatio-upload-modal',
   template: `
     <div class="modal-header">
-      <h5 class="modal-title"><i class="ph-fill ph-sparkle text-ai"></i> Create using Collatio</h5>
+      <h5 class="modal-title"><i class="ph ph-sparkle text-ai"></i> Create using Collatio</h5>
       <button type="button" class="btn-close" (click)="modalRef.hide()"></button>
     </div>
     <div class="modal-body">
@@ -25,7 +25,7 @@ import { IntegrationApiService, type CollatioUploadResult } from '../../core/api
       @if (error()) { <div class="alert alert-danger py-2">{{ error() }}</div> }
 
       <label class="cu-drop" [class.has-file]="!!file()">
-        <input type="file" class="d-none" accept="application/pdf,image/*" (change)="onFile($event)" />
+        <input type="file" class="d-none" (change)="onFile($event)" />
         @if (file(); as f) {
           <i class="ph ph-file-text cu-drop__icon"></i>
           <div class="cu-drop__name">{{ f.name }}</div>
@@ -33,7 +33,7 @@ import { IntegrationApiService, type CollatioUploadResult } from '../../core/api
         } @else {
           <i class="ph ph-upload-simple cu-drop__icon"></i>
           <div class="cu-drop__name">Choose a file</div>
-          <div class="text-muted small">PDF or image</div>
+          <div class="text-muted small">Any file format</div>
         }
       </label>
     </div>

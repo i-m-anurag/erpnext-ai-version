@@ -99,7 +99,7 @@ const KIND_ICON: Record<TimelineKind, string> = {
         }
         @if (threeWayEnabled() && recordStatus() === 'active') {
           <button class="btn btn-sm btn-match ms-2" [disabled]="matching()" (click)="runThreeWayMatch()">
-            <i class="ph-fill" [class.ph-scales]="!matching()" [class.ph-circle-notch]="matching()"></i>
+            <i class="ph" [class.ph-scales]="!matching()" [class.ph-circle-notch]="matching()"></i>
             {{ matching() ? 'Matching…' : 'Three-way match' }}
           </button>
         }

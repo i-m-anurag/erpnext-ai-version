@@ -42,7 +42,7 @@ const ROW_STATE = '__rowState';
           <button class="btn btn-sm btn-ai"><i class="ph ph-sparkle"></i> Ask IQ</button>
           @if (collatioUpload()) {
             <button class="btn btn-sm btn-ai" (click)="openCollatio()">
-              <i class="ph-fill ph-file-arrow-up"></i> Create using Collatio
+              <i class="ph ph-file-arrow-up"></i> Create using Collatio
             </button>
           }
           <button class="btn btn-sm btn-primary" (click)="create()"><i class="ph ph-plus"></i> New</button>
