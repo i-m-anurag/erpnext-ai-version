@@ -104,18 +104,45 @@ export class CollatioService {
    * (we never invent document numbers).
    */
   async resolveMatchRefs(invoiceCode: string): Promise<MatchRefs> {
-    const links = await this.relatedCodes(invoiceCode);
-    let purchaseReceipt = links.get('purchase-receipt') ?? '';
+    // The chain is Requisition → PO → Receipt → Invoice, linked pairwise, so the
+    // requisition isn't a DIRECT link of the invoice — walk the link graph out
+    // from the invoice to collect the nearest doc of each master.
+    const byMaster: Record<string, string> = {};
+    const visited = new Set<string>([`purchase-invoice|${invoiceCode}`]);
+    let frontier: [string, string][] = [['purchase-invoice', invoiceCode]];
+    for (let depth = 0; depth < 8 && frontier.length; depth++) {
+      const rows = await this.links.find({
+        where: frontier.flatMap(([m, c]) => [
+          { fromMaster: m, fromCode: c },
+          { toMaster: m, toCode: c },
+        ]),
+      });
+      const next: [string, string][] = [];
+      for (const l of rows) {
+        for (const [m, c] of [
+          [l.fromMaster, l.fromCode],
+          [l.toMaster, l.toCode],
+        ] as [string, string][]) {
+          if (visited.has(`${m}|${c}`)) continue;
+          visited.add(`${m}|${c}`);
+          if (!byMaster[m]) byMaster[m] = c;
+          next.push([m, c]);
+        }
+      }
+      frontier = next;
+    }
+
+    let purchaseReceipt = byMaster['purchase-receipt'] ?? '';
     if (!purchaseReceipt) {
-      // The Purchase Invoice form carries a purchaseReceipt field — use it as a fallback.
+      // The Purchase Invoice form also carries a purchaseReceipt field — use it too.
       const inv = await documentDataService.getByCode('purchase-invoice', invoiceCode).catch(() => null);
       const field = inv?.data['purchaseReceipt'];
       if (typeof field === 'string') purchaseReceipt = field;
     }
     return {
       invoice: invoiceCode,
-      materialRequest: links.get('requisition') ?? '',
-      purchaseOrder: links.get('purchase-order') ?? '',
+      materialRequest: byMaster['requisition'] ?? '',
+      purchaseOrder: byMaster['purchase-order'] ?? '',
       purchaseReceipt,
     };
   }
@@ -150,22 +177,6 @@ export class CollatioService {
       },
       { correlationId: invoice, entityType: 'purchase-invoice', entityId: invoice, actorUserId },
     );
-  }
-
-  /** Collect codes of documents linked to the invoice, keyed by their master slug. */
-  private async relatedCodes(invoiceCode: string): Promise<Map<string, string>> {
-    const rows = await this.links.find({
-      where: [
-        { fromMaster: 'purchase-invoice', fromCode: invoiceCode },
-        { toMaster: 'purchase-invoice', toCode: invoiceCode },
-      ],
-    });
-    const map = new Map<string, string>();
-    for (const l of rows) {
-      if (l.fromMaster !== 'purchase-invoice') map.set(l.fromMaster, l.fromCode);
-      if (l.toMaster !== 'purchase-invoice') map.set(l.toMaster, l.toCode);
-    }
-    return map;
   }
 }
 

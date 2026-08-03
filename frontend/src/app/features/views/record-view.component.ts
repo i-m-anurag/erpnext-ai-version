@@ -19,7 +19,7 @@ import { LedgerApiService, type GlVoucherEntry } from '../../core/api/ledger.api
 import { StockApiService, type StockLedgerRow } from '../../core/api/stock.api.service';
 import { NotificationService } from '../../core/notify/notification.service';
 import { CollatioService } from '../../core/collatio/collatio.service';
-import { IntegrationApiService } from '../../core/api/integration.api.service';
+import { IntegrationApiService, type ThreeWayMatchResult } from '../../core/api/integration.api.service';
 import { ThreeWayMatchModalComponent } from '../integration/three-way-match-modal.component';
 import { ThreeWayMatchRefsModalComponent } from '../integration/three-way-match-refs-modal.component';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
@@ -535,29 +535,47 @@ export class RecordViewComponent {
     return rel.replace(/_/g, ' ');
   }
 
-  /** Confirm the linked documents, then run the match and show the results popup. */
+  /** Resolve the linked documents; if all are found run the match straight away,
+   *  otherwise open a dialog pre-filled for the user to complete the missing ones. */
   protected runThreeWayMatch(): void {
     if (this.matching()) return;
     this.matching.set(true);
     this.integrations.threeWayMatchRefs(this.recordId()).subscribe({
       next: (refs) => {
+        const complete = !!(refs.invoice && refs.materialRequest && refs.purchaseOrder && refs.purchaseReceipt);
+        if (complete) {
+          // Everything resolved from the document links — no need to ask.
+          this.integrations.threeWayMatch(refs).subscribe({
+            next: (result) => {
+              this.matching.set(false);
+              this.showMatchResult(result);
+            },
+            error: (e: { error?: { error?: { message?: string } } }) => {
+              this.matching.set(false);
+              this.notify.error(e?.error?.error?.message ?? 'Three-way match failed');
+            },
+          });
+          return;
+        }
         this.matching.set(false);
         const dialog = this.modals.show(ThreeWayMatchRefsModalComponent, {
           class: 'modal-dialog-centered',
           initialState: { refs },
         });
         const modal = dialog.content as ThreeWayMatchRefsModalComponent | undefined;
-        modal?.matched.subscribe((result) => {
-          this.modals.show(ThreeWayMatchModalComponent, {
-            class: 'modal-xl modal-dialog-centered',
-            initialState: { result },
-          });
-        });
+        modal?.matched.subscribe((result) => this.showMatchResult(result));
       },
       error: () => {
         this.matching.set(false);
         this.notify.error('Could not load match references');
       },
+    });
+  }
+
+  private showMatchResult(result: ThreeWayMatchResult): void {
+    this.modals.show(ThreeWayMatchModalComponent, {
+      class: 'modal-xl modal-dialog-centered',
+      initialState: { result },
     });
   }
 

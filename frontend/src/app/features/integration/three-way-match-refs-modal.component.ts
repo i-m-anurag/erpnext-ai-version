@@ -30,8 +30,8 @@ import { IntegrationApiService, type MatchRefs, type ThreeWayMatchResult } from 
         <input class="form-control form-control-sm" [value]="refs.invoice" readonly />
       </label>
       <label class="mr-field">
-        <span>Material Request</span>
-        <input class="form-control form-control-sm" [(ngModel)]="refs.materialRequest" placeholder="MR-…" />
+        <span>Requisition</span>
+        <input class="form-control form-control-sm" [(ngModel)]="refs.materialRequest" placeholder="REQ-…" />
       </label>
       <label class="mr-field">
         <span>Purchase Order</span>
