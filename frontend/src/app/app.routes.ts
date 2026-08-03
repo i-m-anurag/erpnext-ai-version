@@ -1,5 +1,11 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { authGuard, permissionGuard } from './core/auth/auth.guards';
+import { IntegrationSettingsService } from './core/integration/integration-settings.service';
+
+/** Blocks the integration-logs route when the deployment has the logs UI disabled. */
+const integrationLogsUiGuard = () =>
+  inject(IntegrationSettingsService).logsUiEnabled() ? true : inject(Router).createUrlTree(['/app/m/admin']);
 
 export const routes: Routes = [
   {
@@ -77,6 +83,13 @@ export const routes: Routes = [
             data: { permission: 'workflow:view', title: 'Workflow' },
             loadComponent: () =>
               import('./features/workflow/workflow-editor.component').then((m) => m.WorkflowEditorComponent),
+          },
+          {
+            path: 'integrations',
+            canActivate: [permissionGuard, integrationLogsUiGuard],
+            data: { permission: 'integration:log.read', title: 'Integrations' },
+            loadComponent: () =>
+              import('./features/integration/integration-logs.component').then((m) => m.IntegrationLogsComponent),
           },
           {
             path: 'numbering',

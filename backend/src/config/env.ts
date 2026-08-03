@@ -68,6 +68,14 @@ const EnvSchema = z.object({
   COLLATIO_BASE_URL: z.string().default(''),
   COLLATIO_APP_NAME: z.string().default(''),
   COLLATIO_DEPARTMENT_ID: z.string().default(''),
+
+  COLLATIO_OCR_BASE_URL: z.string().default(''),
+  COLLATIO_OCR_CLIENT_NAME: z.string().default('erp'),
+  COLLATIO_OCR_MOCK: bool.default(true),
+
+  INTEGRATION_LOGS_UI: bool.default(true),
+  INTEGRATION_LOGS_ARCHIVE: bool.default(true),
+  INTEGRATION_LOGS_RETENTION_DAYS: int.default(30),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -153,6 +161,19 @@ export const env = {
     baseUrl: e.COLLATIO_BASE_URL,
     appName: e.COLLATIO_APP_NAME,
     departmentId: e.COLLATIO_DEPARTMENT_ID,
+  },
+  /** Third-party API integrations (server-side only; routed via the HTTP gateway). */
+  integrations: {
+    collatio: {
+      ocrBaseUrl: e.COLLATIO_OCR_BASE_URL,
+      clientName: e.COLLATIO_OCR_CLIENT_NAME,
+      mock: e.COLLATIO_OCR_MOCK,
+    },
+    logs: {
+      uiEnabled: e.INTEGRATION_LOGS_UI,
+      archiveEnabled: e.INTEGRATION_LOGS_ARCHIVE,
+      retentionDays: e.INTEGRATION_LOGS_RETENTION_DAYS,
+    },
   },
   modules: readModules(),
 } as const;

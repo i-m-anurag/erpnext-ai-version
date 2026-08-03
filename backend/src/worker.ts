@@ -8,6 +8,8 @@ import { queueConnection } from './queue/connection.js';
 import { EMAIL_QUEUE, EVENT_QUEUE, type EmailJob } from './queue/queues.js';
 import type { DomainEvent } from './queue/events.js';
 import { emailService } from './modules/communication/index.js';
+import { integrationLogService } from './modules/integration/index.js';
+import { env } from './config/env.js';
 
 /**
  * Background worker process. Consumes async jobs so the request path stays fast:
@@ -46,6 +48,23 @@ async function main(): Promise<void> {
   emailWorker.on('failed', (job, err) => logger.error({ jobId: job?.id, err }, 'worker: email job failed'));
   eventWorker.on('failed', (job, err) => logger.error({ jobId: job?.id, err }, 'worker: event job failed'));
   logger.info('worker: listening on queues [email, events]');
+
+  // Periodically archive old API call logs so the live table (and Admin viewer)
+  // stays clean. Runs on startup, then daily.
+  if (env.integrations.logs.archiveEnabled) {
+    const days = env.integrations.logs.retentionDays;
+    const archive = async (): Promise<void> => {
+      try {
+        const n = await integrationLogService.archiveOlderThan(days);
+        if (n > 0) logger.info(`worker: archived ${n} api_call_log rows older than ${days}d`);
+      } catch (err) {
+        logger.warn({ err }, 'worker: api_call_log archive failed');
+      }
+    };
+    await archive();
+    setInterval(() => void archive(), 24 * 60 * 60 * 1000);
+    logger.info(`worker: api_call_log archival scheduled (retention ${days}d)`);
+  }
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info(`worker: ${signal} received — shutting down`);

@@ -44,3 +44,6 @@ docker/data/
 /ERP Next Theme scss/
 # Local MCP credentials — never commit
 .mcp.json
+
+# Uploaded documents (Collatio manual upload) — never commit user files
+assets/manual_upload/

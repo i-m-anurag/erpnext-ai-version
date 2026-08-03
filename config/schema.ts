@@ -93,6 +93,40 @@ export const ConfigSchema = z.object({
     .default({ baseUrl: '', appName: '', departmentId: '' }),
 
   /**
+   * Third-party API integrations. Every outbound call routes through the ERP's
+   * HTTP gateway (logged to api_call_log). `collatio.mock` returns canned
+   * responses without hitting the OCR service (dev without VPN); when live,
+   * `ocrBaseUrl` points at the Collatio document/OCR API.
+   */
+  integrations: z
+    .object({
+      collatio: z
+        .object({
+          ocrBaseUrl: z.string().default(''),
+          clientName: z.string().default('erp'),
+          mock: z.boolean().default(true),
+        })
+        .default({ ocrBaseUrl: '', clientName: 'erp', mock: true }),
+      /**
+       * Outbound-API audit log controls. `uiEnabled` shows/hides the Admin
+       * "Integrations" logs page. `archiveEnabled` moves entries older than
+       * `retentionDays` out of the live table into api_call_log_archive so the
+       * viewer stays clean (run periodically by the worker).
+       */
+      logs: z
+        .object({
+          uiEnabled: z.boolean().default(true),
+          archiveEnabled: z.boolean().default(true),
+          retentionDays: z.number().int().positive().default(30),
+        })
+        .default({ uiEnabled: true, archiveEnabled: true, retentionDays: 30 }),
+    })
+    .default({
+      collatio: { ocrBaseUrl: '', clientName: 'erp', mock: true },
+      logs: { uiEnabled: true, archiveEnabled: true, retentionDays: 30 },
+    }),
+
+  /**
    * This deployment's client. When set, the seeder applies client-specific
    * overrides from seed-data/clients/<clientSlug>/ on top of the shipped base.
    */

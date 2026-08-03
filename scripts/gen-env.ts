@@ -110,6 +110,14 @@ function flatten(c: AppConfig): Record<string, string | number | boolean> {
     COLLATIO_BASE_URL: c.collatio.baseUrl,
     COLLATIO_APP_NAME: c.collatio.appName,
     COLLATIO_DEPARTMENT_ID: c.collatio.departmentId,
+
+    COLLATIO_OCR_BASE_URL: c.integrations.collatio.ocrBaseUrl,
+    COLLATIO_OCR_CLIENT_NAME: c.integrations.collatio.clientName,
+    COLLATIO_OCR_MOCK: c.integrations.collatio.mock,
+
+    INTEGRATION_LOGS_UI: c.integrations.logs.uiEnabled,
+    INTEGRATION_LOGS_ARCHIVE: c.integrations.logs.archiveEnabled,
+    INTEGRATION_LOGS_RETENTION_DAYS: c.integrations.logs.retentionDays,
   };
 
   // Module toggles → MODULE_<NAME>=true|false

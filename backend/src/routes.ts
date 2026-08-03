@@ -16,6 +16,7 @@ import { buildAccountRouter } from './modules/accounts/index.js';
 import { buildLedgerRouter } from './modules/ledger/index.js';
 import { buildStockRouter } from './modules/stock/index.js';
 import { buildDashboardRouter } from './modules/dashboard/index.js';
+import { buildIntegrationRouter } from './modules/integration/index.js';
 
 /**
  * Central route registration. As modules land (auth, permission, ...), each
@@ -49,7 +50,14 @@ export function registerRoutes(app: Express): void {
   // Surfaces which modules this deployment runs (Layer-1 config). Under /api so
   // the SPA reaches it through the same-origin proxy (health probes stay at root).
   app.get('/api/meta', (_req: Request, res: Response) => {
-    res.json({ name: env.app.name, env: env.nodeEnv, modules: env.modules, branding: env.branding, collatio: env.collatio });
+    res.json({
+      name: env.app.name,
+      env: env.nodeEnv,
+      modules: env.modules,
+      branding: env.branding,
+      collatio: env.collatio,
+      integrations: { logsUi: env.integrations.logs.uiEnabled },
+    });
   });
 
   // Module routers — each gated by its Layer-1 enablement flag.
@@ -103,4 +111,5 @@ export function registerRoutes(app: Express): void {
 
   // Module dashboards — resolved widgets (config + metric data). Gated by auth.
   app.use('/api/dashboards', buildDashboardRouter());
+  app.use('/api/integrations', buildIntegrationRouter());
 }

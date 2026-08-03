@@ -2,9 +2,12 @@ import { Component, computed, effect, inject, input, signal } from '@angular/cor
 import { Router } from '@angular/router';
 import { AgGridAngular } from 'ag-grid-angular';
 import { type ColDef, type RowClickedEvent, themeQuartz } from 'ag-grid-community';
+import { BsModalService } from 'ngx-bootstrap/modal';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
 import type { ListColumn, ResolvedView } from '../../core/config/view-configs';
 import { badgeHtml, formatDateTime, lifecycleTone, stateTone } from '../../core/util/format';
+import { IntegrationApiService } from '../../core/api/integration.api.service';
+import { CollatioUploadModalComponent } from '../integration/collatio-upload-modal.component';
 
 /** Maps a value to a status-chip class (mock heuristic). */
 function chipClass(value: unknown): string {
@@ -37,6 +40,11 @@ const ROW_STATE = '__rowState';
         <div class="d-flex gap-2 align-items-center">
           <div class="iq-search"><i class="ph ph-magnifying-glass"></i><input placeholder="Search {{ cfg.title.toLowerCase() }}" /></div>
           <button class="btn btn-sm btn-ai"><i class="ph ph-sparkle"></i> Ask IQ</button>
+          @if (collatioUpload()) {
+            <button class="btn btn-sm btn-ai" (click)="openCollatio()">
+              <i class="ph ph-file-arrow-up"></i> Create using Collatio
+            </button>
+          }
           <button class="btn btn-sm btn-primary" (click)="create()"><i class="ph ph-plus"></i> New</button>
         </div>
       </div>
@@ -67,20 +75,46 @@ export class ListViewComponent {
 
   private readonly resolver = inject(ViewResolverService);
   private readonly router = inject(Router);
+  private readonly integrations = inject(IntegrationApiService);
+  private readonly modals = inject(BsModalService);
+
+  /** Whether this list's master has Collatio document-upload enabled. */
+  protected readonly collatioUpload = signal(false);
 
   constructor() {
     effect(() => {
       const module = this.module();
       const sub = this.sub();
       this.config.set(undefined);
+      this.collatioUpload.set(false);
       this.loading.set(true);
       this.resolver.resolve(module, sub).subscribe({
         next: (cfg) => {
           this.config.set(cfg);
           this.loading.set(false);
+          if (cfg?.backed && cfg.masterSlug) {
+            this.integrations.configFor(cfg.masterSlug).subscribe({
+              next: (ic) => this.collatioUpload.set(!!ic.collatioUpload?.enabled),
+              error: () => this.collatioUpload.set(false),
+            });
+          }
         },
         error: () => this.loading.set(false),
       });
+    });
+  }
+
+  /** Open the Collatio upload popup; on success open the created draft record. */
+  protected openCollatio(): void {
+    const cfg = this.config();
+    if (!cfg?.masterSlug) return;
+    const ref = this.modals.show(CollatioUploadModalComponent, {
+      class: 'modal-dialog-centered',
+      initialState: { slug: cfg.masterSlug, label: cfg.singular ?? cfg.title },
+    });
+    const modal = ref.content as CollatioUploadModalComponent | undefined;
+    modal?.uploaded.subscribe((res) => {
+      void this.router.navigate(['/app/m', cfg.module, cfg.sub, res.code]);
     });
   }
 

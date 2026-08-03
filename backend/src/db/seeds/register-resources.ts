@@ -8,6 +8,7 @@ import { registerWorkflowResourceType, WORKFLOW_RESOURCE_TYPE } from '../../modu
 import { registerPipelineResourceType, DOCUMENT_PIPELINE_RESOURCE_TYPE } from '../../modules/document/index.js';
 import { registerNamingSeriesResourceType, NAMING_SERIES_RESOURCE_TYPE } from '../../modules/naming/index.js';
 import { registerDashboardResourceType, MODULE_DASHBOARD_RESOURCE_TYPE } from '../../modules/dashboard/index.js';
+import { registerIntegrationConfigResourceType, INTEGRATION_CONFIG_RESOURCE_TYPE } from '../../modules/integration/index.js';
 
 /**
  * Register every configurable resource type with the config resolver. Called at
@@ -21,4 +22,5 @@ export function registerAllResourceTypes(): void {
   if (!isResourceTypeRegistered(DOCUMENT_PIPELINE_RESOURCE_TYPE)) registerPipelineResourceType();
   if (!isResourceTypeRegistered(NAMING_SERIES_RESOURCE_TYPE)) registerNamingSeriesResourceType();
   if (!isResourceTypeRegistered(MODULE_DASHBOARD_RESOURCE_TYPE)) registerDashboardResourceType();
+  if (!isResourceTypeRegistered(INTEGRATION_CONFIG_RESOURCE_TYPE)) registerIntegrationConfigResourceType();
 }

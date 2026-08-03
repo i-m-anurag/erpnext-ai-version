@@ -49,6 +49,18 @@
     "appName": "",
     "departmentId": ""
   },
+  "integrations": {
+    "collatio": {
+      "ocrBaseUrl": "",
+      "clientName": "erp",
+      "mock": false
+    },
+    "logs": {
+      "uiEnabled": true,
+      "archiveEnabled": true,
+      "retentionDays": 30
+    }
+  },
   "admin": {
     "username": "admin",
     "email": "admin@acme.example.com",

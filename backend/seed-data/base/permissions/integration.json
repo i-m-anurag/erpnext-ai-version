@@ -1,0 +1,6 @@
+{
+  "module": "integration",
+  "permissions": [
+    { "action": "log.read", "description": "View third-party API call logs" }
+  ]
+}

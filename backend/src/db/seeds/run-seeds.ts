@@ -12,6 +12,7 @@ import { emailTemplatesSeeder } from './seeders/email-templates.seeder.js';
 import { workflowsSeeder } from './seeders/workflows.seeder.js';
 import { pipelinesSeeder } from './seeders/pipelines.seeder.js';
 import { dashboardsSeeder } from './seeders/dashboards.seeder.js';
+import { integrationConfigSeeder } from './seeders/integration-config.seeder.js';
 import { namingSeriesSeeder } from './seeders/naming-series.seeder.js';
 import { accountsSeeder } from './seeders/accounts.seeder.js';
 import { fiscalYearsSeeder } from './seeders/fiscal-years.seeder.js';
@@ -33,6 +34,7 @@ const seeders: Seeder[] = [
   workflowsSeeder,
   pipelinesSeeder,
   dashboardsSeeder,
+  integrationConfigSeeder,
   namingSeriesSeeder,
   accountsSeeder,
   fiscalYearsSeeder,
