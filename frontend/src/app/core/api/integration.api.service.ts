@@ -9,6 +9,14 @@ export interface IntegrationConfig {
   threeWayMatch?: { enabled: boolean };
 }
 
+/** The four documents a three-way match reconciles. */
+export interface MatchRefs {
+  invoice: string;
+  materialRequest: string;
+  purchaseOrder: string;
+  purchaseReceipt: string;
+}
+
 export interface CollatioUploadResult {
   code: string;
   collatioDocId: string;
@@ -96,8 +104,14 @@ export class IntegrationApiService {
     return this.http.post<CollatioUploadResult>(`${this.base}/collatio/upload`, form);
   }
 
-  threeWayMatch(invoice: string): Observable<ThreeWayMatchResult> {
-    return this.http.post<ThreeWayMatchResult>(`${this.base}/collatio/three-way-match`, { invoice });
+  /** Suggested doc numbers (from links + invoice fields) to pre-fill the match dialog. */
+  threeWayMatchRefs(invoice: string): Observable<MatchRefs> {
+    return this.http.get<MatchRefs>(`${this.base}/collatio/three-way-match/refs/${encodeURIComponent(invoice)}`);
+  }
+
+  /** Run the match with the four confirmed document numbers. */
+  threeWayMatch(refs: MatchRefs): Observable<ThreeWayMatchResult> {
+    return this.http.post<ThreeWayMatchResult>(`${this.base}/collatio/three-way-match`, refs);
   }
 
   /** Fetch a record's uploaded document as a blob (auth header applied by the

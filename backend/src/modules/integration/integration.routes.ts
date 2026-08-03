@@ -51,13 +51,32 @@ export function buildIntegrationRouter(): Router {
   }));
 
   // Feature 2 — three-way match for an invoice.
+  // Suggested references (from links + invoice fields) to pre-fill the confirm dialog.
+  router.get(
+    '/collatio/three-way-match/refs/:invoice',
+    requirePermission('master', 'view'),
+    asyncHandler(async (req: Request, res: Response) => {
+      res.json(await collatioService.resolveMatchRefs(String(req.params.invoice)));
+    }),
+  );
+
+  // Run the match with the four confirmed document numbers (no sample fallback).
   router.post(
     '/collatio/three-way-match',
     requirePermission('master', 'view'),
     asyncHandler(async (req: Request, res: Response) => {
-      const invoice = String(req.body?.invoice ?? '');
-      if (!invoice) throw new BadRequestError('invoice is required');
-      res.json(await collatioService.threeWayMatch(invoice, req.auth!.userId));
+      const b = (req.body ?? {}) as Record<string, unknown>;
+      res.json(
+        await collatioService.threeWayMatch(
+          {
+            invoice: String(b.invoice ?? ''),
+            materialRequest: String(b.materialRequest ?? ''),
+            purchaseOrder: String(b.purchaseOrder ?? ''),
+            purchaseReceipt: String(b.purchaseReceipt ?? ''),
+          },
+          req.auth!.userId,
+        ),
+      );
     }),
   );
 

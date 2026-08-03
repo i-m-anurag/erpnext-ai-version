@@ -62,12 +62,16 @@ Per-form enablement is the `integration_config` resource, keyed by form slug
 ## Feature 2 — Three-way match on an invoice
 
 On a **submitted** invoice whose slug has `threeWayMatch.enabled`, the
-**"Three-way match"** action calls `POST /api/integrations/collatio/three-way-match`,
-which resolves the invoice's linked MR/PO/PR (via document links; sample codes
-in mock) and calls Collatio `POST /collatio/validate-and-reconcile`. The result
-renders in an interactive popup (`ThreeWayMatchModalComponent`): verdict banner,
-per-line qty/price checks, totals, tolerances, control checks, and the
-outstanding amount / next action — so AP can judge the match before payment.
+**"Three-way match"** action first fetches suggested references
+(`GET /collatio/three-way-match/refs/:invoice` — resolved from the invoice's
+document links and its `purchaseReceipt` field; empty when not found) and opens a
+**confirm dialog** (`ThreeWayMatchRefsModalComponent`) pre-filled with them. The
+user completes any missing numbers, then `POST /collatio/three-way-match` runs the
+reconcile with **all four required document numbers** — there is **no sample/placeholder
+fallback**, so a live match only ever runs on real documents. The result renders in
+an interactive popup (`ThreeWayMatchModalComponent`): verdict banner, per-line
+qty/price checks, totals, tolerances, control checks, and the outstanding amount /
+next action — so AP can judge the match before payment.
 
 ## Adding another integration
 

@@ -21,6 +21,7 @@ import { NotificationService } from '../../core/notify/notification.service';
 import { CollatioService } from '../../core/collatio/collatio.service';
 import { IntegrationApiService } from '../../core/api/integration.api.service';
 import { ThreeWayMatchModalComponent } from '../integration/three-way-match-modal.component';
+import { ThreeWayMatchRefsModalComponent } from '../integration/three-way-match-refs-modal.component';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
 import { routeForMaster, type ResolvedView } from '../../core/config/view-configs';
 import { flattenDataFields, type FormFieldDef } from '../../core/models/api.models';
@@ -534,21 +535,28 @@ export class RecordViewComponent {
     return rel.replace(/_/g, ' ');
   }
 
-  /** Run the Collatio three-way match for this invoice and show the results popup. */
+  /** Confirm the linked documents, then run the match and show the results popup. */
   protected runThreeWayMatch(): void {
     if (this.matching()) return;
     this.matching.set(true);
-    this.integrations.threeWayMatch(this.recordId()).subscribe({
-      next: (result) => {
+    this.integrations.threeWayMatchRefs(this.recordId()).subscribe({
+      next: (refs) => {
         this.matching.set(false);
-        this.modals.show(ThreeWayMatchModalComponent, {
-          class: 'modal-xl modal-dialog-centered',
-          initialState: { result },
+        const dialog = this.modals.show(ThreeWayMatchRefsModalComponent, {
+          class: 'modal-dialog-centered',
+          initialState: { refs },
+        });
+        const modal = dialog.content as ThreeWayMatchRefsModalComponent | undefined;
+        modal?.matched.subscribe((result) => {
+          this.modals.show(ThreeWayMatchModalComponent, {
+            class: 'modal-xl modal-dialog-centered',
+            initialState: { result },
+          });
         });
       },
-      error: (e: { error?: { error?: { message?: string } } }) => {
+      error: () => {
         this.matching.set(false);
-        this.notify.error(e?.error?.error?.message ?? 'Three-way match failed');
+        this.notify.error('Could not load match references');
       },
     });
   }

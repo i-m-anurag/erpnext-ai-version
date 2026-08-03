@@ -97,36 +97,84 @@ export class CollatioService {
     return { absPath: abs, filename: typeof name === 'string' ? name : 'document' };
   }
 
-  /** Run a three-way match for an invoice, resolving its linked MR/PO/PR codes. */
-  async threeWayMatch(invoiceCode: string, actorUserId?: string): Promise<ThreeWayMatchResult> {
-    const related = await this.relatedCodes(invoiceCode);
+  /**
+   * Suggested three-way-match references for an invoice, resolved from its
+   * document links and its own `purchaseReceipt` field. Any that can't be found
+   * come back empty — the caller confirms/fills them before running the match
+   * (we never invent document numbers).
+   */
+  async resolveMatchRefs(invoiceCode: string): Promise<MatchRefs> {
+    const links = await this.relatedCodes(invoiceCode);
+    let purchaseReceipt = links.get('purchase-receipt') ?? '';
+    if (!purchaseReceipt) {
+      // The Purchase Invoice form carries a purchaseReceipt field — use it as a fallback.
+      const inv = await documentDataService.getByCode('purchase-invoice', invoiceCode).catch(() => null);
+      const field = inv?.data['purchaseReceipt'];
+      if (typeof field === 'string') purchaseReceipt = field;
+    }
+    return {
+      invoice: invoiceCode,
+      materialRequest: links.get('requisition') ?? '',
+      purchaseOrder: links.get('purchase-order') ?? '',
+      purchaseReceipt,
+    };
+  }
+
+  /**
+   * Run a three-way match. All four document numbers must be supplied (resolved
+   * from the invoice's links/fields and confirmed by the user) — there is no
+   * placeholder/sample fallback, so a live reconcile only ever runs on real docs.
+   */
+  async threeWayMatch(refs: MatchRefs, actorUserId?: string): Promise<ThreeWayMatchResult> {
+    const invoice = refs.invoice?.trim() ?? '';
+    const materialRequest = refs.materialRequest?.trim() ?? '';
+    const purchaseOrder = refs.purchaseOrder?.trim() ?? '';
+    const purchaseReceipt = refs.purchaseReceipt?.trim() ?? '';
+
+    const missing = [
+      !invoice && 'Purchase Invoice',
+      !materialRequest && 'Material Request',
+      !purchaseOrder && 'Purchase Order',
+      !purchaseReceipt && 'Purchase Receipt',
+    ].filter(Boolean);
+    if (missing.length) {
+      throw new BadRequestError(`Three-way match needs the linked ${missing.join(', ')}.`);
+    }
+
     return collatioClient.validateAndReconcile(
       {
-        purchase_invoice: invoiceCode,
-        material_request: related.requisition ?? 'MR-2026-000123',
-        purchase_order: related.get('purchase-order') ?? 'PO-2026-000789',
-        purchase_receipt: related.get('purchase-receipt') ?? 'PR-2026-000456',
+        purchase_invoice: invoice,
+        material_request: materialRequest,
+        purchase_order: purchaseOrder,
+        purchase_receipt: purchaseReceipt,
       },
-      { correlationId: invoiceCode, entityType: 'purchase-invoice', entityId: invoiceCode, actorUserId },
+      { correlationId: invoice, entityType: 'purchase-invoice', entityId: invoice, actorUserId },
     );
   }
 
   /** Collect codes of documents linked to the invoice, keyed by their master slug. */
-  private async relatedCodes(invoiceCode: string): Promise<Map<string, string> & { requisition?: string }> {
+  private async relatedCodes(invoiceCode: string): Promise<Map<string, string>> {
     const rows = await this.links.find({
       where: [
         { fromMaster: 'purchase-invoice', fromCode: invoiceCode },
         { toMaster: 'purchase-invoice', toCode: invoiceCode },
       ],
     });
-    const map = new Map<string, string>() as Map<string, string> & { requisition?: string };
+    const map = new Map<string, string>();
     for (const l of rows) {
       if (l.fromMaster !== 'purchase-invoice') map.set(l.fromMaster, l.fromCode);
       if (l.toMaster !== 'purchase-invoice') map.set(l.toMaster, l.toCode);
     }
-    map.requisition = map.get('requisition');
     return map;
   }
+}
+
+/** The four documents a three-way match reconciles. */
+export interface MatchRefs {
+  invoice: string;
+  materialRequest: string;
+  purchaseOrder: string;
+  purchaseReceipt: string;
 }
 
 /** Strip path separators / control chars from an uploaded filename. */
