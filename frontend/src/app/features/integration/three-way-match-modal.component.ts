@@ -124,6 +124,7 @@ import type { ThreeWayMatchResult } from '../../core/api/integration.api.service
     .tw-chk { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12.5px; }
     .tw-chk i { font-size: 16px; } .tw-chk i.ok { color: #12834f; } .tw-chk i.bad { color: #b25e00; }
     .tw-chk > div { flex: 1; min-width: 0; }
+    .tw-chk .text-muted { margin-left: 6px; }
     .tw-stat { font-size: 10.5px; font-weight: 700; color: #12834f; }
     .tw-foot { display: flex; align-items: center; justify-content: space-between; }
     .tw-out { font-size: 13px; color: #46464d; }
