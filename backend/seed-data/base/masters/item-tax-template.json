@@ -1,0 +1,9 @@
+{
+  "slug": "item-tax-template",
+  "name": "Item Tax Template",
+  "kind": "document",
+  "managedBy": "ui",
+  "editable": true,
+  "formSlug": "item-tax-template",
+  "codeField": "title"
+}

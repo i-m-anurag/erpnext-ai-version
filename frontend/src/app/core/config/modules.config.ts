@@ -87,6 +87,7 @@ const ALL_MODULES: ErpModule[] = [
       { slug: 'balance-sheet', name: 'Balance Sheet', icon: 'ph-scales' },
       { slug: 'payments', name: 'Payments', icon: 'ph-hand-coins' },
       { slug: 'journal-entries', name: 'Journal Entries', icon: 'ph-notebook' },
+      { slug: 'item-tax-templates', name: 'Item Tax Templates', icon: 'ph-percent' },
       { slug: 'payables', name: 'Payables', icon: 'ph-arrow-up-right' },
       { slug: 'receivables', name: 'Receivables', icon: 'ph-arrow-down-left' },
       { slug: 'fiscal-years', name: 'Fiscal Years', icon: 'ph-calendar' },
