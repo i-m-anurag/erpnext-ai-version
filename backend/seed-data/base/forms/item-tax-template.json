@@ -1,11 +1,10 @@
 {
   "slug": "item-tax-template",
-  "version": 1,
+  "version": 2,
   "title": "Item Tax Template",
   "layout": "two-column",
   "fields": [
     { "key": "title", "type": "text", "label": "Title", "required": true, "inList": true, "placeholder": "e.g. GST 18%", "validators": { "maxLength": 140 } },
-    { "key": "company", "type": "master-lookup", "label": "Company", "inList": true, "optionsSource": { "master": "company" } },
     { "key": "disabled", "type": "checkbox", "label": "Disabled" },
     {
       "key": "taxes",
