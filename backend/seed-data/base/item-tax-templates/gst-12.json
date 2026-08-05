@@ -1,1 +1,0 @@
-{ "title": "GST 12%", "taxes": [ { "taxAccount": "tax-payable", "taxRate": 12 } ] }

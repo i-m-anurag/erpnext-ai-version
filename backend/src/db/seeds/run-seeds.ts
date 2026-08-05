@@ -15,7 +15,6 @@ import { dashboardsSeeder } from './seeders/dashboards.seeder.js';
 import { integrationConfigSeeder } from './seeders/integration-config.seeder.js';
 import { namingSeriesSeeder } from './seeders/naming-series.seeder.js';
 import { accountsSeeder } from './seeders/accounts.seeder.js';
-import { itemTaxTemplatesSeeder } from './seeders/item-tax-templates.seeder.js';
 import { fiscalYearsSeeder } from './seeders/fiscal-years.seeder.js';
 import { adminBootstrapSeeder } from './seeders/admin-bootstrap.seeder.js';
 
@@ -38,7 +37,6 @@ const seeders: Seeder[] = [
   integrationConfigSeeder,
   namingSeriesSeeder,
   accountsSeeder,
-  itemTaxTemplatesSeeder,
   fiscalYearsSeeder,
   adminBootstrapSeeder,
 ];

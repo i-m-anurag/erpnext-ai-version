@@ -1,9 +1,16 @@
 {
   "slug": "item-tax-template",
   "name": "Item Tax Template",
-  "kind": "document",
+  "kind": "master",
   "managedBy": "ui",
   "editable": true,
   "formSlug": "item-tax-template",
-  "codeField": "title"
+  "codeField": "title",
+  "data": [
+    { "title": "GST 18%", "taxes": [{ "taxAccount": "tax-payable", "taxRate": 18, "notApplicable": false }] },
+    { "title": "GST 12%", "taxes": [{ "taxAccount": "tax-payable", "taxRate": 12, "notApplicable": false }] },
+    { "title": "GST 5%", "taxes": [{ "taxAccount": "tax-payable", "taxRate": 5, "notApplicable": false }] },
+    { "title": "GST 0% (Exempt)", "taxes": [{ "taxAccount": "tax-payable", "taxRate": 0, "notApplicable": false }] },
+    { "title": "Non-Taxable", "taxes": [{ "taxAccount": "tax-payable", "taxRate": null, "notApplicable": true }] }
+  ]
 }

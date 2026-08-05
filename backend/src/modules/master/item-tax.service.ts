@@ -1,5 +1,4 @@
 import { masterService } from './master.service.js';
-import { documentDataService } from '../document/document-data.service.js';
 
 /** One tax component of an Item Tax Template. */
 export interface TemplateTaxRow {
@@ -45,7 +44,7 @@ export class ItemTaxService {
     const cache = new Map<string, ResolvedItemTax['template']>();
     const load = async (title: string): Promise<ResolvedItemTax['template']> => {
       if (cache.has(title)) return cache.get(title)!;
-      const tpl = await documentDataService.getByCode('item-tax-template', title).catch(() => null);
+      const tpl = await masterService.getRecord('item-tax-template', title).catch(() => null);
       const resolved = tpl
         ? {
             title: String(tpl.data['title'] ?? tpl.code),
