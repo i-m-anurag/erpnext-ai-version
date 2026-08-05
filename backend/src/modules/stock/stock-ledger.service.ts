@@ -5,6 +5,17 @@ import { BadRequestError } from '../../shared/errors.js';
 import { ledgerSettingsService } from '../ledger/ledger-settings.service.js';
 
 /**
+ * Calendar day (`YYYY-MM-DD`) of a posting date. A posting date is a calendar date,
+ * not an instant, so the back-dating and freeze guards must compare days — comparing
+ * full millisecond instants wrongly rejects a same-day movement when a prior entry
+ * carries a later time-of-day (e.g. a value that crossed a timezone into 18:30Z).
+ */
+function dayOf(x: Date | string): string {
+  if (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x)) return x;
+  return new Date(x).toISOString().slice(0, 10);
+}
+
+/**
  * One requested stock movement — a single document LINE's effect on one warehouse.
  * `qty` is signed: positive receives into stock, negative issues out.
  * `rate` is the incoming unit cost and is REQUIRED for receipts (ignored on issues,
@@ -101,7 +112,7 @@ export class StockLedgerService {
   /** Reject a posting date inside a frozen period (shared with the financial ledger). */
   async assertNotFrozen(postingDate: Date | string): Promise<void> {
     const freeze = await ledgerSettingsService.freezeDate();
-    if (freeze && new Date(postingDate) <= freeze) {
+    if (freeze && dayOf(postingDate) <= dayOf(freeze)) {
       throw new BadRequestError(
         `posting date is in a frozen period (on/before ${freeze.toISOString().slice(0, 10)})`,
       );
@@ -126,10 +137,10 @@ export class StockLedgerService {
       [itemCode, warehouse],
     )) as { posting_date: Date }[];
     const last = rows[0]?.posting_date;
-    if (last && new Date(postingDate) < new Date(last)) {
+    if (last && dayOf(postingDate) < dayOf(last)) {
       throw new BadRequestError(
         `back-dated stock movement is not allowed: ${itemCode} @ ${warehouse} already has a movement on ` +
-          `${new Date(last).toISOString().slice(0, 10)}; post on or after that date`,
+          `${dayOf(last)}; post on or after that date`,
       );
     }
   }

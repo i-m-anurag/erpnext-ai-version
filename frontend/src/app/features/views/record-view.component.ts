@@ -23,6 +23,7 @@ import { IntegrationApiService, type ThreeWayMatchResult } from '../../core/api/
 import { ThreeWayMatchModalComponent } from '../integration/three-way-match-modal.component';
 import { ThreeWayMatchRefsModalComponent } from '../integration/three-way-match-refs-modal.component';
 import { ViewResolverService } from '../../core/config/view-resolver.service';
+import { parseDateValue, toCalendarDate } from '../../core/util/format';
 import { routeForMaster, type ResolvedView } from '../../core/config/view-configs';
 import { flattenDataFields, type FormFieldDef } from '../../core/models/api.models';
 import {
@@ -771,7 +772,7 @@ export class RecordViewComponent {
       } else if (f.type === 'number' && typeof v === 'string' && v.trim() !== '') {
         out[f.key] = Number(v);
       } else if (f.type === 'date' && v instanceof Date) {
-        out[f.key] = v.toISOString();
+        out[f.key] = toCalendarDate(v);
       }
     }
     return out;
@@ -782,7 +783,7 @@ export class RecordViewComponent {
     for (const c of columns) {
       const v = out[c.key];
       if (c.type === 'number' && typeof v === 'string' && v.trim() !== '') out[c.key] = Number(v);
-      else if (c.type === 'date' && v instanceof Date) out[c.key] = v.toISOString();
+      else if (c.type === 'date' && v instanceof Date) out[c.key] = toCalendarDate(v);
     }
     return out;
   }
@@ -793,18 +794,18 @@ export class RecordViewComponent {
     const out: Record<string, unknown> = { ...row };
     for (const f of flattenDataFields(cfg.form.fields)) {
       if (f.type === 'date' && typeof out[f.key] === 'string') {
-        out[f.key] = new Date(out[f.key] as string);
+        out[f.key] = parseDateValue(out[f.key]);
       } else if (f.type === 'table' && Array.isArray(out[f.key])) {
         const dateCols = (f.columns ?? []).filter((c) => c.type === 'date').map((c) => c.key);
         out[f.key] = (out[f.key] as Record<string, unknown>[]).map((r) => {
           const rr = { ...r };
-          for (const dc of dateCols) if (typeof rr[dc] === 'string') rr[dc] = new Date(rr[dc] as string);
+          for (const dc of dateCols) if (typeof rr[dc] === 'string') rr[dc] = parseDateValue(rr[dc]);
           return rr;
         });
       } else if (f.type === 'group' && out[f.key] && typeof out[f.key] === 'object') {
         const dateKeys = (f.fields ?? []).filter((s) => s.type === 'date').map((s) => s.key);
         const g = { ...(out[f.key] as Record<string, unknown>) };
-        for (const dk of dateKeys) if (typeof g[dk] === 'string') g[dk] = new Date(g[dk] as string);
+        for (const dk of dateKeys) if (typeof g[dk] === 'string') g[dk] = parseDateValue(g[dk]);
         out[f.key] = g;
       }
     }

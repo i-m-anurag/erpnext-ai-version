@@ -24,6 +24,13 @@ export interface Voucher {
 
 const d = (v: number | string | undefined): Decimal => new Decimal(v ?? 0);
 
+/** Calendar day (`YYYY-MM-DD`) of a posting date — the freeze guard compares days,
+ *  not instants, so a same-day post is not spuriously rejected by a time-of-day. */
+function dayOf(x: Date | string): string {
+  if (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x)) return x;
+  return new Date(x).toISOString().slice(0, 10);
+}
+
 /** The "against" summary for a line = the accounts on the opposite side. */
 function againstFor(line: PostingLine, lines: PostingLine[]): string {
   const isDebit = d(line.debit).gt(0);
@@ -44,7 +51,7 @@ export class LedgerService {
    *  document so a frozen-period submit fails BEFORE the document is written. */
   async assertNotFrozen(postingDate: Date | string): Promise<void> {
     const freeze = await ledgerSettingsService.freezeDate();
-    if (freeze && new Date(postingDate) <= freeze) {
+    if (freeze && dayOf(postingDate) <= dayOf(freeze)) {
       throw new BadRequestError(`posting date is in a frozen period (on/before ${freeze.toISOString().slice(0, 10)})`);
     }
   }
