@@ -156,6 +156,7 @@ export const BACKED_VIEWS: Record<string, { masterSlug: string }> = {
   'inventory/stock-entries': { masterSlug: 'stock-entry' },
   'finance/payments': { masterSlug: 'payment-entry' },
   'finance/journal-entries': { masterSlug: 'journal-entry' },
+  'finance/item-tax-templates': { masterSlug: 'item-tax-template' },
   'sales/orders': { masterSlug: 'sales-order' },
 };
 

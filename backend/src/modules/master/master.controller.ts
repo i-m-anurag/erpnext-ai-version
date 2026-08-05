@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { masterService } from './master.service.js';
+import { itemTaxService } from './item-tax.service.js';
 import { activityService } from '../activity/index.js';
 import { publish } from '../../queue/events.js';
 
@@ -26,7 +27,16 @@ export const masterController = {
     res.json({ rows: await masterService.listData(param(req, 'slug'), limit, offset) });
   },
   async getRecord(req: Request, res: Response): Promise<void> {
-    res.json({ row: await masterService.getRecord(param(req, 'slug'), param(req, 'code')) });
+    const slug = param(req, 'slug');
+    const code = param(req, 'code');
+    const row = await masterService.getRecord(slug, code);
+    // Opt-in expansion (kept slug-scoped so the generic path stays clean):
+    // ?expand=taxTemplates on an item embeds its resolved Item Tax Templates.
+    const expand = String(req.query.expand ?? '').split(',').map((s) => s.trim());
+    if (slug === 'item' && expand.includes('taxTemplates')) {
+      (row as unknown as { taxTemplates?: unknown }).taxTemplates = await itemTaxService.resolveForItem(code);
+    }
+    res.json({ row });
   },
   async createData(req: Request, res: Response): Promise<void> {
     const slug = param(req, 'slug');

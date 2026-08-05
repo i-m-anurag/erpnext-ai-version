@@ -1,6 +1,6 @@
 {
   "slug": "master-item",
-  "version": 2,
+  "version": 3,
   "title": "Item",
   "layout": "two-column",
   "fields": [
@@ -16,6 +16,18 @@
     { "key": "status", "type": "select", "label": "Status", "options": [
       { "value": "active", "label": "Active" },
       { "value": "inactive", "label": "Inactive" }
-    ] }
+    ] },
+    {
+      "key": "itemTaxes",
+      "type": "table",
+      "label": "Item Taxes",
+      "showRowActions": true,
+      "columns": [
+        { "key": "itemTaxTemplate", "type": "master-lookup", "label": "Item Tax Template", "required": true, "optionsSource": { "master": "item-tax-template" } },
+        { "key": "validFrom", "type": "date", "label": "Valid From" },
+        { "key": "minNetRate", "type": "number", "label": "Minimum Net Rate", "validators": { "min": 0 } },
+        { "key": "maxNetRate", "type": "number", "label": "Maximum Net Rate", "validators": { "min": 0 } }
+      ]
+    }
   ]
 }
