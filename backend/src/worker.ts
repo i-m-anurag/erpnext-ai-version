@@ -7,7 +7,8 @@ import { registerAllResourceTypes } from './db/seeds/register-resources.js';
 import { queueConnection } from './queue/connection.js';
 import { EMAIL_QUEUE, EVENT_QUEUE, type EmailJob } from './queue/queues.js';
 import type { DomainEvent } from './queue/events.js';
-import { emailService } from './modules/communication/index.js';
+import { emailService, notificationService } from './modules/communication/index.js';
+import { activityService } from './modules/activity/index.js';
 import { integrationLogService } from './modules/integration/index.js';
 import { env } from './config/env.js';
 
@@ -36,11 +37,25 @@ async function main(): Promise<void> {
   const eventWorker = new Worker<DomainEvent>(
     EVENT_QUEUE,
     async (job) => {
-      // Dispatcher seam: email triggers + assignment rules handle events here next.
-      logger.info(
-        { type: job.data.type, entity: job.data.entityType, record: job.data.recordId },
-        'worker: domain event',
-      );
+      const e = job.data;
+      logger.info({ type: e.type, entity: e.entityType, record: e.recordId }, 'worker: domain event');
+
+      // On a state change, tell the record's creator (requester) — in-app now; the
+      // email channel is logged only in this phase (dispatch is a TODO in NotificationService).
+      if (e.type === 'master.state_changed' && e.toState) {
+        const creatorId = await activityService.creatorOf(e.entityType, e.recordId);
+        if (creatorId) {
+          const context = { entityType: e.entityType, recordId: e.recordId, purpose: 'state_changed' };
+          await notificationService.notify({
+            channel: 'in_app',
+            recipients: [{ userId: creatorId }],
+            title: `${e.recordId} → ${e.toState}`,
+            body: `${e.entityType} ${e.recordId} moved from ${e.fromState ?? '?'} to ${e.toState}.`,
+            context,
+          });
+          // TODO(comms): also notify via email once the email channel dispatches.
+        }
+      }
     },
     { connection: queueConnection, concurrency: 5 },
   );
