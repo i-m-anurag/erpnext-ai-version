@@ -4,6 +4,7 @@ import { RouterLink, Router } from '@angular/router';
 import { QuillEditorComponent } from 'ngx-quill';
 import { TemplateApiService, type EmailTemplate } from '../../core/api/template.api.service';
 import { NotificationService } from '../../core/notify/notification.service';
+import { AuthStore } from '../../core/state/auth.store';
 
 /** Readable sample values for the live preview (declared vars → example text). */
 const SAMPLES: Record<string, string> = {
@@ -29,8 +30,10 @@ const SAMPLES: Record<string, string> = {
         <h4 class="mb-0">{{ slug() }}</h4>
       </div>
       <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-light text-danger" [disabled]="saving()" (click)="reset()"><i class="ph ph-arrow-counter-clockwise"></i> Reset to default</button>
-        <button class="btn btn-sm btn-primary" [disabled]="saving()" (click)="save()"><i class="ph ph-check"></i> {{ saving() ? 'Saving…' : 'Save' }}</button>
+        <button class="btn btn-sm btn-light" [disabled]="busy()" (click)="validate()"><i class="ph ph-seal-check"></i> Validate</button>
+        <button class="btn btn-sm btn-light" [disabled]="busy()" (click)="testSend()"><i class="ph ph-paper-plane-tilt"></i> Send test to me</button>
+        <button class="btn btn-sm btn-light text-danger" [disabled]="busy()" (click)="reset()"><i class="ph ph-arrow-counter-clockwise"></i> Reset to default</button>
+        <button class="btn btn-sm btn-primary" [disabled]="busy()" (click)="save()"><i class="ph ph-check"></i> {{ saving() ? 'Saving…' : 'Save' }}</button>
       </div>
     </div>
 
@@ -75,9 +78,12 @@ export class TemplateEditorComponent {
   private readonly api = inject(TemplateApiService);
   private readonly notify = inject(NotificationService);
   private readonly router = inject(Router);
+  private readonly authStore = inject(AuthStore);
 
   protected readonly loaded = signal(false);
   protected readonly saving = signal(false);
+  protected readonly sending = signal(false);
+  protected readonly busy = computed(() => this.saving() || this.sending());
   protected readonly subject = signal('');
   protected readonly html = signal('');
   protected readonly text = signal('');
@@ -128,6 +134,38 @@ export class TemplateEditorComponent {
   }
   protected readonly previewSubject = computed(() => this.substitute(this.subject()));
   protected readonly previewHtml = computed(() => this.substitute(this.html()));
+
+  /** The editor's current (possibly unsaved) content, for server validation/test. */
+  private currentDef(): { subject: string; html: string; text: string; variables: string[] } {
+    return { subject: this.subject(), html: this.html(), text: this.text(), variables: this.variables() };
+  }
+
+  /** Server-side validate: renders the current edits, surfacing any contract error
+   *  (missing declared var / undeclared {{placeholder}}) the client preview hides. */
+  protected validate(): void {
+    this.sending.set(true);
+    this.api.preview(this.slug(), this.currentDef()).subscribe({
+      next: () => { this.sending.set(false); this.notify.success('Valid — every placeholder resolves'); },
+      error: (e: { error?: { error?: { message?: string } } }) => {
+        this.sending.set(false);
+        this.notify.error(e?.error?.error?.message ?? 'Template has an error');
+      },
+    });
+  }
+
+  /** "Send test to me": render + log the intent for the signed-in user (no dispatch yet). */
+  protected testSend(): void {
+    const to = this.authStore.user()?.email;
+    if (!to) { this.notify.error('No email address on your account'); return; }
+    this.sending.set(true);
+    this.api.testSend(this.slug(), to, this.currentDef()).subscribe({
+      next: (r) => { this.sending.set(false); this.notify.success(`Test rendered & logged for ${r.to} (dispatch deferred)`); },
+      error: (e: { error?: { error?: { message?: string } } }) => {
+        this.sending.set(false);
+        this.notify.error(e?.error?.error?.message ?? 'Test send failed');
+      },
+    });
+  }
 
   protected save(): void {
     this.saving.set(true);

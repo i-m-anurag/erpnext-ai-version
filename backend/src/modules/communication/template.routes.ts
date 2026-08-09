@@ -15,6 +15,8 @@ export function buildTemplateRouter(): Router {
   router.get('/', requirePermission('communication', 'template.read'), asyncHandler(templateController.list));
   router.get('/:slug', requirePermission('communication', 'template.read'), asyncHandler(templateController.get));
   router.put('/:slug', requirePermission('communication', 'template.update'), asyncHandler(templateController.save));
+  router.post('/:slug/preview', requirePermission('communication', 'template.read'), asyncHandler(templateController.preview));
+  router.post('/:slug/test-send', requirePermission('communication', 'template.update'), asyncHandler(templateController.testSend));
   router.delete(
     '/:slug',
     requirePermission('communication', 'template.update'),

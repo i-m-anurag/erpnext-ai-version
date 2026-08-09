@@ -16,6 +16,12 @@ export interface TemplateSummary {
   variables: string[];
   resolvedFrom: string;
 }
+export interface RenderedTemplate {
+  subject: string;
+  html: string;
+  text?: string;
+}
+export type TemplateVars = Record<string, string | number>;
 
 /** UI CRUD over email templates (writes go to the custom scope). */
 @Injectable({ providedIn: 'root' })
@@ -33,5 +39,14 @@ export class TemplateApiService {
   }
   reset(slug: string): Observable<void> {
     return this.http.delete<{ ok: boolean }>(`/api/templates/${slug}`).pipe(map(() => undefined));
+  }
+  /** Server-validated render (enforces the variable contract). Pass `template` to
+   *  validate the editor's current, possibly unsaved, edits. */
+  preview(slug: string, template?: Partial<EmailTemplate>, vars: TemplateVars = {}): Observable<RenderedTemplate> {
+    return this.http.post<{ preview: RenderedTemplate }>(`/api/templates/${slug}/preview`, { template, vars }).pipe(map((r) => r.preview));
+  }
+  /** "Send test to me" — renders + logs the intent (dispatch deferred). */
+  testSend(slug: string, to: string, template?: Partial<EmailTemplate>, vars: TemplateVars = {}): Observable<RenderedTemplate & { to: string }> {
+    return this.http.post<{ result: RenderedTemplate & { to: string } }>(`/api/templates/${slug}/test-send`, { to, template, vars }).pipe(map((r) => r.result));
   }
 }
