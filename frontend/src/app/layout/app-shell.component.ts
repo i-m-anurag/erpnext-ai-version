@@ -6,6 +6,7 @@ import { AuthStore } from '../core/state/auth.store';
 import { BrandingService } from '../core/branding/branding.service';
 import { IntegrationSettingsService } from '../core/integration/integration-settings.service';
 import { findModule, MODULES, type ErpModule, type SubModule } from '../core/config/modules.config';
+import { NotificationBellComponent } from './notification-bell.component';
 
 /**
  * Authenticated shell with ONE context-aware sidebar:
@@ -17,7 +18,7 @@ import { findModule, MODULES, type ErpModule, type SubModule } from '../core/con
  */
 @Component({
   selector: 'erp-app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NotificationBellComponent],
   template: `
     <div class="erp-shell" [class.is-collapsed]="collapsed()">
       <aside class="erp-sidebar">
@@ -74,7 +75,7 @@ import { findModule, MODULES, type ErpModule, type SubModule } from '../core/con
           <span class="iq-cmd__kbd">⌘K</span>
         </div>
         <div class="d-flex align-items-center gap-3">
-          <button class="btn btn-sm btn-icon" title="Notifications"><i class="ph ph-bell"></i></button>
+          <erp-notification-bell />
           <div class="iq-user">
             <div class="iq-user__avatar">{{ initials() }}</div>
             <div class="iq-user__meta">
