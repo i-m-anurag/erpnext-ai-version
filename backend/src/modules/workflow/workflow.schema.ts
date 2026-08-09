@@ -9,6 +9,11 @@ import { z } from 'zod';
 export const workflowStateSchema = z.object({
   name: z.string().min(1),
   color: z.string().optional(),
+  /** Action names allowed while the record is in this state (buttons the record view
+   *  shows). Absent = no per-state restriction (all role/state-matched actions show). */
+  allow: z.array(z.string()).optional(),
+  /** When true, the field form is read-only in this state (edits go via actions only). */
+  formReadOnly: z.boolean().optional(),
 });
 
 export type ConditionValue = string | number | boolean | null;
@@ -54,6 +59,11 @@ export const ruleSchema = z.object({
     fromState: z.string().nullable().optional(),
     /** role codes allowed to trigger; empty = any authenticated user */
     roles: z.array(z.string()).default([]),
+    /** when true, only the record's current open assignee may fire this action */
+    requiresAssignee: z.boolean().optional(),
+    /** when false, the record's creator (requester) may NOT fire this action
+     *  (mirrors ERPNext "Allow Self Approval"). Absent/true = self-approval allowed. */
+    allowSelfApproval: z.boolean().optional(),
   }),
   branches: z.array(branchSchema).default([]),
 });
@@ -64,6 +74,9 @@ export const workflowDefinitionSchema = z.object({
   startState: z.string().min(1),
   states: z.array(workflowStateSchema).min(1),
   rules: z.array(ruleSchema).default([]),
+  /** States in which the field form may be edited/saved. Absent = no restriction
+   *  (backward-compatible); e.g. ["Draft"] locks the record once it is submitted. */
+  editableStates: z.array(z.string()).optional(),
 });
 
 export type WorkflowDefinition = z.infer<typeof workflowDefinitionSchema>;
