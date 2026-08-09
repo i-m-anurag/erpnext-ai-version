@@ -76,6 +76,11 @@ async function runAssign(action: Extract<RuleAction, { type: 'assign' }>, ctx: A
       assigneeUserId: assignee,
       status: 'open',
       ruleName: ctx.ruleName,
+      // Context for the audit trail: assigned AS this role, in the record's current
+      // state, BY the acting user (see assignment.entity / AssignmentService).
+      role: action.role ?? null,
+      state: ctx.row.state,
+      assignedByUserId: ctx.actorUserId,
     }),
   );
   const name = await nameOf(assignee);

@@ -3,6 +3,7 @@
   "permissions": [
     { "action": "view", "description": "View a record's workflow state and available actions" },
     { "action": "transition", "description": "Perform workflow transitions (role/condition enforced per transition)" },
-    { "action": "configure", "description": "Create and edit workflow definitions (the configurator)" }
+    { "action": "configure", "description": "Create and edit workflow definitions (the configurator)" },
+    { "action": "assignment.reassign", "description": "Reassign an open workflow assignment to another user" }
   ]
 }
