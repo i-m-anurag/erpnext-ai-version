@@ -8,8 +8,8 @@ import { buildPermissionRouter, permissionService } from './modules/permission/i
 import { buildFormRouter, buildPublicFormRouter } from './modules/form/index.js';
 import { buildMasterRouter } from './modules/master/index.js';
 import { buildActivityRouter } from './modules/activity/index.js';
-import { buildWorkflowRouter, buildWorkflowAdminRouter } from './modules/workflow/index.js';
-import { buildTemplateRouter } from './modules/communication/index.js';
+import { buildWorkflowRouter, buildWorkflowAdminRouter, buildAssignmentRouter } from './modules/workflow/index.js';
+import { buildTemplateRouter, buildNotificationRouter } from './modules/communication/index.js';
 import { buildDocumentRouter } from './modules/document/index.js';
 import { buildNamingRouter } from './modules/naming/index.js';
 import { buildAccountRouter } from './modules/accounts/index.js';
@@ -88,9 +88,13 @@ export function registerRoutes(app: Express): void {
   app.use('/api/workflow', buildWorkflowRouter());
   // Workflow definition management (the configurator).
   app.use('/api/workflow-defs', buildWorkflowAdminRouter());
+  // Assignments (the "My Work" worklist + record history). Gated by auth; reassign by workflow:*.
+  app.use('/api/assignments', buildAssignmentRouter());
 
   // Communication — email-template management. Gated by auth + communication:* perms.
   app.use('/api/templates', buildTemplateRouter());
+  // In-app notification feed (the bell). Self-scoped to the caller.
+  app.use('/api/notifications', buildNotificationRouter());
 
   // Document chaining (lineage + create-next). Gated by auth + master:* perms.
   app.use('/api/documents', buildDocumentRouter());

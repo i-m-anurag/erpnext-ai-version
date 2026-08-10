@@ -1,4 +1,3 @@
-import { activityService } from '../../activity/index.js';
 import { documentService } from '../../document/document.service.js';
 import { documentDataService } from '../../document/document-data.service.js';
 import type { FormController } from '../form-controller.js';
@@ -8,6 +7,10 @@ import type { FormController } from '../form-controller.js';
  * propagation that advances a Material Request's status: when a PO (created from a
  * requisition) is saved, the requisition's `orderedQty` is recomputed and its own
  * controller re-derives its status (Pending → Partially Ordered → Ordered).
+ *
+ * No `computeStatus` here on purpose: the PO's `state` is owned by its workflow
+ * (Draft → Pending Approval → Approved/Rejected). A derived label would write the
+ * same `state` column and shadow the workflow's start state, so we don't.
  */
 export const purchaseOrderController: FormController = {
   /** Keep the header `amount` in sync with the line items before persisting. */
@@ -22,17 +25,9 @@ export const purchaseOrderController: FormController = {
     }
   },
 
-  /** Derive the business status shown on the record. */
-  computeStatus(doc) {
-    if (doc.status === 'draft') return 'Draft';
-    const amount = Number(doc.data['amount'] ?? 0);
-    return amount > 100000 ? 'High Value' : 'Standard';
-  },
-
-  /** Log the outcome, then push ordered quantities up to any source requisition. */
+  /** Push ordered quantities up to any source requisition (workflow logs state changes itself). */
   async afterSave(doc) {
     if (doc.status === 'draft') return;
-    await activityService.addTimeline(doc.slug, doc.code, 'state_changed', `Status set to ${doc.state}`, null);
     await propagateOrderedToRequisitions(doc.code);
   },
 };

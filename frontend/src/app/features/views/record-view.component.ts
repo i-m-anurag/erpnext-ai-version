@@ -77,12 +77,14 @@ const KIND_ICON: Record<TimelineKind, string> = {
           }
         }
         <button class="btn btn-sm btn-ai"><i class="ph ph-sparkle"></i> Ask IQ</button>
-        <button class="btn btn-sm btn-light" [disabled]="saving()" (click)="saveDraft()">
-          <i class="ph ph-floppy-disk"></i> Save as Draft
-        </button>
-        <button class="btn btn-sm btn-primary" [disabled]="saving()" (click)="submit()">
-          <i class="ph ph-check"></i> {{ saving() ? 'Saving…' : 'Submit' }}
-        </button>
+        @if (!formLocked()) {
+          <button class="btn btn-sm btn-light" [disabled]="saving()" (click)="saveDraft()">
+            <i class="ph ph-floppy-disk"></i> Save as Draft
+          </button>
+          <button class="btn btn-sm btn-primary" [disabled]="saving()" (click)="submit()">
+            <i class="ph ph-check"></i> {{ saving() ? 'Saving…' : 'Submit' }}
+          </button>
+        }
       </div>
     </div>
 
@@ -128,13 +130,20 @@ const KIND_ICON: Record<TimelineKind, string> = {
             </div>
           }
         </div>
-        @if (w.actions.length) {
-          <div class="d-flex gap-2 mb-3 align-items-center">
-            <span class="text-muted small">Actions:</span>
-            @for (a of w.actions; track a.action) {
-              <button class="btn btn-sm btn-primary" [disabled]="transitioning()" (click)="doTransition(a.action)">
-                {{ a.action }}
-              </button>
+        @if (w.actions.length || w.activeAssignee) {
+          <div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
+            @if (w.actions.length) {
+              <span class="text-muted small">Actions:</span>
+              @for (a of w.actions; track a.action) {
+                <button class="btn btn-sm btn-primary" [disabled]="transitioning()" (click)="doTransition(a.action)">
+                  {{ a.action }}
+                </button>
+              }
+            }
+            @if (w.activeAssignee; as who) {
+              <span class="iq-badge iq-badge--default ms-auto">
+                <i class="ph ph-user"></i> Assigned to {{ who.name }}{{ w.isAssignee ? ' (you)' : '' }}
+              </span>
             }
           </div>
         }
@@ -144,7 +153,14 @@ const KIND_ICON: Record<TimelineKind, string> = {
     <div class="iq-record" [class.iq-record--full]="!railOpen()">
       <div class="iq-record__main erp-card p-4">
         @if (group(); as g) {
-          <erp-dynamic-form [config]="cfg.form" [group]="g" />
+          @if (formLocked()) {
+            <div class="d-flex align-items-center gap-2 mb-3 text-muted small">
+              <i class="ph ph-lock-simple"></i> Read-only in this workflow state — use the actions above to proceed.
+            </div>
+          }
+          <fieldset [disabled]="formLocked()" class="iq-record__fieldset">
+            <erp-dynamic-form [config]="cfg.form" [group]="g" />
+          </fieldset>
         } @else {
           <div class="text-muted small"><i class="ph ph-circle-notch"></i> Loading record…</div>
         }
@@ -299,6 +315,9 @@ const KIND_ICON: Record<TimelineKind, string> = {
     }
   `,
   styles: [`
+    /* reset native fieldset chrome so it wraps the form transparently */
+    .iq-record__fieldset { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
+    .iq-record__fieldset[disabled] { opacity: 0.7; }
     .btn-xs { padding: 2px 8px; font-size: 0.75rem; line-height: 1.3; }
     .iq-gl { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
     .iq-gl th { text-align: left; font-weight: 500; color: var(--erp-text-muted); padding: 2px 0; font-size: 0.72rem; text-transform: uppercase; }
@@ -350,6 +369,8 @@ export class RecordViewComponent {
 
   protected readonly wf = signal<WorkflowStatus | undefined>(undefined);
   protected readonly transitioning = signal(false);
+  /** The workflow makes the field form read-only in the current state (Step 2 gating). */
+  protected readonly formLocked = computed<boolean>(() => this.wf()?.formReadOnly === true);
 
   protected readonly related = signal<RelatedDoc[]>([]);
   protected readonly glEntries = signal<GlVoucherEntry[]>([]);

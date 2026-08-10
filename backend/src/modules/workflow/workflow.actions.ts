@@ -4,8 +4,10 @@ import { env } from '../../config/env.js';
 import { enqueueEmail } from '../../queue/queues.js';
 import { activityService } from '../activity/index.js';
 import { permissionService } from '../permission/index.js';
+import { notificationService } from '../communication/index.js';
 import { User } from '../auth/user.entity.js';
 import { Assignment } from './assignment.entity.js';
+import { assignmentService } from './assignment.service.js';
 import type { RuleAction } from './workflow.schema.js';
 
 const assignments = new BaseRepository(Assignment);
@@ -76,10 +78,37 @@ async function runAssign(action: Extract<RuleAction, { type: 'assign' }>, ctx: A
       assigneeUserId: assignee,
       status: 'open',
       ruleName: ctx.ruleName,
+      // Context for the audit trail: assigned AS this role, in the record's current
+      // state, BY the acting user (see assignment.entity / AssignmentService).
+      role: action.role ?? null,
+      state: ctx.row.state,
+      assignedByUserId: ctx.actorUserId,
     }),
   );
-  const name = await nameOf(assignee);
+  const user = await users.findById(assignee);
+  const name = user?.displayName ?? user?.username ?? 'user';
   await activityService.addTimeline(ctx.entityType, ctx.recordId, 'assigned', `Assigned to ${name}`, ctx.actorUserId);
+
+  // Notify the new assignee. In-app is live; the email channel is logged only in
+  // this phase (dispatch is a TODO inside NotificationService).
+  const context = { entityType: ctx.entityType, recordId: ctx.recordId, purpose: 'assigned' };
+  await notificationService.notify({
+    channel: 'in_app',
+    recipients: [{ userId: assignee }],
+    title: `You've been assigned ${ctx.recordId}`,
+    body: `${ctx.entityType} ${ctx.recordId} is now with you${ctx.row.state ? ` (${ctx.row.state})` : ''}.`,
+    context,
+  });
+  if (user?.email) {
+    await notificationService.notify({
+      channel: 'email',
+      recipients: [{ email: user.email }],
+      template: 'record-assigned',
+      title: `You've been assigned ${ctx.recordId}`,
+      vars: buildVars(ctx),
+      context,
+    });
+  }
 }
 
 async function runEmail(action: Extract<RuleAction, { type: 'email' }>, ctx: ActionContext): Promise<void> {
@@ -106,6 +135,12 @@ async function resolveRecipients(tokens: string[], ctx: ActionContext): Promise<
     if (tok.startsWith('role:')) {
       const ids = await permissionService.userIdsWithRoleCode(tok.slice(5));
       out.push(...(await emailsOf(ids)));
+    } else if (tok === 'assignee') {
+      const id = await assignmentService.activeAssignee(ctx.entityType, ctx.recordId);
+      if (id) out.push(...(await emailsOf([id])));
+    } else if (tok === 'requester') {
+      const id = await activityService.creatorOf(ctx.entityType, ctx.recordId);
+      if (id) out.push(...(await emailsOf([id])));
     } else if (tok.startsWith('{{') && tok.endsWith('}}')) {
       const field = tok.slice(2, -2).replace(/^doc\./, '').trim();
       const v = ctx.row.data[field];
@@ -130,10 +165,6 @@ function buildVars(ctx: ActionContext): Record<string, string | number> {
   return out;
 }
 
-async function nameOf(userId: string): Promise<string> {
-  const u = await users.findById(userId);
-  return u?.displayName ?? u?.username ?? 'user';
-}
 async function emailsOf(ids: string[]): Promise<string[]> {
   if (ids.length === 0) return [];
   const rows = await users.find({ where: { id: In(ids) } });

@@ -2,11 +2,12 @@
   "slug": "purchase-order",
   "appliesTo": "purchase-order",
   "startState": "Draft",
+  "editableStates": ["Draft"],
   "states": [
-    { "name": "Draft", "color": "#6b7280" },
-    { "name": "Pending Approval", "color": "#f59e0b" },
-    { "name": "Approved", "color": "#22c55e" },
-    { "name": "Rejected", "color": "#ef4444" }
+    { "name": "Draft", "color": "#6b7280", "allow": ["Submit"] },
+    { "name": "Pending Approval", "color": "#f59e0b", "allow": ["Approve", "Reject"], "formReadOnly": true },
+    { "name": "Approved", "color": "#22c55e", "allow": [], "formReadOnly": true },
+    { "name": "Rejected", "color": "#ef4444", "allow": ["Reopen"], "formReadOnly": true }
   ],
   "rules": [
     {
@@ -28,7 +29,7 @@
     },
     {
       "name": "Approve",
-      "trigger": { "on": "action", "action": "Approve", "fromState": "Pending Approval", "roles": ["admin"] },
+      "trigger": { "on": "action", "action": "Approve", "fromState": "Pending Approval", "roles": ["admin"], "requiresAssignee": true },
       "branches": [
         {
           "conditions": [],
@@ -41,7 +42,7 @@
     },
     {
       "name": "Reject",
-      "trigger": { "on": "action", "action": "Reject", "fromState": "Pending Approval", "roles": ["admin"] },
+      "trigger": { "on": "action", "action": "Reject", "fromState": "Pending Approval", "roles": ["admin"], "allowSelfApproval": false },
       "branches": [{ "conditions": [], "actions": [{ "type": "set_state", "to": "Rejected" }] }]
     },
     {

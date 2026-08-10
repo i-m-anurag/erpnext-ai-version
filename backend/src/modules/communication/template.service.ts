@@ -5,6 +5,17 @@ import { configResolver } from '../config/index.js';
 import { EMAIL_TEMPLATE_RESOURCE_TYPE } from './email-template.resource.js';
 import { emailTemplateSchema, type EmailTemplate } from './email-template.schema.js';
 import { renderTemplate, type TemplateVars } from './email-template.service.js';
+import { notificationService } from './notification.service.js';
+
+/** Readable sample values for previews/test-sends (declared var → example). */
+const SAMPLES: Record<string, string> = {
+  appName: 'IQ-SMART ERP',
+  userName: 'Alex Morgan',
+  recordId: 'PO-2026-0001',
+  state: 'Approved',
+  link: 'https://app.example.com/set-password?token=…',
+  expiryHours: '24',
+};
 
 export interface TemplateSummary {
   slug: string;
@@ -72,6 +83,46 @@ export class TemplateService {
   /** Server-side render preview for given variables (mirrors what gets sent). */
   preview(def: EmailTemplate, vars: TemplateVars): { subject: string; html: string; text?: string } {
     return renderTemplate(def, vars);
+  }
+
+  /** Sample values for a template's declared variables (readable placeholders). */
+  private sampleVars(def: EmailTemplate): TemplateVars {
+    const out: TemplateVars = {};
+    for (const v of def.variables) out[v] = SAMPLES[v] ?? `‹${v}›`;
+    return out;
+  }
+
+  /**
+   * Render a template exactly as it would be sent — the SERVER render, which
+   * enforces the variable contract (throws on a missing declared var or an
+   * undeclared `{{placeholder}}`). Missing declared vars are auto-filled with
+   * sample values; caller-supplied `vars` override them. Catches broken
+   * placeholders before they can reach production.
+   */
+  async renderPreview(slug: string, vars: TemplateVars = {}, def?: EmailTemplate): Promise<{ subject: string; html: string; text?: string }> {
+    const d = def ?? (await configResolver.resolve<EmailTemplate>(EMAIL_TEMPLATE_RESOURCE_TYPE, slug)).definition;
+    return renderTemplate(d, { ...this.sampleVars(d), ...vars });
+  }
+
+  /**
+   * "Send test to me": render the template (validating the contract) and record
+   * the intent in notification_log. Actual dispatch is deferred (the email channel
+   * is logged-only in this phase — see NotificationService); the rendered output
+   * is returned so the caller can show exactly what would go out.
+   */
+  async testSend(slug: string, to: string, vars: TemplateVars = {}, def?: EmailTemplate): Promise<{ subject: string; html: string; text?: string; to: string; dispatched: false }> {
+    const d = def ?? (await configResolver.resolve<EmailTemplate>(EMAIL_TEMPLATE_RESOURCE_TYPE, slug)).definition;
+    const merged = { ...this.sampleVars(d), ...vars };
+    const rendered = renderTemplate(d, merged); // throws on any contract violation
+    // Log the intent (no purpose → not de-duplicated, so repeated test-sends all record).
+    await notificationService.notify({
+      channel: 'email',
+      recipients: [{ email: to }],
+      template: slug,
+      title: rendered.subject,
+      vars: merged,
+    });
+    return { ...rendered, to, dispatched: false };
   }
 }
 

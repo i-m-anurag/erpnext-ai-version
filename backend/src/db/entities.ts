@@ -17,6 +17,8 @@ import { LedgerSettings } from '../modules/ledger/ledger-settings.entity.js';
 import { StockLedgerEntry } from '../modules/stock/stock-ledger-entry.entity.js';
 import { FiscalYear } from '../modules/ledger/fiscal-year.entity.js';
 import { ApiCallLog } from '../modules/integration/api-call-log.entity.js';
+import { NotificationLog } from '../modules/communication/notification-log.entity.js';
+import { Notification } from '../modules/communication/notification.entity.js';
 
 /**
  * Explicit entity registry. Listed by import (not a filesystem glob) so the
@@ -43,4 +45,6 @@ export const entities = [
   StockLedgerEntry,
   FiscalYear,
   ApiCallLog,
+  NotificationLog,
+  Notification,
 ];

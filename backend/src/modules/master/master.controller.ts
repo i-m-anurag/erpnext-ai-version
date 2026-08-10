@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { masterService } from './master.service.js';
 import { itemTaxService } from './item-tax.service.js';
+import { workflowService } from '../workflow/index.js';
 import { activityService } from '../activity/index.js';
 import { publish } from '../../queue/events.js';
 
@@ -49,6 +50,9 @@ export const masterController = {
   async updateData(req: Request, res: Response): Promise<void> {
     const slug = param(req, 'slug');
     const draft = req.query.draft === 'true';
+    // Workflow-owned editability: reject edits when the record's state is not editable
+    // (enforced at the API boundary so internal service cascades still work).
+    await workflowService.assertEditable(slug, param(req, 'id'));
     const row = await masterService.updateData(slug, param(req, 'id'), body(req), draft);
     await activityService.addTimeline(slug, row.code, 'updated', draft ? 'Saved as draft' : 'Record updated', req.auth?.userId ?? null);
     await publish({ type: 'master.updated', entityType: slug, recordId: row.code, actorUserId: req.auth?.userId ?? null });

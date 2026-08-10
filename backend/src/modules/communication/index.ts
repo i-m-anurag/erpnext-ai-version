@@ -12,3 +12,5 @@ export {
 export { emailTemplateSchema, type EmailTemplate } from './email-template.schema.js';
 export { templateService } from './template.service.js';
 export { buildTemplateRouter } from './template.routes.js';
+export { notificationService, type NotifyInput, type NotifyRecipient } from './notification.service.js';
+export { buildNotificationRouter } from './notification.routes.js';

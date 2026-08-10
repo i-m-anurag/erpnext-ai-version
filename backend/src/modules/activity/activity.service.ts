@@ -49,6 +49,16 @@ export class ActivityService {
     }));
   }
 
+  /** The user who created the record — the actor of its earliest `created` timeline
+   *  entry — or null if unknown. Used for workflow self-approval gating. */
+  async creatorOf(entityType: string, recordId: string): Promise<string | null> {
+    const row = await this.timeline.findOne(
+      { entityType, recordId, kind: 'created' },
+      { order: { createdAt: 'ASC' } },
+    );
+    return row?.actorUserId ?? null;
+  }
+
   async addTimeline(
     entityType: string,
     recordId: string,
